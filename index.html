@@ -6129,6 +6129,91 @@ function AttendancePDFModal({data,section,onClose}){
   );
 }
 
+// ── CLASS PHOTO VIEW ──
+function ClassPhotoView({data,teacherMode,onObsPopup,onClose,updateData}){
+  const [quickObs,setQuickObs]=React.useState(null); // {studentIdx}
+  const [obsText,setObsText]=React.useState('');
+
+  function handleSaveQuickObs(studentIdx){
+    if(!obsText.trim()){setQuickObs(null);return;}
+    updateData(d=>{
+      if(!d.students[studentIdx].observations)d.students[studentIdx].observations=[];
+      d.students[studentIdx].observations.push({text:obsText.trim(),date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),tags:[],thumb:null});
+    });
+    setObsText('');setQuickObs(null);
+  }
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'var(--bg)',zIndex:200,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 20px',borderBottom:'1px solid var(--glass-border)',background:'var(--glass-bg)',backdropFilter:'blur(12px)',flexShrink:0}}>
+        <div style={{fontFamily:"'Fraunces',serif",fontSize:18,fontWeight:700,color:'var(--tx)'}}>Class Photo View</div>
+        <div style={{fontSize:12,color:'var(--tx3)'}}>Tap photo to add observation</div>
+        <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'4px 8px'}}>✕</button>
+      </div>
+
+      {/* Grid */}
+      <div style={{flex:1,overflowY:'auto',padding:16,display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:12,alignContent:'start'}}>
+        {data.students.map((st,idx)=>{
+          const obs=st.observations||[];
+          const lastObs=obs.length?obs[obs.length-1]:null;
+          const isFlipped=quickObs&&quickObs.studentIdx===idx;
+
+          return(
+            <div key={idx} style={{perspective:800}}>
+              <div style={{
+                position:'relative',width:'100%',paddingBottom:'120%',
+                transformStyle:'preserve-3d',transition:'transform 0.4s ease',
+                transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',
+                cursor:'pointer'
+              }} onClick={()=>{if(!isFlipped){setQuickObs({studentIdx:idx});setObsText('');}else{setQuickObs(null);}}}>
+
+                {/* FRONT — photo + name + obs badge */}
+                <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
+                  background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:14,
+                  overflow:'hidden',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end',padding:0}}>
+                  {st.photo
+                    ?<img src={st.photo} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}} draggable={false}/>
+                    :<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:36,background:'var(--glass-bg3)'}}>👤</div>
+                  }
+                  {/* Name bar */}
+                  <div style={{position:'relative',zIndex:2,width:'100%',padding:'20px 6px 6px',background:'linear-gradient(transparent,rgba(0,0,0,0.7))',textAlign:'center'}}>
+                    <div style={{fontSize:11,fontWeight:700,color:'#fff',lineHeight:1.2,textShadow:'0 1px 3px rgba(0,0,0,0.8)'}}>{st.name}</div>
+                    {obs.length>0&&<div style={{fontSize:9,color:'rgba(255,255,255,0.7)',marginTop:2}}>{obs.length} obs</div>}
+                  </div>
+                  {/* Obs indicator dot */}
+                  {obs.length>0&&<div style={{position:'absolute',top:6,right:6,width:8,height:8,borderRadius:'50%',background:'var(--teal)',zIndex:3}}/>}
+                </div>
+
+                {/* BACK — quick obs entry */}
+                <div onClick={e=>e.stopPropagation()} style={{position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
+                  transform:'rotateY(180deg)',background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',
+                  borderRadius:14,padding:10,display:'flex',flexDirection:'column',gap:8}}>
+                  <div style={{fontSize:11,fontWeight:700,color:'var(--tx)',lineHeight:1.2}}>{st.name}</div>
+                  {lastObs&&<div style={{fontSize:9,color:'var(--tx3)',fontStyle:'italic',lineHeight:1.3,flex:1,overflow:'hidden'}}>Last: {lastObs.text}</div>}
+                  <textarea
+                    value={obsText}
+                    onChange={e=>setObsText(e.target.value)}
+                    onClick={e=>e.stopPropagation()}
+                    placeholder="Quick note…"
+                    rows={3}
+                    style={{width:'100%',resize:'none',fontSize:10,padding:'4px 6px',borderRadius:6,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',boxSizing:'border-box'}}
+                  />
+                  <div style={{display:'flex',gap:4}}>
+                    <button onClick={()=>handleSaveQuickObs(idx)} style={{flex:1,padding:'4px 0',borderRadius:6,border:'none',background:'var(--teal)',color:'#fff',fontSize:10,fontWeight:700,cursor:'pointer'}}>Save</button>
+                    <button onClick={e=>{e.stopPropagation();setQuickObs(null);}} style={{flex:1,padding:'4px 0',borderRadius:6,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',fontSize:10,cursor:'pointer'}}>Back</button>
+                  </div>
+                  {teacherMode&&<button onClick={e=>{e.stopPropagation();setQuickObs(null);onObsPopup(idx);}} style={{width:'100%',padding:'4px 0',borderRadius:6,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',fontSize:9,cursor:'pointer'}}>Full obs →</button>}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AddSessionModal({phases,onAdd,onClose}){
   const [dateStr,setDateStr]=React.useState('');
   const [rawDate,setRawDate]=React.useState('');
@@ -6444,6 +6529,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const [obsPopup,setObsPopup]=React.useState(null);
   const [namePopup,setNamePopup]=React.useState(null);
   const [addSessionOpen,setAddSessionOpen]=React.useState(false);
+  const [showPhotoView,setShowPhotoView]=React.useState(false);
   const [linkPickerFor,setLinkPickerFor]=React.useState(null);
   const [slideOpen,setSlideOpen]=React.useState(false);
   const [slideExpanded,setSlideExpanded]=React.useState(false);
@@ -6641,7 +6727,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
             </div>
           </div>
           <div style={{display:'flex',gap:6,alignItems:'center'}}>
-            {teacherMode&&<button className="roster-btn" onClick={()=>setShowAttPDF(true)}>📥 Att. PDF</button>}
+            
             {teacherMode&&<button className="roster-btn" onClick={()=>setShowGenPIN(true)}>🔐 Sub PIN</button>}
             {teacherMode&&<button className="roster-btn" onClick={()=>setShowClassReview(true)}>📝 Class Review</button>}
             {teacherMode&&<button className="roster-btn" style={editMode?{color:'var(--teal)',borderColor:'rgba(59,191,160,0.4)',background:'rgba(59,191,160,0.08)'}:{}} onClick={()=>setEditMode(v=>!v)}>{editMode?'✓ Done Editing':'✏️ Edit'}</button>}
@@ -6659,6 +6745,8 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
           <div className="roster-actions">
             {teacherMode&&editMode&&<button className="roster-btn" onClick={()=>updateData(d=>{d.students.push({name:'New Student',artfilePending:true,observations:[],attendance:{}});})}>+ Student</button>}
             {teacherMode&&<button className="add-session-btn" onClick={()=>setAddSessionOpen(true)}>+ Date</button>}
+            {teacherMode&&<button className="add-session-btn" onClick={()=>setShowAttPDF(true)} title="Download Attendance PDF" style={{padding:'5px 10px',fontSize:13}}>⤓ PDF</button>}
+            <button className="add-session-btn" onClick={()=>setShowPhotoView(true)} title="Class Photo View" style={{padding:'5px 10px',fontSize:13}}>🪪 Class View</button>
           </div>
         </div>
 
@@ -7000,6 +7088,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
           totalStudents={data.students.length}
           onClose={()=>setNamePopup(null)}/>
       )}
+      {showPhotoView&&<ClassPhotoView data={data} teacherMode={teacherMode} updateData={updateData} onObsPopup={(idx)=>{setShowPhotoView(false);setObsPopup({studentIdx:idx});}} onClose={()=>setShowPhotoView(false)}/>}
       {addSessionOpen&&<AddSessionModal phases={phases} onAdd={(sess)=>{
         updateData(d=>{
           d.sessions.push(sess);
