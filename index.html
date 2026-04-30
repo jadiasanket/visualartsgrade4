@@ -6130,15 +6130,9 @@ function AttendancePDFModal({data,section,onClose}){
 }
 
 // ── CLASS PHOTO VIEW ──
-function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,cycleAtt,lastSessionIdx,getObsColor}){
+function ClassPhotoView({data,teacherMode,onObsPopup,onClose,updateData,cycleAtt,lastSessionIdx}){
   const [flipped,setFlipped]=React.useState(null);
   const [savedTag,setSavedTag]=React.useState(null);
-  const [sbLeft,setSbLeft]=React.useState(236);
-
-  React.useEffect(()=>{
-    const sb=document.querySelector('.sidebar');
-    if(sb){setSbLeft(sb.getBoundingClientRect().width);}
-  },[]);
 
   function handleTagSave(studentIdx,tag){
     updateData(d=>{
@@ -6156,71 +6150,67 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
 
   const attColors={present:'var(--teal)',absent:'var(--coral)',late:'var(--yellow)',empty:'rgba(255,255,255,0.15)'};
   const attLabels={present:'P',absent:'A',late:'L',empty:'–'};
-  const progColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)',empty:'rgba(255,255,255,0.18)'};
-  const progEmoji={green:'●',yellow:'●',red:'●',empty:'○'};
 
   return ReactDOM.createPortal(
-    <div style={{position:'fixed',top:0,left:sbLeft,right:0,bottom:0,zIndex:99999,background:'var(--bg-solid)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 18px',borderBottom:'1px solid var(--glass-border)',background:'var(--glass-bg2)',backdropFilter:'blur(24px)',flexShrink:0}}>
-        <div style={{fontFamily:"'Fraunces',serif",fontSize:17,fontWeight:700,color:'var(--tx)'}}>{section&&section.icon?section.icon+' ':''}{section?section.name:'Class Photo View'}</div>
-        <div style={{fontSize:11,color:'var(--tx3)'}}>Tap card to flip · Tap badge to cycle attendance</div>
+    <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',zIndex:99999,background:'var(--bg)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 18px',borderBottom:'1px solid var(--glass-border)',background:'var(--glass-bg2)',flexShrink:0}}>
+        <div style={{fontFamily:"'Fraunces',serif",fontSize:17,fontWeight:700,color:'var(--tx)'}}>🪪 Class Photo View</div>
+        <div style={{fontSize:11,color:'var(--tx3)'}}>Tap card to tag · Tap badge to cycle attendance</div>
         <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'4px 10px',borderRadius:8}}>✕</button>
       </div>
-      <div style={{flex:1,overflowY:'auto',padding:'18px 20px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:14,alignContent:'start'}}>
+      <div style={{flex:1,overflowY:'auto',padding:'14px 12px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(148px,1fr))',gap:10,alignContent:'start'}}>
         {data.students.map((st,idx)=>{
           const obs=st.observations||[];
           const isFlipped=flipped===idx;
           const attVal=(lastSessionIdx!=null&&st.attendance)?st.attendance[lastSessionIdx]||'empty':'empty';
           const flash=savedTag&&savedTag.idx===idx;
-          const progColor=getObsColor?getObsColor(st):'empty';
           return(
-            <div key={idx} style={{height:260,borderRadius:16,overflow:'hidden',position:'relative',border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,background:'var(--glass-bg2)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
+            <div key={idx} style={{height:190,borderRadius:14,overflow:'hidden',position:'relative',border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,background:'var(--glass-bg2)'}}>
               {/* FRONT */}
-              <div style={{position:'absolute',inset:0,display:isFlipped?'none':'flex',flexDirection:'column',cursor:'pointer'}} onClick={()=>setFlipped(idx)}>
-                <div style={{flex:1,position:'relative',overflow:'hidden'}}>
-                  {st.photo
-                    ?<img src={st.photo} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} draggable={false}/>
-                    :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:52,background:'var(--glass-bg3)'}}>👤</div>
-                  }
-                  {/* Attendance badge — front only */}
-                  {lastSessionIdx!=null&&(
-                    <div onClick={e=>{e.stopPropagation();cycleAtt(idx,lastSessionIdx);}}
-                      style={{position:'absolute',top:8,left:8,width:28,height:28,borderRadius:'50%',background:attColors[attVal],display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:'#fff',cursor:'pointer',boxShadow:'0 1px 4px rgba(0,0,0,0.35)',zIndex:3,border:'2px solid rgba(255,255,255,0.2)'}}>
-                      {attLabels[attVal]}
-                    </div>
-                  )}
-                  {/* Progress marker — top right */}
-                  <div style={{position:'absolute',top:8,right:8,zIndex:3,width:14,height:14,borderRadius:'50%',background:progColors[progColor]||progColors.empty,boxShadow:'0 1px 4px rgba(0,0,0,0.4)',border:'2px solid rgba(255,255,255,0.25)'}}/>
-                  {flash&&<div style={{position:'absolute',inset:0,border:'2px solid var(--teal)',pointerEvents:'none',zIndex:10}}/>}
+              <div style={{position:'absolute',inset:0,display:isFlipped?'none':'block',cursor:'pointer'}} onClick={()=>setFlipped(idx)}>
+                {st.photo
+                  ?<img src={st.photo} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} draggable={false}/>
+                  :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:44,background:'var(--glass-bg3)'}}>👤</div>
+                }
+                {lastSessionIdx!=null&&(
+                  <div onClick={e=>{e.stopPropagation();cycleAtt(idx,lastSessionIdx);}}
+                    style={{position:'absolute',top:7,left:7,width:26,height:26,borderRadius:'50%',background:attColors[attVal],display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:'#fff',cursor:'pointer',boxShadow:'0 1px 4px rgba(0,0,0,0.35)',zIndex:3,border:'2px solid rgba(255,255,255,0.2)'}}>
+                    {attLabels[attVal]}
+                  </div>
+                )}
+                {obs.length>0&&(
+                  <div style={{position:'absolute',top:7,right:7,minWidth:20,height:20,borderRadius:10,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,color:'#fff',padding:'0 5px',zIndex:3}}>
+                    {obs.length}
+                  </div>
+                )}
+                <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'18px 7px 7px',background:'linear-gradient(transparent,rgba(0,0,0,0.72))',zIndex:2}}>
+                  <div style={{fontSize:11,fontWeight:700,color:'#fff',lineHeight:1.25,textShadow:'0 1px 3px rgba(0,0,0,0.9)',textAlign:'center'}}>{st.name}</div>
                 </div>
-                {/* Name strip — bottom */}
-                <div style={{padding:'7px 10px',background:'var(--glass-bg2)',borderTop:'1px solid var(--glass-border)',flexShrink:0}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'var(--tx)',textAlign:'center',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{st.name}</div>
-                </div>
+                {flash&&<div style={{position:'absolute',inset:0,border:'2px solid var(--teal)',pointerEvents:'none',zIndex:10}}/>}
               </div>
               {/* BACK */}
-              <div style={{position:'absolute',inset:0,display:isFlipped?'flex':'none',flexDirection:'column',padding:'10px 9px 9px',background:'var(--glass-bg2)'}}>
-                <div style={{fontSize:11,fontWeight:700,color:'var(--tx)',marginBottom:8,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flexShrink:0}}>{st.name}</div>
-                <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:5,marginBottom:7}}>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+              <div style={{position:'absolute',inset:0,display:isFlipped?'flex':'none',flexDirection:'column',padding:'9px 8px 8px',background:'var(--glass-bg2)'}}>
+                <div style={{fontSize:10,fontWeight:700,color:'var(--tx)',marginBottom:6,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flexShrink:0}}>{st.name}</div>
+                <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:4,marginBottom:6}}>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
                     {OBS_TAGS.filter(t=>t.color==='green').map((t,i)=>(
-                      <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:11,fontWeight:700,padding:'3px 7px',borderRadius:6,cursor:'pointer',color:'var(--teal)',background:'rgba(59,191,160,0.12)',border:'1px solid rgba(59,191,160,0.25)',lineHeight:1.4}}>{t.label}</span>
+                      <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:8.5,fontWeight:700,padding:'2px 5px',borderRadius:5,cursor:'pointer',color:'var(--teal)',background:'rgba(59,191,160,0.12)',border:'1px solid rgba(59,191,160,0.25)',lineHeight:1.4}}>{t.label}</span>
                     ))}
                   </div>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
                     {OBS_TAGS.filter(t=>t.color==='yellow').map((t,i)=>(
-                      <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:11,fontWeight:700,padding:'3px 7px',borderRadius:6,cursor:'pointer',color:'var(--yellow)',background:'rgba(212,168,67,0.12)',border:'1px solid rgba(212,168,67,0.25)',lineHeight:1.4}}>{t.label}</span>
+                      <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:8.5,fontWeight:700,padding:'2px 5px',borderRadius:5,cursor:'pointer',color:'var(--yellow)',background:'rgba(212,168,67,0.12)',border:'1px solid rgba(212,168,67,0.25)',lineHeight:1.4}}>{t.label}</span>
                     ))}
                   </div>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
                     {OBS_TAGS.filter(t=>t.color==='red').map((t,i)=>(
-                      <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:11,fontWeight:700,padding:'3px 7px',borderRadius:6,cursor:'pointer',color:'var(--coral)',background:'rgba(232,112,90,0.12)',border:'1px solid rgba(232,112,90,0.25)',lineHeight:1.4}}>{t.label}</span>
+                      <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:8.5,fontWeight:700,padding:'2px 5px',borderRadius:5,cursor:'pointer',color:'var(--coral)',background:'rgba(232,112,90,0.12)',border:'1px solid rgba(232,112,90,0.25)',lineHeight:1.4}}>{t.label}</span>
                     ))}
                   </div>
                 </div>
-                <div style={{display:'flex',gap:5,flexShrink:0}}>
-                  <button onClick={()=>setFlipped(null)} style={{flex:1,padding:'5px 0',borderRadius:7,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',fontSize:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>← Back</button>
-                  {teacherMode&&<button onClick={()=>{setFlipped(null);onObsPopup(idx);}} style={{flex:1,padding:'5px 0',borderRadius:7,border:'none',background:'var(--teal)',color:'#fff',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Full obs</button>}
+                <div style={{display:'flex',gap:4,flexShrink:0}}>
+                  <button onClick={()=>setFlipped(null)} style={{flex:1,padding:'4px 0',borderRadius:6,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',fontSize:9,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>← Back</button>
+                  {teacherMode&&<button onClick={()=>{setFlipped(null);onObsPopup(idx);}} style={{flex:1,padding:'4px 0',borderRadius:6,border:'none',background:'var(--teal)',color:'#fff',fontSize:9,fontWeight:700,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Full obs</button>}
                 </div>
               </div>
             </div>
@@ -7106,7 +7096,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
           totalStudents={data.students.length}
           onClose={()=>setNamePopup(null)}/>
       )}
-      {showPhotoView&&<ClassPhotoView data={data} section={section} teacherMode={teacherMode} updateData={updateData} cycleAtt={cycleAtt} lastSessionIdx={data.sessions&&data.sessions.length>0?data.sessions.length-1:null} getObsColor={getObsColor} onObsPopup={(idx)=>{setShowPhotoView(false);setObsPopup({studentIdx:idx});}} onClose={()=>setShowPhotoView(false)}/>}
+      {showPhotoView&&<ClassPhotoView data={data} teacherMode={teacherMode} updateData={updateData} cycleAtt={cycleAtt} lastSessionIdx={data.sessions&&data.sessions.length>0?data.sessions.length-1:null} onObsPopup={(idx)=>{setShowPhotoView(false);setObsPopup({studentIdx:idx});}} onClose={()=>setShowPhotoView(false)}/>}
       {addSessionOpen&&<AddSessionModal phases={phases} onAdd={(sess)=>{
         updateData(d=>{
           d.sessions.push(sess);
