@@ -125,6 +125,12 @@ body{
 
 .app{display:flex;height:100vh;background:transparent;position:relative}
 
+/* ── PHOTO VIEW CARD FLIP ── */
+.pv-card{position:relative;transform-style:preserve-3d;transition:transform .45s cubic-bezier(.4,0,.2,1)}
+.pv-card.flipped{transform:rotateY(180deg)}
+.pv-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.pv-back{transform:rotateY(180deg)}
+
 /* ── CLASS VIEW BANNER ── */
 .class-view-bar{
   position:fixed;top:0;left:0;right:0;z-index:900;
@@ -6159,6 +6165,7 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
 
   const attColors={present:'var(--teal)',absent:'var(--coral)',late:'var(--yellow)',empty:'rgba(255,255,255,0.15)'};
   const attLabels={present:'P',absent:'A',late:'L',empty:'–'};
+  const progBorder={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)',empty:'transparent'};
   const progGradients={
     green:'linear-gradient(transparent 40%, rgba(59,191,160,0.45) 100%)',
     yellow:'linear-gradient(transparent 40%, rgba(212,168,67,0.45) 100%)',
@@ -6182,9 +6189,9 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
           const flash=savedTag&&savedTag.idx===idx;
           const progColor=getObsColor?getObsColor(st):'empty';
           return(
-            <div key={idx} style={{height:260,borderRadius:16,overflow:'hidden',position:'relative',border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,background:'var(--glass-bg2)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
+            <div key={idx} className={`pv-card${isFlipped?' flipped':''}`} style={{height:260,borderRadius:16,border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,borderBottom:`3px solid ${progBorder[progColor]||'transparent'}`,background:'var(--glass-bg2)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
               {/* FRONT */}
-              <div style={{position:'absolute',inset:0,display:isFlipped?'none':'block',cursor:'pointer'}} onClick={()=>setFlipped(flipped===idx?null:idx)}>
+              <div className="pv-face" style={{borderRadius:16,overflow:'hidden',cursor:'pointer'}} onClick={()=>setFlipped(flipped===idx?null:idx)}>
                 {st.photo
                   ?<img src={st.photo} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} draggable={false}/>
                   :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:52,background:'var(--glass-bg3)'}}>👤</div>
@@ -6203,7 +6210,7 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
                 {flash&&<div style={{position:'absolute',inset:0,border:'2px solid var(--teal)',pointerEvents:'none',zIndex:10}}/>}
               </div>
               {/* BACK */}
-              <div style={{position:'absolute',inset:0,display:isFlipped?'flex':'none',flexDirection:'column',padding:'10px 9px 9px',background:'var(--glass-bg2)'}}>
+              <div className="pv-face pv-back" style={{display:'flex',flexDirection:'column',padding:'10px 9px 9px',background:'var(--glass-bg2)',borderRadius:16,overflow:'hidden'}}>
                 <div style={{fontSize:11,fontWeight:700,color:'var(--tx)',marginBottom:8,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flexShrink:0}}>{st.name}</div>
                 <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:5,marginBottom:7}}>
                   <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
