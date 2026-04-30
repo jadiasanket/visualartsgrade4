@@ -7049,7 +7049,7 @@ function App(){
     try{const h=window.location.hash.slice(1);const p=JSON.parse(decodeURIComponent(h));return p.view||'annual';}catch{return 'annual';}
   });
   const [phase,setPhase]=React.useState(()=>{
-    try{const h=window.location.hash.slice(1);const p=JSON.parse(decodeURIComponent(h));return p.phase||null;}catch{return null;}
+    try{const h=window.location.hash.slice(1);const p=JSON.parse(decodeURIComponent(h));return p.phase?PHASES.find(x=>x.id===p.phase)||null:null;}catch{return null;}
   });
   const [progress,setProgress]=useLocalStorage('g4v3-prog',{});
   const [theme,setThemeState]=useLocalStorage('g4-theme','dark');
@@ -7102,7 +7102,19 @@ function App(){
   const totalSessions=PHASES.reduce((a,p)=>a+p.sessions.length,0);
   const totalDone=PHASES.reduce((a,p)=>a+p.sessions.filter(s=>progress[p.id+':'+s.n]).length,0);
 
-  const [section,setSection]=React.useState(null);
+  const [section,setSection]=React.useState(()=>{
+    try{
+      const h=window.location.hash.slice(1);
+      const p=JSON.parse(decodeURIComponent(h));
+      if(p.section){
+        for(const ph2 of PHASES){
+          const s=ph2.sections&&ph2.sections.find(x=>x.id===p.section);
+          if(s) return s;
+        }
+      }
+    }catch{}
+    return null;
+  });
   const [subSectionId,setSubSectionId]=React.useState(null);
   const updateHash=React.useCallback((v,p,s)=>{
     try{window.location.hash=encodeURIComponent(JSON.stringify({view:v,phase:p?p.id:null,section:s?s.id:null}));}catch{}
