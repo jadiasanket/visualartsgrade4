@@ -6134,6 +6134,23 @@ function ClassPhotoView({data,teacherMode,onObsPopup,onClose,updateData,cycleAtt
   const [flipped,setFlipped]=React.useState(null);
   const [savedTag,setSavedTag]=React.useState(null);
 
+  // Suppress sidebar backdrop-filter while open — it creates a stacking context
+  // that breaks both z-index layering and CSS 3D preserve-3d
+  React.useEffect(()=>{
+    const sidebar=document.querySelector('.sidebar');
+    if(!sidebar) return;
+    const prev=sidebar.style.backdropFilter;
+    const prevW=sidebar.style.webkitBackdropFilter;
+    sidebar.style.backdropFilter='none';
+    sidebar.style.webkitBackdropFilter='none';
+    sidebar.style.zIndex='0';
+    return()=>{
+      sidebar.style.backdropFilter=prev;
+      sidebar.style.webkitBackdropFilter=prevW;
+      sidebar.style.zIndex='';
+    };
+  },[]);
+
   function handleTagSave(studentIdx,tag){
     updateData(d=>{
       if(!d.students[studentIdx].observations)d.students[studentIdx].observations=[];
