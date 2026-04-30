@@ -7045,8 +7045,12 @@ function App(){
     return () => unsub();
   },[]);
 
-  const [view,setView]=React.useState('annual');
-  const [phase,setPhase]=React.useState(null);
+  const [view,setView]=React.useState(()=>{
+    try{const h=window.location.hash.slice(1);const p=JSON.parse(decodeURIComponent(h));return p.view||'annual';}catch{return 'annual';}
+  });
+  const [phase,setPhase]=React.useState(()=>{
+    try{const h=window.location.hash.slice(1);const p=JSON.parse(decodeURIComponent(h));return p.phase||null;}catch{return null;}
+  });
   const [progress,setProgress]=useLocalStorage('g4v3-prog',{});
   const [theme,setThemeState]=useLocalStorage('g4-theme','dark');
   // Migrate any stored 'colour' theme to 'dark'
@@ -7100,13 +7104,32 @@ function App(){
 
   const [section,setSection]=React.useState(null);
   const [subSectionId,setSubSectionId]=React.useState(null);
-  const handlePhase=React.useCallback((p)=>{setPhase(p);setView('phase');setSection(null);},[]);
-  const handleNav=React.useCallback((v)=>{setView(v);if(v!=='phase')setPhase(null);setSection(null);},[]);
-  const handleBack=React.useCallback(()=>{setView('annual');setPhase(null);setSection(null);});
-  const handleSection=React.useCallback((s)=>{if(subSectionId&&s.id!==subSectionId)return;setSection(s);setView('section');setPhase(null);},[subSectionId]);
+  const updateHash=React.useCallback((v,p,s)=>{
+    try{window.location.hash=encodeURIComponent(JSON.stringify({view:v,phase:p?p.id:null,section:s?s.id:null}));}catch{}
+  },[]);
+  const handlePhase=React.useCallback((p)=>{setPhase(p);setView('phase');setSection(null);updateHash('phase',p,null);},[updateHash]);
+  const handleNav=React.useCallback((v)=>{setView(v);if(v!=='phase')setPhase(null);setSection(null);updateHash(v,null,null);},[updateHash]);
+  const handleBack=React.useCallback(()=>{setView('annual');setPhase(null);setSection(null);updateHash('annual',null,null);},[updateHash]);
+  const handleSection=React.useCallback((s)=>{if(subSectionId&&s.id!==subSectionId)return;setSection(s);setView('section');setPhase(null);updateHash('section',null,s);},[subSectionId,updateHash]);
   const handleOpenLinkedSession=React.useCallback((linked)=>{
     const ph=PHASES.find(p=>p.id===linked.phaseId);
     if(ph){setPhase(ph);setView('phase');setSection(null);}
+  },[]);
+
+  React.useEffect(()=>{
+    try{
+      const h=window.location.hash.slice(1);
+      const p=JSON.parse(decodeURIComponent(h));
+      if(p.section){
+        for(const ph2 of PHASES){
+          const s=ph2.sections&&ph2.sections.find(x=>x.id===p.section);
+          if(s){setSection(s);setView('section');break;}
+        }
+      } else if(p.phase){
+        const found=PHASES.find(x=>x.id===p.phase);
+        if(found){setPhase(found);setView('phase');}
+      }
+    }catch{}
   },[]);
 
   function handleSignOut(){
