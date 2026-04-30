@@ -6137,7 +6137,10 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
 
   React.useEffect(()=>{
     const sb=document.querySelector('.sidebar');
-    if(sb){setSbLeft(sb.getBoundingClientRect().width);}
+    if(sb){
+      const w=sb.getBoundingClientRect().width;
+      setSbLeft(w>0?w:sb.classList.contains('collapsed')?60:236);
+    }
   },[]);
 
   function handleTagSave(studentIdx,tag){
