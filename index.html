@@ -6184,7 +6184,7 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
           return(
             <div key={idx} style={{height:260,borderRadius:16,overflow:'hidden',position:'relative',border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,background:'var(--glass-bg2)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
               {/* FRONT */}
-              <div style={{position:'absolute',inset:0,display:isFlipped?'none':'block',cursor:'pointer'}} onClick={()=>setFlipped(idx)}>
+              <div style={{position:'absolute',inset:0,display:isFlipped?'none':'block',cursor:'pointer'}} onClick={()=>setFlipped(flipped===idx?null:idx)}>
                 {st.photo
                   ?<img src={st.photo} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} draggable={false}/>
                   :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:52,background:'var(--glass-bg3)'}}>👤</div>
@@ -6196,9 +6196,9 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
                     {attLabels[attVal]}
                   </div>
                 )}
-                {/* Progress gradient + name overlay */}
-                <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'28px 8px 9px',background:progGradients[progColor]||progGradients.empty,zIndex:2,pointerEvents:'none'}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'#fff',textAlign:'center',textShadow:'0 1px 4px rgba(0,0,0,0.8)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{st.name}</div>
+                {/* Name overlay */}
+                <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'28px 8px 9px',background:'linear-gradient(transparent,rgba(0,0,0,0.68))',zIndex:2,pointerEvents:'none'}}>
+                  <div style={{fontSize:14,fontWeight:700,color:'#fff',textAlign:'center',textShadow:'0 1px 4px rgba(0,0,0,0.9)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{st.name}</div>
                 </div>
                 {flash&&<div style={{position:'absolute',inset:0,border:'2px solid var(--teal)',pointerEvents:'none',zIndex:10}}/>}
               </div>
