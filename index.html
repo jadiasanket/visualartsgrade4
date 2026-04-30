@@ -163,7 +163,9 @@ body{
 /* ── SIDEBAR ── */
 .sidebar{
   width:236px;flex-shrink:0;
-  background:rgba(18,18,28,0.97);
+  background:rgba(255,255,255,0.07);
+  backdrop-filter:blur(32px) saturate(200%);
+  -webkit-backdrop-filter:blur(32px) saturate(200%);
   border-right:1px solid rgba(255,255,255,0.15);
   box-shadow:4px 0 40px rgba(0,0,0,0.35),inset -1px 0 0 rgba(255,255,255,0.08);
   display:flex;flex-direction:column;
@@ -6132,23 +6134,6 @@ function ClassPhotoView({data,teacherMode,onObsPopup,onClose,updateData,cycleAtt
   const [flipped,setFlipped]=React.useState(null);
   const [savedTag,setSavedTag]=React.useState(null);
 
-  // Suppress sidebar backdrop-filter while open — it creates a stacking context
-  // that breaks both z-index layering and CSS 3D preserve-3d
-  React.useEffect(()=>{
-    const sidebar=document.querySelector('.sidebar');
-    if(!sidebar) return;
-    const prev=sidebar.style.backdropFilter;
-    const prevW=sidebar.style.webkitBackdropFilter;
-    sidebar.style.backdropFilter='none';
-    sidebar.style.webkitBackdropFilter='none';
-    sidebar.style.zIndex='0';
-    return()=>{
-      sidebar.style.backdropFilter=prev;
-      sidebar.style.webkitBackdropFilter=prevW;
-      sidebar.style.zIndex='';
-    };
-  },[]);
-
   function handleTagSave(studentIdx,tag){
     updateData(d=>{
       if(!d.students[studentIdx].observations)d.students[studentIdx].observations=[];
@@ -6167,72 +6152,66 @@ function ClassPhotoView({data,teacherMode,onObsPopup,onClose,updateData,cycleAtt
   const attLabels={present:'P',absent:'A',late:'L',empty:'–'};
 
   return ReactDOM.createPortal(
-    <div style={{position:'fixed',inset:0,zIndex:99999,background:'var(--bg)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <style>{`body > div#root > div > .sidebar { z-index: 0 !important; }`}</style>
+    <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',zIndex:99999,background:'var(--bg)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 18px',borderBottom:'1px solid var(--glass-border)',background:'var(--glass-bg2)',flexShrink:0}}>
         <div style={{fontFamily:"'Fraunces',serif",fontSize:17,fontWeight:700,color:'var(--tx)'}}>🪪 Class Photo View</div>
         <div style={{fontSize:11,color:'var(--tx3)'}}>Tap card to tag · Tap badge to cycle attendance</div>
         <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'4px 10px',borderRadius:8}}>✕</button>
       </div>
-      <div style={{flex:1,overflowY:'auto',padding:'14px 12px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(148px,1fr))',gap:10,alignContent:'start',background:'var(--bg)'}}>
+      <div style={{flex:1,overflowY:'auto',padding:'14px 12px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(148px,1fr))',gap:10,alignContent:'start'}}>
         {data.students.map((st,idx)=>{
           const obs=st.observations||[];
           const isFlipped=flipped===idx;
           const attVal=(lastSessionIdx!=null&&st.attendance)?st.attendance[lastSessionIdx]||'empty':'empty';
           const flash=savedTag&&savedTag.idx===idx;
           return(
-            <div key={idx} style={{perspective:900,height:190}}>
-              <div style={{position:'relative',width:'100%',height:'100%',transformStyle:'preserve-3d',transition:'transform 0.38s cubic-bezier(.4,0,.2,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)'}}>
-
-                {/* FRONT */}
-                <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',borderRadius:14,overflow:'hidden',border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,transition:'border-color 0.3s',cursor:'pointer',background:'var(--glass-bg2)'}} onClick={()=>setFlipped(isFlipped?null:idx)}>
-                  {st.photo
-                    ?<img src={st.photo} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} draggable={false}/>
-                    :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:44,background:'var(--glass-bg3)'}}>👤</div>
-                  }
-                  {lastSessionIdx!=null&&(
-                    <div onClick={e=>{e.stopPropagation();cycleAtt(idx,lastSessionIdx);}}
-                      style={{position:'absolute',top:7,left:7,width:26,height:26,borderRadius:'50%',background:attColors[attVal],display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:'#fff',cursor:'pointer',boxShadow:'0 1px 4px rgba(0,0,0,0.35)',zIndex:3,border:'2px solid rgba(255,255,255,0.2)'}}>
-                      {attLabels[attVal]}
-                    </div>
-                  )}
-                  {obs.length>0&&(
-                    <div style={{position:'absolute',top:7,right:7,minWidth:20,height:20,borderRadius:10,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,color:'#fff',padding:'0 5px',zIndex:3}}>
-                      {obs.length}
-                    </div>
-                  )}
-                  <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'18px 7px 7px',background:'linear-gradient(transparent,rgba(0,0,0,0.72))',zIndex:2}}>
-                    <div style={{fontSize:11,fontWeight:700,color:'#fff',lineHeight:1.25,textShadow:'0 1px 3px rgba(0,0,0,0.9)',textAlign:'center'}}>{st.name}</div>
+            <div key={idx} style={{height:190,borderRadius:14,overflow:'hidden',position:'relative',border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,background:'var(--glass-bg2)'}}>
+              {/* FRONT */}
+              <div style={{position:'absolute',inset:0,display:isFlipped?'none':'block',cursor:'pointer'}} onClick={()=>setFlipped(idx)}>
+                {st.photo
+                  ?<img src={st.photo} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} draggable={false}/>
+                  :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:44,background:'var(--glass-bg3)'}}>👤</div>
+                }
+                {lastSessionIdx!=null&&(
+                  <div onClick={e=>{e.stopPropagation();cycleAtt(idx,lastSessionIdx);}}
+                    style={{position:'absolute',top:7,left:7,width:26,height:26,borderRadius:'50%',background:attColors[attVal],display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:'#fff',cursor:'pointer',boxShadow:'0 1px 4px rgba(0,0,0,0.35)',zIndex:3,border:'2px solid rgba(255,255,255,0.2)'}}>
+                    {attLabels[attVal]}
                   </div>
-                  {flash&&<div style={{position:'absolute',inset:0,borderRadius:14,border:'2px solid var(--teal)',pointerEvents:'none',zIndex:10}}/>}
+                )}
+                {obs.length>0&&(
+                  <div style={{position:'absolute',top:7,right:7,minWidth:20,height:20,borderRadius:10,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,color:'#fff',padding:'0 5px',zIndex:3}}>
+                    {obs.length}
+                  </div>
+                )}
+                <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'18px 7px 7px',background:'linear-gradient(transparent,rgba(0,0,0,0.72))',zIndex:2}}>
+                  <div style={{fontSize:11,fontWeight:700,color:'#fff',lineHeight:1.25,textShadow:'0 1px 3px rgba(0,0,0,0.9)',textAlign:'center'}}>{st.name}</div>
                 </div>
-
-                {/* BACK */}
-                <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',transform:'rotateY(180deg)',borderRadius:14,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',display:'flex',flexDirection:'column',padding:'9px 8px 8px',gap:0,overflow:'hidden'}}>
-                  <div style={{fontSize:10,fontWeight:700,color:'var(--tx)',marginBottom:6,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flexShrink:0}}>{st.name}</div>
-                  <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:4,marginBottom:6}}>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
-                      {OBS_TAGS.filter(t=>t.color==='green').map((t,i)=>(
-                        <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:8.5,fontWeight:700,padding:'2px 5px',borderRadius:5,cursor:'pointer',color:'var(--teal)',background:'rgba(59,191,160,0.12)',border:'1px solid rgba(59,191,160,0.25)',lineHeight:1.4}}>{t.label}</span>
-                      ))}
-                    </div>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
-                      {OBS_TAGS.filter(t=>t.color==='yellow').map((t,i)=>(
-                        <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:8.5,fontWeight:700,padding:'2px 5px',borderRadius:5,cursor:'pointer',color:'var(--yellow)',background:'rgba(212,168,67,0.12)',border:'1px solid rgba(212,168,67,0.25)',lineHeight:1.4}}>{t.label}</span>
-                      ))}
-                    </div>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
-                      {OBS_TAGS.filter(t=>t.color==='red').map((t,i)=>(
-                        <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:8.5,fontWeight:700,padding:'2px 5px',borderRadius:5,cursor:'pointer',color:'var(--coral)',background:'rgba(232,112,90,0.12)',border:'1px solid rgba(232,112,90,0.25)',lineHeight:1.4}}>{t.label}</span>
-                      ))}
-                    </div>
+                {flash&&<div style={{position:'absolute',inset:0,border:'2px solid var(--teal)',pointerEvents:'none',zIndex:10}}/>}
+              </div>
+              {/* BACK */}
+              <div style={{position:'absolute',inset:0,display:isFlipped?'flex':'none',flexDirection:'column',padding:'9px 8px 8px',background:'var(--glass-bg2)'}}>
+                <div style={{fontSize:10,fontWeight:700,color:'var(--tx)',marginBottom:6,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flexShrink:0}}>{st.name}</div>
+                <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:4,marginBottom:6}}>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
+                    {OBS_TAGS.filter(t=>t.color==='green').map((t,i)=>(
+                      <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:8.5,fontWeight:700,padding:'2px 5px',borderRadius:5,cursor:'pointer',color:'var(--teal)',background:'rgba(59,191,160,0.12)',border:'1px solid rgba(59,191,160,0.25)',lineHeight:1.4}}>{t.label}</span>
+                    ))}
                   </div>
-                  <div style={{display:'flex',gap:4,flexShrink:0}}>
-                    <button onClick={()=>setFlipped(null)} style={{flex:1,padding:'4px 0',borderRadius:6,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',fontSize:9,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>← Back</button>
-                    {teacherMode&&<button onClick={()=>{setFlipped(null);onObsPopup(idx);}} style={{flex:1,padding:'4px 0',borderRadius:6,border:'none',background:'var(--teal)',color:'#fff',fontSize:9,fontWeight:700,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Full obs</button>}
+                  <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
+                    {OBS_TAGS.filter(t=>t.color==='yellow').map((t,i)=>(
+                      <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:8.5,fontWeight:700,padding:'2px 5px',borderRadius:5,cursor:'pointer',color:'var(--yellow)',background:'rgba(212,168,67,0.12)',border:'1px solid rgba(212,168,67,0.25)',lineHeight:1.4}}>{t.label}</span>
+                    ))}
+                  </div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
+                    {OBS_TAGS.filter(t=>t.color==='red').map((t,i)=>(
+                      <span key={i} onClick={()=>handleTagSave(idx,t)} style={{fontSize:8.5,fontWeight:700,padding:'2px 5px',borderRadius:5,cursor:'pointer',color:'var(--coral)',background:'rgba(232,112,90,0.12)',border:'1px solid rgba(232,112,90,0.25)',lineHeight:1.4}}>{t.label}</span>
+                    ))}
                   </div>
                 </div>
-
+                <div style={{display:'flex',gap:4,flexShrink:0}}>
+                  <button onClick={()=>setFlipped(null)} style={{flex:1,padding:'4px 0',borderRadius:6,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',fontSize:9,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>← Back</button>
+                  {teacherMode&&<button onClick={()=>{setFlipped(null);onObsPopup(idx);}} style={{flex:1,padding:'4px 0',borderRadius:6,border:'none',background:'var(--teal)',color:'#fff',fontSize:9,fontWeight:700,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Full obs</button>}
+                </div>
               </div>
             </div>
           );
@@ -7380,7 +7359,7 @@ function App(){
           {view==='months'&&<MonthsView/>}
           {view==='phase'&&phase&&<PhaseDetail phase={phase} onBack={handleBack} progress={progress} toggle={toggle} classView={classView} isVisitor={isVisitor}/>}
           {view==='notes'&&(isVisitor?<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--tx3)',fontSize:13}}>Sign in to access Unit Notes.</div>:<GlobalNotes/>)}
-          {view==='section'&&section&&<SectionView section={section} phases={PHASES} onOpenLinkedSession={handleOpenLinkedSession} teacherMode={teacherMode} subSectionId={subSectionId} setSubSectionId={setSubSectionId} userId={userId} onSignIn={()=>setShowSignIn(true)} onShowPhotoView={()=>setShowPhotoViewApp(true)}/>}
+          {view==='section'&&section&&<SectionView section={section} phases={PHASES} onOpenLinkedSession={handleOpenLinkedSession} teacherMode={teacherMode} subSectionId={subSectionId} setSubSectionId={setSubSectionId} userId={userId} onSignIn={()=>setShowSignIn(true)}/>}
         </div>
         <GlobalKWPopup activeKw={activeKw} onClose={()=>setActiveKw(null)}/>
         <Timer/>
