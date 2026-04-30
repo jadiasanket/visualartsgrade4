@@ -4298,6 +4298,17 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
                       <div style={{position:'absolute',top:2,left:visitorsMode?18:2,width:16,height:16,borderRadius:'50%',background:visitorsMode?'var(--teal)':'var(--tx3)',transition:'left .2s'}}/>
                     </div>
                   </div>
+                  {/* Export / Import data */}
+                  <div style={{display:'flex',gap:8,marginBottom:8}}>
+                    <button onClick={onExportData}
+                      style={{flex:1,padding:'8px 0',borderRadius:10,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer'}}>
+                      ⬇ Export Data
+                    </button>
+                    <label style={{flex:1,padding:'8px 0',borderRadius:10,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer',textAlign:'center',display:'block'}}>
+                      ⬆ Import Data
+                      <input type="file" accept=".json" style={{display:'none'}} onChange={onImportData}/>
+                    </label>
+                  </div>
                   {/* Sign out */}
                   <button onClick={()=>{setShowProfilePopup(false);onSignOut();}}
                     style={{width:'100%',padding:'9px 0',borderRadius:10,border:'1px solid rgba(232,112,90,0.35)',background:'rgba(232,112,90,0.1)',color:'var(--coral)',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',transition:'all .15s'}}>
