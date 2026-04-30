@@ -6151,8 +6151,8 @@ function ClassPhotoView({data,teacherMode,onObsPopup,onClose,updateData,cycleAtt
   const attColors={present:'var(--teal)',absent:'var(--coral)',late:'var(--yellow)',empty:'rgba(255,255,255,0.15)'};
   const attLabels={present:'P',absent:'A',late:'L',empty:'–'};
 
-  return(
-    <div style={{position:'fixed',inset:0,zIndex:9999,background:'var(--bg)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+  return ReactDOM.createPortal(
+    <div style={{position:'fixed',inset:0,zIndex:99999,background:'var(--bg)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 18px',borderBottom:'1px solid var(--glass-border)',background:'var(--glass-bg)',backdropFilter:'blur(12px)',flexShrink:0}}>
         <div style={{fontFamily:"'Fraunces',serif",fontSize:17,fontWeight:700,color:'var(--tx)'}}>🪪 Class Photo View</div>
         <div style={{fontSize:11,color:'var(--tx3)'}}>Tap card to tag · Tap badge to cycle attendance</div>
@@ -6215,7 +6215,8 @@ function ClassPhotoView({data,teacherMode,onObsPopup,onClose,updateData,cycleAtt
           );
         })}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
