@@ -4116,7 +4116,7 @@ function SessionCard({s,color,phaseId,progress,toggle,classView,openSession,setO
   );
 }
 
-function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,totalDone,totalSessions,theme,setTheme,classView,setClassView,subSectionId,user,onSignOut,onSignIn,isVisitor}){
+function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,totalDone,totalSessions,theme,setTheme,classView,setClassView,subSectionId,user,onSignOut,onSignIn,isVisitor,onExportData,onImportData}){
   const [collapsed,setCollapsed]=useLocalStorage('sb-collapsed',false);
   const {teacherMode,setTeacherMode}=React.useContext(KWContext);
   const totalPct=totalSessions?Math.round(totalDone/totalSessions*100):0;
@@ -7106,6 +7106,80 @@ function App(){
     setTeacherModeState(false);
   }
 
+  async function handleExportData(){
+    const db=window._db;
+    const SECTION_IDS=['4gir','4sariska','4ranthambore','4kanha','4corbett'];
+    const exportObj={exportedAt:new Date().toISOString(),sections:{},localStorage:{}};
+    // Export all 5 sections from Firestore (students, attendance, observations, class logs)
+    for(const sid of SECTION_IDS){
+      const sharedDocId='shared-'+sid;
+      try{
+        const snap=await db.collection('sections').doc(sharedDocId).get();
+        const main=snap.exists?snap.data():{};
+        const students=main.students||[];
+        const photoPromises=students.map((_,i)=>
+          db.collection('sections').doc(sharedDocId+'-photo-'+i).get()
+            .then(s=>s.exists?s.data().photo:null).catch(()=>null)
+        );
+        const photos=await Promise.all(photoPromises);
+        exportObj.sections[sid]={...main,_photos:photos};
+      }catch(e){console.warn('Export failed for',sid,e);}
+    }
+    // Export ALL localStorage (references, artist images, session notes, global notes, step ticks)
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k) exportObj.localStorage[k]=localStorage.getItem(k);
+      }
+    }catch(e){console.warn('localStorage export failed:',e);}
+    const blob=new Blob([JSON.stringify(exportObj,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='grade4-arts-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImportData(e){
+    const file=e.target.files&&e.target.files[0];
+    if(!file)return;
+    if(!window.confirm('This will overwrite ALL section data in Firebase with the data from this file. Are you sure?'))return;
+    try{
+      const text=await file.text();
+      const importObj=JSON.parse(text);
+      if(!importObj.sections)throw new Error('Invalid backup file — missing sections key.');
+      const db=window._db;
+      for(const [sid,data] of Object.entries(importObj.sections)){
+        const sharedDocId='shared-'+sid;
+        const photos=data._photos||[];
+        const mainData={...data};
+        delete mainData._photos;
+        // Write student photo docs
+        const students=mainData.students||[];
+        mainData.students=students.map((st,i)=>({...st,photo:'__photo_ref__'}));
+        await db.collection('sections').doc(sharedDocId).set(mainData);
+        for(let i=0;i<photos.length;i++){
+          if(photos[i]){
+            await db.collection('sections').doc(sharedDocId+'-photo-'+i).set({photo:photos[i]});
+          }
+        }
+      }
+      // Restore localStorage (references, notes, artist images, step ticks)
+      if(importObj.localStorage){
+        try{
+          for(const [k,v] of Object.entries(importObj.localStorage)){
+            localStorage.setItem(k,v);
+          }
+        }catch(lsErr){console.warn('localStorage restore failed:',lsErr);}
+      }
+      alert('Import complete! Refresh the page to see restored data.');
+    }catch(err){
+      alert('Import failed: '+err.message);
+    }
+    e.target.value='';
+  }
+
   // ── showSignIn modal state (for signing in from within the app) ──
   const [showSignIn,setShowSignIn]=React.useState(false);
 
@@ -7138,9 +7212,9 @@ function App(){
         {!classView&&<Sidebar view={view} phase={phase} section={section} onNav={handleNav} onPhase={handlePhase} onSection={handleSection}
           getPhaseProgress={getPhaseProgress} totalDone={totalDone} totalSessions={totalSessions}
           theme={theme} setTheme={setTheme} classView={classView} setClassView={setClassView} subSectionId={subSectionId}
-          user={user} onSignOut={handleSignOut} onSignIn={()=>setShowSignIn(true)} isVisitor={isVisitor}/>}
+          user={user} onSignOut={handleSignOut} onSignIn={()=>setShowSignIn(true)} isVisitor={isVisitor} onExportData={handleExportData} onImportData={handleImportData}/>}
         <div className="main">
-          {view==='annual'&&<AnnualPlan onPhase={handlePhase} getPhaseProgress={getPhaseProgress} totalDone={totalDone} totalSessions={totalSessions} isVisitor={isVisitor}/>}
+          {view==='annual'&&<AnnualPlan onPhase={handlePhase} getPhaseProgress={getPhaseProgress} totalDone={totalDone} totalSessions={totalSessions} isVisitor={isVisitor} onExportData={handleExportData} onImportData={handleImportData}/>}
           {view==='months'&&<MonthsView/>}
           {view==='phase'&&phase&&<PhaseDetail phase={phase} onBack={handleBack} progress={progress} toggle={toggle} classView={classView} isVisitor={isVisitor}/>}
           {view==='notes'&&(isVisitor?<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--tx3)',fontSize:13}}>Sign in to access Unit Notes.</div>:<GlobalNotes/>)}
