@@ -3138,26 +3138,31 @@ function useFirestore(sectionId, userId, init) {
     return () => { cancelled = true; };
   }, [sectionId, userId]);
 
+  const saveTimerRef = React.useRef(null);
+
   const set = React.useCallback((v) => {
     setVal(prev => {
       const next = typeof v === 'function' ? v(prev) : v;
-      // Write main doc without photos (always small), then each photo as its own doc.
-      const db = window._db;
-      const mainRef = db.collection('sections').doc(sharedDocId);
-      const nextWithoutPhotos = {
-        ...next,
-        students: (next.students || []).map((st, i) => {
-          if (st.photo) {
-            // Save each student photo as its own doc in sections collection (~150KB, under 1MB)
-            db.collection('sections').doc(sharedDocId + '-photo-' + i)
-              .set({ photo: st.photo })
-              .catch(e => console.error('Photo save failed for student', i, e));
-          }
-          return { ...st, photo: '__photo_ref__' };
-        })
-      };
-      mainRef.set(nextWithoutPhotos).catch(e => console.error('Firestore save failed:', e));
+      // Always save to localStorage immediately
       try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+      // Debounce Firestore writes — wait 1.5s after last change before writing
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        const db = window._db;
+        const mainRef = db.collection('sections').doc(sharedDocId);
+        const nextWithoutPhotos = {
+          ...next,
+          students: (next.students || []).map((st, i) => {
+            if (st.photo) {
+              db.collection('sections').doc(sharedDocId + '-photo-' + i)
+                .set({ photo: st.photo })
+                .catch(e => console.error('Photo save failed for student', i, e));
+            }
+            return { ...st, photo: '__photo_ref__' };
+          })
+        };
+        mainRef.set(nextWithoutPhotos).catch(e => console.error('Firestore save failed:', e));
+      }, 1500);
       return next;
     });
   }, [sectionId]);
