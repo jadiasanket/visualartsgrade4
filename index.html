@@ -6148,24 +6148,30 @@ function ClassPhotoView({data,teacherMode,onObsPopup,onClose,updateData,cycleAtt
     setTimeout(()=>setSavedTag(null),1200);
   }
 
+  const [sbLeft,setSbLeft]=React.useState(236);
+  React.useEffect(()=>{
+    const sb=document.querySelector('.sidebar');
+    if(sb){setSbLeft(sb.getBoundingClientRect().width);}
+  },[]);
+
   const attColors={present:'var(--teal)',absent:'var(--coral)',late:'var(--yellow)',empty:'rgba(255,255,255,0.15)'};
   const attLabels={present:'P',absent:'A',late:'L',empty:'–'};
 
   return ReactDOM.createPortal(
-    <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',zIndex:99999,background:'var(--bg)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 18px',borderBottom:'1px solid var(--glass-border)',background:'var(--glass-bg2)',flexShrink:0}}>
+    <div style={{position:'fixed',top:0,left:sbLeft,right:0,bottom:0,zIndex:99999,background:'var(--bg-solid)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 18px',borderBottom:'1px solid var(--glass-border)',background:'var(--glass-bg2)',backdropFilter:'blur(24px)',flexShrink:0}}>
         <div style={{fontFamily:"'Fraunces',serif",fontSize:17,fontWeight:700,color:'var(--tx)'}}>🪪 Class Photo View</div>
         <div style={{fontSize:11,color:'var(--tx3)'}}>Tap card to tag · Tap badge to cycle attendance</div>
         <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'4px 10px',borderRadius:8}}>✕</button>
       </div>
-      <div style={{flex:1,overflowY:'auto',padding:'14px 12px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(148px,1fr))',gap:10,alignContent:'start'}}>
+      <div style={{flex:1,overflowY:'auto',padding:'18px 20px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:14,alignContent:'start'}}>
         {data.students.map((st,idx)=>{
           const obs=st.observations||[];
           const isFlipped=flipped===idx;
           const attVal=(lastSessionIdx!=null&&st.attendance)?st.attendance[lastSessionIdx]||'empty':'empty';
           const flash=savedTag&&savedTag.idx===idx;
           return(
-            <div key={idx} style={{height:190,borderRadius:14,overflow:'hidden',position:'relative',border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,background:'var(--glass-bg2)'}}>
+            <div key={idx} style={{height:260,borderRadius:16,overflow:'hidden',position:'relative',border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,background:'var(--glass-bg2)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
               {/* FRONT */}
               <div style={{position:'absolute',inset:0,display:isFlipped?'none':'block',cursor:'pointer'}} onClick={()=>setFlipped(idx)}>
                 {st.photo
