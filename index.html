@@ -132,6 +132,8 @@ body{
 .pv-card.flipped .pv-front{opacity:0;transform:scale(.92);pointer-events:none;}
 .pv-back{opacity:0;transform:scale(.92);pointer-events:none;}
 .pv-card.flipped .pv-back{opacity:1;transform:scale(1);pointer-events:auto;}
+.pv-card.hint .pv-front{opacity:0.4;transform:scale(.94);}
+.pv-card.hint .pv-back{opacity:0.6;transform:scale(.97);}
 
 /* ── CLASS VIEW BANNER ── */
 .class-view-bar{
@@ -5579,7 +5581,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
         <div style={{position:'relative',width:'100%',transformStyle:'preserve-3d',transition:'transform .55s cubic-bezier(.4,0,.2,1)',transform:flipped?'rotateY(180deg)':'rotateY(0deg)',minHeight:520}}>
 
           {/* ── FRONT FACE ── */}
-          <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',position:'absolute',inset:0,background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:22,boxShadow:'var(--glass-shadow2)',backdropFilter:'blur(24px)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+          <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',position:'absolute',inset:0,background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderBottom:`4px solid ${accentCol}`,borderRadius:22,boxShadow:'var(--glass-shadow2)',backdropFilter:'blur(24px)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
             {/* Top strip with accent */}
             <div style={{background:accentBg,borderBottom:`1px solid ${accentCol}30`,padding:'14px 18px 12px',flexShrink:0}}>
               <div style={{display:'flex',alignItems:'center',gap:12}}>
@@ -5706,13 +5708,16 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           {/* ── BACK FACE — Trump card ── */}
           <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',position:'absolute',inset:0,transform:'rotateY(180deg)',borderRadius:22,overflow:'hidden',boxShadow:'var(--glass-shadow2)',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)'}}
             onClick={()=>setFlipped(false)}>
-            {/* Full bleed photo — draggable to reposition */}
+            {/* Full bleed photo — Edit mode: drag to reposition + slider to resize */}
             {(()=>{
               const [photoPos,setPhotoPos]=React.useState({x:50,y:50});
+              const [photoSize,setPhotoSize]=React.useState(100); // percentage for objectFit size
+              const [editMode,setEditMode]=React.useState(false);
               const [dragging,setDragging]=React.useState(false);
               const [dragStart,setDragStart]=React.useState(null);
               const imgRef=React.useRef(null);
               function startDrag(clientX,clientY){
+                if(!editMode) return;
                 setDragging(true);
                 setDragStart({clientX,clientY,x:photoPos.x,y:photoPos.y});
               }
@@ -5730,7 +5735,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                 setDragging(false);setDragStart(null);
               }
               return(
-                <div style={{position:'absolute',inset:0,cursor:dragging?'grabbing':'grab'}}
+                <div style={{position:'absolute',inset:0,cursor:editMode?(dragging?'grabbing':'grab'):'default'}}
                   onMouseDown={e=>{e.stopPropagation();startDrag(e.clientX,e.clientY);}}
                   onMouseMove={e=>{moveDrag(e.clientX,e.clientY);}}
                   onMouseUp={endDrag}
@@ -5740,10 +5745,25 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                   onTouchEnd={endDrag}>
                   {student.photo
                     ?<img ref={imgRef} src={student.photo} draggable={false}
-                        style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:`${photoPos.x}% ${photoPos.y}%`,userSelect:'none',pointerEvents:'none'}} alt=""/>
+                        style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:`${photoPos.x}% ${photoPos.y}%`,userSelect:'none',pointerEvents:'none',transform:`scale(${photoSize/100})`,transformOrigin:`${photoPos.x}% ${photoPos.y}%`,transition:dragging?'none':'transform .2s'}} alt=""/>
                     :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--glass-bg)',fontSize:80,opacity:.25}}>👤</div>}
-                  {/* Drag hint — fades after first drag */}
-                  {!dragging&&<div style={{position:'absolute',top:10,right:12,fontSize:9,color:'rgba(255,255,255,0.6)',background:'rgba(0,0,0,0.45)',padding:'3px 9px',borderRadius:8,backdropFilter:'blur(4px)',letterSpacing:'.04em',pointerEvents:'none',fontWeight:700}}>✎ Drag to reposition</div>}
+                  {/* Edit button — bottom left of photo */}
+                  <div style={{position:'absolute',bottom:editMode?90:10,left:12,display:'flex',flexDirection:'column',gap:6,pointerEvents:'auto',zIndex:5}}
+                    onClick={e=>e.stopPropagation()}>
+                    <button onClick={()=>setEditMode(v=>!v)}
+                      style={{fontSize:9,fontWeight:700,padding:'3px 9px',borderRadius:8,border:`1px solid ${editMode?'var(--teal)':'rgba(255,255,255,0.4)'}`,background:editMode?'rgba(59,191,160,0.25)':'rgba(0,0,0,0.45)',color:editMode?'var(--teal)':'rgba(255,255,255,0.7)',backdropFilter:'blur(4px)',cursor:'pointer',letterSpacing:'.04em'}}>
+                      {editMode?'✓ Done':'✎ Edit'}
+                    </button>
+                    {editMode&&(
+                      <div style={{background:'rgba(0,0,0,0.55)',backdropFilter:'blur(6px)',borderRadius:8,padding:'6px 10px',display:'flex',flexDirection:'column',gap:4}}>
+                        <span style={{fontSize:8,color:'rgba(255,255,255,0.5)',letterSpacing:'.05em'}}>SIZE</span>
+                        <input type="range" min={80} max={150} value={photoSize}
+                          onChange={e=>setPhotoSize(Number(e.target.value))}
+                          style={{width:80,accentColor:'var(--teal)'}}/>
+                        <span style={{fontSize:8,color:'rgba(255,255,255,0.4)',textAlign:'center'}}>Drag photo to reposition</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })()}
@@ -5752,11 +5772,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
             {/* Decorative top border accent */}
             <div style={{position:'absolute',top:0,left:0,right:0,height:5,background:`linear-gradient(90deg,${accentCol},${accentCol}88,transparent)`,pointerEvents:'none'}}/>
             {/* Content at bottom — trump card style — tap this area to flip back */}
-            <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'20px 22px 24px',cursor:'pointer',pointerEvents:'auto'}}
-              onClick={e=>{e.stopPropagation();setFlipped(false);}}>
-              {/* Name */}
-              <div style={{fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:700,color:'#fff',lineHeight:1.1,marginBottom:6,textShadow:'0 2px 8px rgba(0,0,0,0.7)'}}>{student.name}</div>
-              {/* Colour bar */}
+            <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'20px 22px 24px',cursor:'pointer',pointerEvents:'auto',background:'linear-gradient(to bottom, transparent, rgba(5,10,20,0.92) 40%)'}}
+              onClick={e=>{e.stopPropagation();setFlipped(false);}}>\n              {/* Colour bar */}
               <div style={{width:36,height:3,borderRadius:2,background:accentCol,marginBottom:10,opacity:.9}}/>
               {/* 4 stats in a row */}
               <div style={{display:'flex',gap:10,marginBottom:10,flexWrap:'wrap'}}>
@@ -6141,14 +6158,40 @@ function AttendancePDFModal({data,section,onClose}){
 function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,cycleAtt,lastSessionIdx,getObsColor}){
   const [flipped,setFlipped]=React.useState(null);
   const [savedTag,setSavedTag]=React.useState(null);
+  const [hintDone,setHintDone]=React.useState(false);
+  const [hintIdx,setHintIdx]=React.useState(null); // which card is doing the hint animation
   const [sbLeft,setSbLeft]=React.useState(236);
 
   React.useEffect(()=>{
-    const sb=document.querySelector('.sidebar');
-    if(sb){
-      const w=sb.getBoundingClientRect().width;
-      setSbLeft(w>0?w:sb.classList.contains('collapsed')?60:236);
+    function measureSb(){
+      const sb=document.querySelector('.sidebar');
+      if(sb){
+        const w=sb.getBoundingClientRect().width;
+        setSbLeft(w>0?w:sb.classList.contains('collapsed')?60:236);
+      }
     }
+    measureSb();
+    // Watch for sidebar width changes via ResizeObserver
+    const sb=document.querySelector('.sidebar');
+    let ro;
+    if(sb&&window.ResizeObserver){
+      ro=new ResizeObserver(measureSb);
+      ro.observe(sb);
+    }
+    return()=>{if(ro)ro.disconnect();};
+  },[]);
+
+  // One-time hint: gently flip first card halfway and back
+  React.useEffect(()=>{
+    if(hintDone||data.students.length===0) return;
+    const t1=setTimeout(()=>{
+      // Find first card in sorted order
+      const sorted=[...data.students.map((_,i)=>i)].sort((a,b)=>data.students[a].name.localeCompare(data.students[b].name));
+      setHintIdx(sorted[0]);
+    },700);
+    const t2=setTimeout(()=>setHintIdx(null),1300);
+    const t3=setTimeout(()=>setHintDone(true),1350);
+    return()=>{clearTimeout(t1);clearTimeout(t2);clearTimeout(t3);};
   },[]);
 
   function handleTagSave(studentIdx,tag){
@@ -6178,32 +6221,43 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
 
   return ReactDOM.createPortal(
     <div style={{position:'fixed',top:0,left:sbLeft,right:0,bottom:0,zIndex:99999,background:'var(--bg-solid)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 18px',borderBottom:'1px solid var(--glass-border)',background:'var(--glass-bg2)',backdropFilter:'blur(24px)',flexShrink:0}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 18px',borderBottom:'1px solid var(--glass-border)',background:'linear-gradient(to bottom, var(--glass-bg3), var(--glass-bg2))',backdropFilter:'blur(24px)',flexShrink:0}}>
         <div style={{fontFamily:"'Fraunces',serif",fontSize:17,fontWeight:700,color:'var(--tx)'}}>🪪 {sectionName}</div>
         <div style={{fontSize:11,color:'var(--tx3)'}}>Tap card to flip · Tap badge to cycle attendance</div>
         <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'4px 10px',borderRadius:8}}>✕</button>
       </div>
       <div style={{flex:1,overflowY:'auto',padding:'18px 20px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:14,alignContent:'start'}}>
-        {data.students.map((st,idx)=>{
+        {[...data.students.map((st,idx)=>({st,idx}))].sort((a,b)=>a.st.name.localeCompare(b.st.name)).map(({st,idx})=>{
           const obs=st.observations||[];
           const isFlipped=flipped===idx;
           const attVal=(lastSessionIdx!=null&&st.attendance)?st.attendance[lastSessionIdx]||'empty':'empty';
           const flash=savedTag&&savedTag.idx===idx;
           const progColor=getObsColor?getObsColor(st):'empty';
           return(
-            <div key={idx} className={`pv-card${isFlipped?' flipped':''}`} style={{height:260,borderRadius:16,border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,borderBottom:`3px solid ${progBorder[progColor]||'transparent'}`,background:'var(--glass-bg2)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
+            <div key={idx} className={`pv-card${isFlipped?' flipped':''}${hintIdx===idx?' hint':''}`} style={{height:260,borderRadius:16,border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,borderBottom:`3px solid ${progBorder[progColor]||'transparent'}`,background:'var(--glass-bg2)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
               {/* FRONT */}
               <div className="pv-face pv-front" style={{borderRadius:16,overflow:'hidden',cursor:'pointer'}} onClick={()=>setFlipped(flipped===idx?null:idx)}>
                 {st.photo
                   ?<img src={st.photo} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} draggable={false}/>
                   :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:52,background:'var(--glass-bg3)'}}>👤</div>
                 }
-                {/* Attendance badge */}
+                {/* Attendance badge — tap to cycle P/A/–, long-press to mark Late */}
                 {lastSessionIdx!=null&&(
-                  <div onClick={e=>{e.stopPropagation();cycleAtt(idx,lastSessionIdx);}}
-                    style={{position:'absolute',top:8,left:8,width:28,height:28,borderRadius:'50%',background:attColors[attVal],display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:'#fff',cursor:'pointer',boxShadow:'0 1px 4px rgba(0,0,0,0.35)',zIndex:3,border:'2px solid rgba(255,255,255,0.2)'}}>
-                    {attLabels[attVal]}
-                  </div>
+                  (()=>{
+                    let pvPressTimer=null;
+                    return(
+                      <div
+                        onClick={e=>{e.stopPropagation();if(!pvPressTimer)cycleAtt(idx,lastSessionIdx);}}
+                        onMouseDown={e=>{e.stopPropagation();pvPressTimer=setTimeout(()=>{pvPressTimer=null;updateData(d=>{if(!d.students[idx].attendance)d.students[idx].attendance={};d.students[idx].attendance[lastSessionIdx]='late';});},600);}}
+                        onMouseUp={()=>{if(pvPressTimer){clearTimeout(pvPressTimer);pvPressTimer=null;}}}
+                        onMouseLeave={()=>{if(pvPressTimer){clearTimeout(pvPressTimer);pvPressTimer=null;}}}
+                        onTouchStart={e=>{e.stopPropagation();pvPressTimer=setTimeout(()=>{pvPressTimer=null;updateData(d=>{if(!d.students[idx].attendance)d.students[idx].attendance={};d.students[idx].attendance[lastSessionIdx]='late';});},600);}}
+                        onTouchEnd={e=>{e.stopPropagation();if(pvPressTimer){clearTimeout(pvPressTimer);pvPressTimer=null;}}}
+                        style={{position:'absolute',top:8,left:8,width:28,height:28,borderRadius:'50%',background:attColors[attVal],display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:'#fff',cursor:'pointer',boxShadow:'0 1px 4px rgba(0,0,0,0.35)',zIndex:3,border:'2px solid rgba(255,255,255,0.2)'}}>
+                        {attLabels[attVal]}
+                      </div>
+                    );
+                  })()
                 )}
                 {/* Name overlay */}
                 <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'28px 8px 9px',background:'linear-gradient(transparent,rgba(0,0,0,0.68))',zIndex:2,pointerEvents:'none'}}>
@@ -6213,7 +6267,7 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
               </div>
               {/* BACK */}
               <div className="pv-face pv-back" style={{display:'flex',flexDirection:'column',padding:'10px 9px 9px',background:'var(--glass-bg2)',borderRadius:16,overflow:'hidden'}}>
-                <div style={{fontSize:11,fontWeight:700,color:'var(--tx)',marginBottom:8,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flexShrink:0}}>{st.name}</div>
+                <div style={{background:'linear-gradient(to bottom, var(--glass-bg3), transparent)',borderRadius:'8px 8px 0 0',padding:'6px 4px 4px',flexShrink:0,marginBottom:4}}></div>
                 <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:5,marginBottom:7}}>
                   <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
                     {OBS_TAGS.filter(t=>t.color==='green').map((t,i)=>(
@@ -6534,6 +6588,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const initData={
     students:section.students.map(n=>({name:n,artfilePending:true,observations:[]})),
     sessions:[],classRating:0,classNote:'',classLogs:[],
+    staffInfo:{hrt:{name:'',email:''},gradeLead:{name:'',email:''},pyHead:{name:'',email:''}},
   };
   const [data,setData,fsLoading]=useFirestore(section.id, userId, initData);
   const [editingDateIdx,setEditingDateIdx]=React.useState(null);
@@ -6561,6 +6616,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const [namePopup,setNamePopup]=React.useState(null);
   const [addSessionOpen,setAddSessionOpen]=React.useState(false);
   const [showPhotoView,setShowPhotoView]=React.useState(false);
+  const [staffInfoOpen,setStaffInfoOpen]=React.useState(false);
   const [linkPickerFor,setLinkPickerFor]=React.useState(null);
   const [slideOpen,setSlideOpen]=React.useState(false);
   const [slideExpanded,setSlideExpanded]=React.useState(false);
@@ -6768,6 +6824,44 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
 
         {/* Class log panel — teacher only, shown at bottom via classLogOpen */}
 
+        {/* Staff info strip */}
+        {(()=>{
+          const si=data.staffInfo||{hrt:{name:'',email:''},gradeLead:{name:'',email:''},pyHead:{name:'',email:''}};
+          const roles=[{key:'hrt',label:'HRT'},{key:'gradeLead',label:'Grade Lead'},{key:'pyHead',label:'PY Head'}];
+          const hasAny=roles.some(r=>si[r.key]&&si[r.key].name);
+          return(
+            <div style={{marginBottom:8}}>
+              {!staffInfoOpen?(
+                <div style={{display:'flex',alignItems:'center',gap:10,padding:'5px 0 5px 2px',cursor:'pointer'}} onClick={()=>setStaffInfoOpen(true)}>
+                  {hasAny?roles.filter(r=>si[r.key]&&si[r.key].name).map((r,i)=>(
+                    <span key={i} style={{fontSize:10,color:'var(--tx3)',fontWeight:600}}>
+                      <span style={{color:'var(--tx2)',fontWeight:700}}>{r.label}: </span>{si[r.key].name}
+                      {si[r.key].email&&<span style={{color:'var(--tx3)'}}> · {si[r.key].email}</span>}
+                    </span>
+                  )):<span style={{fontSize:10,color:'var(--tx3)',opacity:.5}}>+ Add class contacts (HRT, Grade Lead, PY Head)</span>}
+                </div>
+              ):(
+                <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:10,padding:'10px 12px',marginBottom:6}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                    <span style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase'}}>Class Contacts</span>
+                    <button onClick={()=>setStaffInfoOpen(false)} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:13,cursor:'pointer',padding:'0 4px'}}>✕</button>
+                  </div>
+                  {roles.map(r=>(
+                    <div key={r.key} style={{display:'flex',gap:6,alignItems:'center',marginBottom:5}}>
+                      <span style={{fontSize:10,fontWeight:700,color:'var(--tx3)',minWidth:64}}>{r.label}</span>
+                      <input value={(si[r.key]||{}).name||''} placeholder="Name"
+                        onChange={e=>{const v=e.target.value;updateData(d=>{if(!d.staffInfo)d.staffInfo={};if(!d.staffInfo[r.key])d.staffInfo[r.key]={};d.staffInfo[r.key].name=v;});}}
+                        style={{flex:1,background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:6,padding:'3px 7px',fontSize:11,color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
+                      <input value={(si[r.key]||{}).email||''} placeholder="Email"
+                        onChange={e=>{const v=e.target.value;updateData(d=>{if(!d.staffInfo)d.staffInfo={};if(!d.staffInfo[r.key])d.staffInfo[r.key]={};d.staffInfo[r.key].email=v;});}}
+                        style={{flex:1.4,background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:6,padding:'3px 7px',fontSize:11,color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
         {/* Roster controls */}
         <div className="roster-header">
           <div style={{display:'flex',alignItems:'center',gap:4}}>
