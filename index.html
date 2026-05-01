@@ -6163,6 +6163,7 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
   const [sbLeft,setSbLeft]=React.useState(236);
 
   React.useEffect(()=>{
+    let debounceTimer=null;
     function measureSb(){
       const sb=document.querySelector('.sidebar');
       if(sb){
@@ -6170,15 +6171,18 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
         setSbLeft(w>0?w:sb.classList.contains('collapsed')?60:236);
       }
     }
+    function debouncedMeasure(){
+      clearTimeout(debounceTimer);
+      debounceTimer=setTimeout(measureSb,180);
+    }
     measureSb();
-    // Watch for sidebar width changes via ResizeObserver
     const sb=document.querySelector('.sidebar');
     let ro;
     if(sb&&window.ResizeObserver){
-      ro=new ResizeObserver(measureSb);
+      ro=new ResizeObserver(debouncedMeasure);
       ro.observe(sb);
     }
-    return()=>{if(ro)ro.disconnect();};
+    return()=>{if(ro)ro.disconnect();clearTimeout(debounceTimer);};
   },[]);
 
   // One-time hint: gently flip first card halfway and back
@@ -6220,7 +6224,7 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
   const sectionName=section?(typeof section.name==='string'?section.name:'Class Photo View'):'Class Photo View';
 
   return ReactDOM.createPortal(
-    <div style={{position:'fixed',top:0,left:sbLeft,right:0,bottom:0,zIndex:99999,background:'var(--bg-solid)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+    <div style={{position:'fixed',top:0,left:sbLeft,right:0,bottom:0,zIndex:99999,background:'var(--bg-solid)',display:'flex',flexDirection:'column',overflow:'hidden',transition:'left .25s ease'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 18px',borderBottom:'1px solid var(--glass-border)',background:'linear-gradient(to bottom, var(--glass-bg3), var(--glass-bg2))',backdropFilter:'blur(24px)',flexShrink:0}}>
         <div style={{fontFamily:"'Fraunces',serif",fontSize:17,fontWeight:700,color:'var(--tx)'}}>🪪 {sectionName}</div>
         <div style={{fontSize:11,color:'var(--tx3)'}}>Tap card to flip · Tap badge to cycle attendance</div>
@@ -6244,11 +6248,11 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
                 {/* Attendance badge — tap to cycle P/A/–, long-press to mark Late */}
                 {lastSessionIdx!=null&&(
                   (()=>{
-                    let pvPressTimer=null;
+                    let pvPressTimer=null;let pvLongPressed=false;
                     return(
                       <div
-                        onClick={e=>{e.stopPropagation();if(!pvPressTimer)cycleAtt(idx,lastSessionIdx);}}
-                        onMouseDown={e=>{e.stopPropagation();pvPressTimer=setTimeout(()=>{pvPressTimer=null;updateData(d=>{if(!d.students[idx].attendance)d.students[idx].attendance={};d.students[idx].attendance[lastSessionIdx]='late';});},600);}}
+                        onClick={e=>{e.stopPropagation();if(pvLongPressed){pvLongPressed=false;return;}cycleAtt(idx,lastSessionIdx);}}
+                        onMouseDown={e=>{e.stopPropagation();pvPressTimer=setTimeout(()=>{pvPressTimer=null;pvLongPressed=true;updateData(d=>{if(!d.students[idx].attendance)d.students[idx].attendance={};d.students[idx].attendance[lastSessionIdx]='late';});},600);}}
                         onMouseUp={()=>{if(pvPressTimer){clearTimeout(pvPressTimer);pvPressTimer=null;}}}
                         onMouseLeave={()=>{if(pvPressTimer){clearTimeout(pvPressTimer);pvPressTimer=null;}}}
                         onTouchStart={e=>{e.stopPropagation();pvPressTimer=setTimeout(()=>{pvPressTimer=null;updateData(d=>{if(!d.students[idx].attendance)d.students[idx].attendance={};d.students[idx].attendance[lastSessionIdx]='late';});},600);}}
