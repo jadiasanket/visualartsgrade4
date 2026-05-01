@@ -5523,15 +5523,18 @@ function EnterSubPINModal({section,onSuccess,onClose}){
 }
 
 
-// ── STUDENT NAME POPUP — trump card flip design ──
+// ── STUDENT NAME POPUP — school ID card design ──
 function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents}){
   const obs=observations||[];
   const [flipped,setFlipped]=React.useState(false);
-  const [historyOpen,setHistoryOpen]=React.useState(false);
   const [profile,setProfile]=React.useState('');
   const [loading,setLoading]=React.useState(false);
+  const [photoPos,setPhotoPos]=React.useState({x:50,y:50});
+  const [photoSize,setPhotoSize]=React.useState(100);
+  const [editMode,setEditMode]=React.useState(false);
+  const [dragging,setDragging]=React.useState(false);
+  const [dragStart,setDragStart]=React.useState(null);
 
-  // Arrow key navigation
   React.useEffect(()=>{
     function handleKey(e){
       if(e.key==='ArrowLeft'&&onPrev){onPrev();}
@@ -5550,6 +5553,14 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   const escalations=obs.filter(o=>o.escalation&&!o.escalationCleared).length;
   const attPct=totalSessions?Math.round(attendanceCount/totalSessions*100):0;
 
+  const dominantColor=topTags.length>0?(()=>{const td=OBS_TAGS.find(x=>x.label===topTags[0]);return td?td.color:'teal';})():'teal';
+  const accentCol={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)',teal:'var(--teal)'}[dominantColor]||'var(--teal)';
+  const accentRaw={green:'59,191,160',yellow:'212,168,67',red:'232,112,90',teal:'59,191,160'}[dominantColor]||'59,191,160';
+
+  const ringR=20;
+  const ringCirc=2*Math.PI*ringR;
+  const ringDash=(totalSessions?attendanceCount/totalSessions:0)*ringCirc;
+
   async function generateProfile(){
     setLoading(true);setProfile('');
     const notes=obs.filter(o=>o.note).map(o=>o.note);
@@ -5566,244 +5577,233 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
     setLoading(false);
   }
 
-  // Card colour accent based on dominant tag
-  const dominantColor = topTags.length>0?(()=>{
-    const td=OBS_TAGS.find(x=>x.label===topTags[0]);
-    return td?td.color:'teal';
-  })():'teal';
-  const accentCol={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)',teal:'var(--teal)'}[dominantColor]||'var(--teal)';
-  const accentBg={green:'rgba(59,191,160,0.12)',yellow:'rgba(212,168,67,0.12)',red:'rgba(232,112,90,0.12)',teal:'rgba(59,191,160,0.12)'}[dominantColor]||'rgba(59,191,160,0.12)';
+  function startDrag(clientX,clientY){
+    if(!editMode) return;
+    setDragging(true);
+    setDragStart({clientX,clientY,x:photoPos.x,y:photoPos.y});
+  }
+  function moveDrag(clientX,clientY){
+    if(!dragging||!dragStart) return;
+    const dx=(clientX-dragStart.clientX)/3;
+    const dy=(clientY-dragStart.clientY)/3;
+    setPhotoPos({x:Math.max(0,Math.min(100,dragStart.x-dx)),y:Math.max(0,Math.min(100,dragStart.y-dy))});
+  }
+  function endDrag(){setDragging(false);setDragStart(null);}
 
   return(
     <div className="obs-popup-overlay" onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{width:'min(380px,92vw)',perspective:'1000px'}}>
-        {/* Card flip container */}
-        <div style={{position:'relative',width:'100%',transformStyle:'preserve-3d',transition:'transform .55s cubic-bezier(.4,0,.2,1)',transform:flipped?'rotateY(180deg)':'rotateY(0deg)',minHeight:520}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'min(500px,96vw)'}}>
 
-          {/* ── FRONT FACE ── */}
-          <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',position:'absolute',inset:0,background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderBottom:`4px solid ${accentCol}`,borderRadius:22,boxShadow:'var(--glass-shadow2)',backdropFilter:'blur(24px)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-            {/* Top strip with accent */}
-            <div style={{background:accentBg,borderBottom:`1px solid ${accentCol}30`,padding:'14px 18px 12px',flexShrink:0}}>
-              <div style={{display:'flex',alignItems:'center',gap:12}}>
-                {/* Clickable photo — triggers flip */}
-                <div style={{position:'relative',flexShrink:0}}
-                  onClick={()=>setFlipped(true)}
-                  title="Click to flip card">
-                  <div style={{width:62,height:62,borderRadius:'50%',overflow:'hidden',background:'var(--glass-bg2)',border:`2.5px solid ${accentCol}`,cursor:'pointer',transition:'transform .15s',boxShadow:`0 0 0 3px ${accentBg}`}}>
-                    {student.photo
-                      ?<img src={student.photo} style={{width:'100%',height:'100%',objectFit:'cover'}} alt=""/>
-                      :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,opacity:.4}}>👤</div>}
+        {/* Nav row above card */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,paddingInline:2}}>
+          <div style={{display:'flex',alignItems:'center',gap:4}}>
+            <button onClick={onPrev} disabled={!onPrev} style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:8,color:onPrev?'var(--tx2)':'var(--tx3)',fontSize:14,cursor:onPrev?'pointer':'not-allowed',padding:'3px 10px',opacity:onPrev?1:0.3}}>&#8249;</button>
+            {totalStudents&&<span style={{fontSize:10,color:'var(--tx3)',minWidth:40,textAlign:'center'}}>{studentIdx+1} / {totalStudents}</span>}
+            <button onClick={onNext} disabled={!onNext} style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:8,color:onNext?'var(--tx2)':'var(--tx3)',fontSize:14,cursor:onNext?'pointer':'not-allowed',padding:'3px 10px',opacity:onNext?1:0.3}}>&#8250;</button>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:18,cursor:'pointer',padding:'2px 6px'}}>&#x2715;</button>
+        </div>
+
+        {/* Flip container — horizontal card height */}
+        <div style={{position:'relative',width:'100%',height:210,transformStyle:'preserve-3d',transition:'transform .55s cubic-bezier(.4,0,.2,1)',transform:flipped?'rotateY(180deg)':'rotateY(0deg)'}}>
+
+          {/* ── FRONT — ID Card ── */}
+          <div style={{
+            position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
+            borderRadius:16,overflow:'hidden',
+            background:'var(--popup-bg)',
+            border:`1px solid rgba(${accentRaw},0.3)`,
+            boxShadow:`0 0 0 2px rgba(${accentRaw},0.1), var(--glass-shadow2)`,
+            display:'flex',flexDirection:'row',
+          }}>
+
+            {/* Left column — full-height photo */}
+            <div style={{
+              position:'relative',width:155,flexShrink:0,
+              background:'var(--glass-bg2)',
+              borderRight:`1px solid rgba(${accentRaw},0.18)`,
+              overflow:'hidden',
+              cursor:editMode?(dragging?'grabbing':'grab'):'default',
+            }}
+              onMouseDown={e=>{e.stopPropagation();startDrag(e.clientX,e.clientY);}}
+              onMouseMove={e=>moveDrag(e.clientX,e.clientY)}
+              onMouseUp={endDrag}
+              onMouseLeave={endDrag}
+              onTouchStart={e=>{e.stopPropagation();const t=e.touches[0];startDrag(t.clientX,t.clientY);}}
+              onTouchMove={e=>{const t=e.touches[0];moveDrag(t.clientX,t.clientY);}}
+              onTouchEnd={endDrag}>
+
+              {/* Photo */}
+              {student.photo
+                ?<img src={student.photo} draggable={false} alt=""
+                    style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:`${photoPos.x}% ${photoPos.y}%`,userSelect:'none',pointerEvents:'none',transform:`scale(${photoSize/100})`,transformOrigin:`${photoPos.x}% ${photoPos.y}%`,transition:dragging?'none':'transform .15s'}}/>
+                :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:60,opacity:.15}}>&#128100;</div>
+              }
+
+              {/* Accent stripe top */}
+              <div style={{position:'absolute',top:0,left:0,right:0,height:4,background:`linear-gradient(90deg,${accentCol},transparent)`,pointerEvents:'none'}}/>
+
+              {/* Photo upload label */}
+              <label htmlFor={'snp-photo-'+studentIdx}
+                style={{position:'absolute',top:8,right:8,fontSize:9,color:'rgba(255,255,255,0.65)',background:'rgba(0,0,0,0.5)',padding:'2px 7px',borderRadius:6,cursor:'pointer',backdropFilter:'blur(4px)',pointerEvents:'auto',zIndex:5,letterSpacing:'.03em'}}
+                onClick={e=>e.stopPropagation()}>
+                {student.photo?'&#128247;':'&#128247; Add'}
+              </label>
+              <input id={'snp-photo-'+studentIdx} type="file" accept="image/*" style={{display:'none'}}
+                onChange={e=>{const file=e.target.files[0];if(!file)return;onPhotoChange(file);e.target.value='';}}/>
+
+              {/* Edit button — bottom left */}
+              <div style={{position:'absolute',bottom:8,left:8,display:'flex',flexDirection:'column',gap:5,zIndex:5,pointerEvents:'auto'}}
+                onClick={e=>e.stopPropagation()}>
+                <button onClick={()=>setEditMode(v=>!v)}
+                  style={{fontSize:9,fontWeight:700,padding:'2px 8px',borderRadius:7,border:`1px solid ${editMode?accentCol:'rgba(255,255,255,0.3)'}`,background:editMode?`rgba(${accentRaw},0.25)`:'rgba(0,0,0,0.5)',color:editMode?accentCol:'rgba(255,255,255,0.65)',backdropFilter:'blur(4px)',cursor:'pointer',letterSpacing:'.04em'}}>
+                  {editMode?'&#10003; Done':'&#9998; Edit'}
+                </button>
+                {editMode&&(
+                  <div style={{background:'rgba(0,0,0,0.65)',backdropFilter:'blur(6px)',borderRadius:7,padding:'5px 8px',display:'flex',flexDirection:'column',gap:3}}>
+                    <span style={{fontSize:8,color:'rgba(255,255,255,0.4)',letterSpacing:'.05em'}}>SIZE</span>
+                    <input type="range" min={80} max={160} value={photoSize}
+                      onChange={e=>setPhotoSize(Number(e.target.value))}
+                      style={{width:70,accentColor:accentCol}}/>
+                    <span style={{fontSize:7,color:'rgba(255,255,255,0.3)',textAlign:'center'}}>Drag to reposition</span>
                   </div>
-                  <div style={{position:'absolute',bottom:-2,right:-2,width:20,height:20,borderRadius:'50%',background:accentCol,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,color:'#fff',fontWeight:800,boxShadow:'0 1px 4px rgba(0,0,0,0.3)'}}>↻</div>
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:16,fontWeight:800,color:'var(--tx)',lineHeight:1.2}}>{student.name}</div>
-                  {escalations>0&&<div style={{fontSize:10,color:'var(--coral)',fontWeight:700,marginTop:2}}>⚠️ Escalation flagged</div>}
-                  {topTags.length>0&&<div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{topTags[0]}{topTags[1]?' · '+topTags[1]:''}</div>}
-                  {/* Photo controls under name */}
-                  <div style={{display:'flex',gap:8,marginTop:5,alignItems:'center'}}>
-                    <label htmlFor={'snp-photo-'+studentIdx} style={{fontSize:10,color:'var(--teal)',cursor:'pointer',fontWeight:600,lineHeight:1}}>
-                      {student.photo?'📷 Change':'📷 Add photo'}
-                    </label>
-                    {student.photo&&<span onClick={()=>onPhotoChange(null)} style={{fontSize:10,color:'var(--tx3)',cursor:'pointer',fontWeight:600}}>✕ Remove</span>}
-                    <input id={'snp-photo-'+studentIdx} type="file" accept="image/*" style={{display:'none'}}
-                      onChange={e=>{const file=e.target.files[0];if(!file)return;onPhotoChange(file);e.target.value='';}}/>
-                  </div>
-                </div>
-                <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4,flexShrink:0}}>
-                  <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:16,cursor:'pointer',lineHeight:1,padding:4}}>✕</button>
-                  {(onPrev||onNext)&&(
-                    <div style={{display:'flex',alignItems:'center',gap:2}}>
-                      <button onClick={onPrev} disabled={!onPrev} style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:6,color:onPrev?'var(--tx2)':'var(--tx3)',fontSize:12,cursor:onPrev?'pointer':'not-allowed',padding:'2px 7px',opacity:onPrev?1:0.35}} title="Previous student (←)">‹</button>
-                      {totalStudents&&<span style={{fontSize:10,color:'var(--tx3)',minWidth:32,textAlign:'center'}}>{studentIdx+1}/{totalStudents}</span>}
-                      <button onClick={onNext} disabled={!onNext} style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:6,color:onNext?'var(--tx2)':'var(--tx3)',fontSize:12,cursor:onNext?'pointer':'not-allowed',padding:'2px 7px',opacity:onNext?1:0.35}} title="Next student (→)">›</button>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
 
-            {/* Scrollable body */}
-            <div style={{flex:1,overflowY:'auto',padding:'14px 18px'}}>
+            {/* Right column — info */}
+            <div style={{flex:1,display:'flex',flexDirection:'column',padding:'14px 16px 12px',minWidth:0,position:'relative',overflow:'hidden'}}>
 
-              {/* 4 stat boxes */}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6,marginBottom:14}}>
+              {/* School label */}
+              <div style={{fontSize:8,fontWeight:700,letterSpacing:'.12em',textTransform:'uppercase',color:`rgba(${accentRaw},0.65)`,marginBottom:3}}>SNS &#183; Grade 4 Visual Arts</div>
+
+              {/* Name */}
+              <div style={{fontFamily:"'Fraunces',serif",fontSize:20,fontWeight:700,color:'var(--tx)',lineHeight:1.1,marginBottom:3,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{student.name}</div>
+
+              {/* ID + escalation */}
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                <span style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.06em'}}>#{String(studentIdx+1).padStart(3,'0')}</span>
+                {escalations>0&&<span style={{fontSize:9,color:'var(--coral)',fontWeight:700}}>&#9888; Escalation</span>}
+              </div>
+
+              {/* Stats */}
+              <div style={{display:'flex',gap:12,marginBottom:10}}>
                 {[
-                  {l:'Present',v:attendanceCount,sub:`/ ${totalSessions}`},
-                  {l:'Obs.',v:obs.length},
-                  {l:'👍 / 👎',v:`${thumbsUp}/${thumbsDown}`},
-                  {l:'Flags',v:escalations||'–',red:escalations>0},
+                  {l:'Present',v:`${attendanceCount}/${totalSessions}`},
+                  {l:'Obs',v:obs.length},
+                  {l:'&#128077;',v:thumbsUp},
+                  {l:'&#128078;',v:thumbsDown},
                 ].map((s,i)=>(
-                  <div key={i} style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:9,padding:'7px 5px',textAlign:'center'}}>
-                    <div style={{fontSize:9,color:'var(--tx3)',marginBottom:2,lineHeight:1.2,letterSpacing:'.03em',whiteSpace:'nowrap'}}>{s.l}</div>
-                    <div style={{fontSize:15,fontWeight:800,color:s.red?'var(--coral)':'var(--tx)',lineHeight:1}}>{s.v}</div>
-                    {s.sub&&<div style={{fontSize:9,color:'var(--tx3)'}}>{s.sub}</div>}
+                  <div key={i} style={{textAlign:'center'}}>
+                    <div style={{fontSize:14,fontWeight:800,color:'var(--tx)',lineHeight:1}}>{s.v}</div>
+                    <div style={{fontSize:8,color:'var(--tx3)',marginTop:1}} dangerouslySetInnerHTML={{__html:s.l}}/>
                   </div>
                 ))}
               </div>
 
               {/* Top tags */}
               {topTags.length>0&&(
-                <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:12}}>
-                  {topTags.map((t,i)=>{
-                    const td=OBS_TAGS.find(x=>x.label===t);
-                    const cl={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
-                    return<span key={i} style={{fontSize:10,fontWeight:600,padding:'2px 8px',borderRadius:10,background:'var(--glass-bg)',border:'1px solid var(--glass-border)',color:cl[td?td.color:'yellow']||'var(--tx2)'}}>{t}</span>;
-                  })}
-                </div>
-              )}
-
-              {/* Observation history — collapsible */}
-              <div style={{marginBottom:12}}>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',cursor:'pointer',borderTop:'1px solid var(--glass-border)'}}
-                  onClick={()=>setHistoryOpen(v=>!v)}>
-                  <span style={{fontSize:11,fontWeight:700,color:'var(--tx)'}}>Observation History <span style={{color:'var(--tx3)',fontWeight:400}}>({obs.length})</span></span>
-                  <span style={{fontSize:13,color:'var(--tx3)',transition:'transform .2s',display:'inline-block',transform:historyOpen?'rotate(0deg)':'rotate(-90deg)'}}>▾</span>
-                </div>
-                {historyOpen&&(
-                  <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:6}}>
-                    {obs.length===0&&<div style={{color:'var(--tx3)',fontSize:12,textAlign:'center',padding:'10px 0'}}>No observations yet.</div>}
-                    {[...obs].map((o,realIdx)=>({o,realIdx})).reverse().map(({o,realIdx})=>(
-                      <div key={realIdx} className="obs-history-entry" style={{position:'relative'}}>
-                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
-                          <div className="obs-history-date">{o.date}{o.thumb?' '+(o.thumb==='up'?'👍':'👎'):''}</div>
-                          <button onClick={()=>onDeleteObs(realIdx)}
-                            style={{fontSize:10,lineHeight:1,padding:'2px 6px',borderRadius:5,background:'rgba(232,112,90,0.1)',border:'1px solid rgba(232,112,90,0.25)',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
-                        </div>
-                        {o.tags&&o.tags.length>0&&(
-                          <div className="obs-history-tags">
-                            {o.tags.map((t,j)=>{
-                              const tagDef=OBS_TAGS.find(td=>td.label===t);
-                              const colors={green:{bg:'rgba(59,191,160,0.15)',cl:'var(--teal)'},yellow:{bg:'rgba(212,168,67,0.15)',cl:'var(--yellow)'},red:{bg:'rgba(232,112,90,0.15)',cl:'var(--coral)'}};
-                              const c=colors[tagDef?tagDef.color:'yellow']||colors.yellow;
-                              return<span key={j} className="obs-history-tag" style={{background:c.bg,color:c.cl}}>{t}</span>;
-                            })}
-                          </div>
-                        )}
-                        {o.note&&<div className="obs-history-note">"{o.note}"</div>}
-                        {o.escalation&&!o.escalationCleared&&<div className="obs-history-escalation">⚠️ Escalation needed</div>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* AI Profile */}
-              <div style={{borderTop:'1px solid var(--glass-border)',paddingTop:12}}>
-                {profile&&(
-                  <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:10,padding:'10px 12px',marginBottom:8,fontSize:12,color:'var(--tx)',lineHeight:1.6}}>
-                    {profile}
-                    <button onClick={()=>{try{navigator.clipboard.writeText(profile);}catch{}}}
-                      style={{marginTop:6,display:'block',fontSize:10,color:'var(--teal)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Copy</button>
-                  </div>
-                )}
-                <button className="obs-save-btn" onClick={generateProfile} disabled={loading} style={{opacity:loading?0.6:1,width:'100%',justifyContent:'center',fontSize:12}}>
-                  {loading?'Generating...':'✨ Generate AI Profile'}
-                </button>
-                {!profile&&<div style={{textAlign:'center',fontSize:10,color:'var(--tx3)',marginTop:5}}>Click above to generate an AI student profile.</div>}
-              </div>
-            </div>
-          </div>
-
-          {/* ── BACK FACE — Trump card ── */}
-          <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',position:'absolute',inset:0,transform:'rotateY(180deg)',borderRadius:22,overflow:'hidden',boxShadow:'var(--glass-shadow2)',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)'}}
-            onClick={()=>setFlipped(false)}>
-            {/* Full bleed photo — Edit mode: drag to reposition + slider to resize */}
-            {(()=>{
-              const [photoPos,setPhotoPos]=React.useState({x:50,y:50});
-              const [photoSize,setPhotoSize]=React.useState(100); // percentage for objectFit size
-              const [editMode,setEditMode]=React.useState(false);
-              const [dragging,setDragging]=React.useState(false);
-              const [dragStart,setDragStart]=React.useState(null);
-              const imgRef=React.useRef(null);
-              function startDrag(clientX,clientY){
-                if(!editMode) return;
-                setDragging(true);
-                setDragStart({clientX,clientY,x:photoPos.x,y:photoPos.y});
-              }
-              function moveDrag(clientX,clientY){
-                if(!dragging||!dragStart) return;
-                const dx=(clientX-dragStart.clientX)/3;
-                const dy=(clientY-dragStart.clientY)/3;
-                setPhotoPos({
-                  x:Math.max(0,Math.min(100,dragStart.x-dx)),
-                  y:Math.max(0,Math.min(100,dragStart.y-dy))
-                });
-              }
-              function endDrag(e){
-                if(dragging){e.stopPropagation();}
-                setDragging(false);setDragStart(null);
-              }
-              return(
-                <div style={{position:'absolute',inset:0,cursor:editMode?(dragging?'grabbing':'grab'):'default'}}
-                  onMouseDown={e=>{e.stopPropagation();startDrag(e.clientX,e.clientY);}}
-                  onMouseMove={e=>{moveDrag(e.clientX,e.clientY);}}
-                  onMouseUp={endDrag}
-                  onMouseLeave={endDrag}
-                  onTouchStart={e=>{e.stopPropagation();const t=e.touches[0];startDrag(t.clientX,t.clientY);}}
-                  onTouchMove={e=>{const t=e.touches[0];moveDrag(t.clientX,t.clientY);}}
-                  onTouchEnd={endDrag}>
-                  {student.photo
-                    ?<img ref={imgRef} src={student.photo} draggable={false}
-                        style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:`${photoPos.x}% ${photoPos.y}%`,userSelect:'none',pointerEvents:'none',transform:`scale(${photoSize/100})`,transformOrigin:`${photoPos.x}% ${photoPos.y}%`,transition:dragging?'none':'transform .2s'}} alt=""/>
-                    :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--glass-bg)',fontSize:80,opacity:.25}}>👤</div>}
-                  {/* Edit button — bottom left of photo */}
-                  <div style={{position:'absolute',bottom:editMode?90:10,left:12,display:'flex',flexDirection:'column',gap:6,pointerEvents:'auto',zIndex:5}}
-                    onClick={e=>e.stopPropagation()}>
-                    <button onClick={()=>setEditMode(v=>!v)}
-                      style={{fontSize:9,fontWeight:700,padding:'3px 9px',borderRadius:8,border:`1px solid ${editMode?'var(--teal)':'rgba(255,255,255,0.4)'}`,background:editMode?'rgba(59,191,160,0.25)':'rgba(0,0,0,0.45)',color:editMode?'var(--teal)':'rgba(255,255,255,0.7)',backdropFilter:'blur(4px)',cursor:'pointer',letterSpacing:'.04em'}}>
-                      {editMode?'✓ Done':'✎ Edit'}
-                    </button>
-                    {editMode&&(
-                      <div style={{background:'rgba(0,0,0,0.55)',backdropFilter:'blur(6px)',borderRadius:8,padding:'6px 10px',display:'flex',flexDirection:'column',gap:4}}>
-                        <span style={{fontSize:8,color:'rgba(255,255,255,0.5)',letterSpacing:'.05em'}}>SIZE</span>
-                        <input type="range" min={80} max={150} value={photoSize}
-                          onChange={e=>setPhotoSize(Number(e.target.value))}
-                          style={{width:80,accentColor:'var(--teal)'}}/>
-                        <span style={{fontSize:8,color:'rgba(255,255,255,0.4)',textAlign:'center'}}>Drag photo to reposition</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-            {/* Gradient overlay — lighter, covers only bottom 30% strongly */}
-            <div style={{position:'absolute',inset:0,background:'linear-gradient(to top, rgba(5,10,20,0.94) 0%, rgba(5,10,20,0.65) 22%, rgba(5,10,20,0.1) 42%, transparent 58%)',pointerEvents:'none'}}/>
-            {/* Decorative top border accent */}
-            <div style={{position:'absolute',top:0,left:0,right:0,height:5,background:`linear-gradient(90deg,${accentCol},${accentCol}88,transparent)`,pointerEvents:'none'}}/>
-            {/* Content at bottom — trump card style — tap this area to flip back */}
-            <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'20px 22px 24px',cursor:'pointer',pointerEvents:'auto',background:'linear-gradient(to bottom, transparent, rgba(5,10,20,0.92) 40%)'}}
-              onClick={e=>{e.stopPropagation();setFlipped(false);}}>\n              {/* Colour bar */}
-              <div style={{width:36,height:3,borderRadius:2,background:accentCol,marginBottom:10,opacity:.9}}/>
-              {/* 4 stats in a row */}
-              <div style={{display:'flex',gap:10,marginBottom:10,flexWrap:'wrap'}}>
-                {[
-                  {l:'ATT',v:`${attendanceCount}/${totalSessions}`,pct:attPct},
-                  {l:'OBS',v:obs.length},
-                  {l:'👍',v:thumbsUp},
-                  {l:'FLAGS',v:escalations||'–',red:escalations>0},
-                ].map((st,i)=>(
-                  <div key={i} style={{textAlign:'center'}}>
-                    <div style={{fontSize:8,color:'rgba(255,255,255,0.55)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:1}}>{st.l}</div>
-                    <div style={{fontSize:16,fontWeight:800,color:st.red?'var(--coral)':'#fff',lineHeight:1,textShadow:'0 1px 4px rgba(0,0,0,0.5)'}}>{st.v}</div>
-                    {st.pct!==undefined&&<div style={{fontSize:8,color:'rgba(255,255,255,0.45)'}}>{st.pct}%</div>}
-                  </div>
-                ))}
-              </div>
-              {/* Top tag badges */}
-              {topTags.length>0&&(
-                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                <div style={{display:'flex',flexWrap:'wrap',gap:3,marginBottom:10}}>
                   {topTags.slice(0,3).map((t,i)=>{
                     const td=OBS_TAGS.find(x=>x.label===t);
                     const cl={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
-                    return<span key={i} style={{fontSize:9,fontWeight:700,padding:'2px 8px',borderRadius:10,background:'rgba(255,255,255,0.12)',border:`1px solid ${cl[td?td.color:'teal']||'rgba(255,255,255,0.3)'}`,color:cl[td?td.color:'teal']||'rgba(255,255,255,0.8)',backdropFilter:'blur(4px)'}}>{t}</span>;
+                    return<span key={i} style={{fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:8,background:`rgba(${accentRaw},0.1)`,border:`1px solid rgba(${accentRaw},0.22)`,color:cl[td?td.color:'teal']||accentCol}}>{t}</span>;
                   })}
                 </div>
               )}
-              {/* Flip hint */}
-              <div style={{marginTop:10,fontSize:9,color:'rgba(255,255,255,0.3)',letterSpacing:'.05em'}}>TAP ANYWHERE TO FLIP BACK</div>
+
+              {/* Bottom row — attendance ring + history button */}
+              <div style={{marginTop:'auto',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div style={{position:'relative',width:48,height:48,flexShrink:0}}>
+                  <svg width={48} height={48} style={{transform:'rotate(-90deg)'}}>
+                    <circle cx={24} cy={24} r={ringR} fill="none" stroke={`rgba(${accentRaw},0.12)`} strokeWidth={4}/>
+                    <circle cx={24} cy={24} r={ringR} fill="none" stroke={accentCol} strokeWidth={4}
+                      strokeDasharray={`${ringDash} ${ringCirc}`} strokeLinecap="round"/>
+                  </svg>
+                  <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+                    <span style={{fontSize:11,fontWeight:800,color:'var(--tx)',lineHeight:1}}>{attPct}%</span>
+                    <span style={{fontSize:7,color:'var(--tx3)'}}>att</span>
+                  </div>
+                </div>
+                <button onClick={()=>setFlipped(true)}
+                  style={{fontSize:10,fontWeight:700,padding:'6px 14px',borderRadius:9,border:`1px solid rgba(${accentRaw},0.3)`,background:`rgba(${accentRaw},0.1)`,color:accentCol,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                  Notes &#38; History &#8250;
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* ── BACK — Notes history + AI profile ── */}
+          <div style={{
+            position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
+            transform:'rotateY(180deg)',
+            borderRadius:16,overflow:'hidden',
+            background:'var(--popup-bg)',
+            border:`1px solid rgba(${accentRaw},0.22)`,
+            boxShadow:'var(--glass-shadow2)',
+            display:'flex',flexDirection:'column',
+          }}>
+            {/* Back header */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 14px',borderBottom:`1px solid rgba(${accentRaw},0.14)`,flexShrink:0,background:`rgba(${accentRaw},0.06)`}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontFamily:"'Fraunces',serif",fontSize:13,fontWeight:700,color:'var(--tx)'}}>{student.name}</span>
+                <span style={{fontSize:9,color:'var(--tx3)'}}>&#183; {obs.length} obs</span>
+              </div>
+              <button onClick={()=>setFlipped(false)}
+                style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:8,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                &#8249; ID Card
+              </button>
+            </div>
+
+            {/* Scrollable area */}
+            <div style={{flex:1,overflowY:'auto',padding:'10px 14px',display:'flex',flexDirection:'column',gap:8}}>
+
+              {/* AI profile — top when present */}
+              {profile&&(
+                <div style={{background:`rgba(${accentRaw},0.08)`,border:`1px solid rgba(${accentRaw},0.2)`,borderRadius:10,padding:'9px 12px',flexShrink:0}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
+                    <span style={{fontSize:9,fontWeight:700,color:accentCol,letterSpacing:'.06em',textTransform:'uppercase'}}>&#10024; AI Profile</span>
+                    <button onClick={()=>{try{navigator.clipboard.writeText(profile);}catch{}}}
+                      style={{fontSize:9,color:'var(--tx3)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Copy</button>
+                  </div>
+                  <div style={{fontSize:11,color:'var(--tx)',lineHeight:1.6}}>{profile}</div>
+                </div>
+              )}
+
+              {/* Generate AI profile button */}
+              <button onClick={generateProfile} disabled={loading}
+                style={{flexShrink:0,padding:'6px 0',borderRadius:9,border:`1px solid rgba(${accentRaw},0.28)`,background:loading?'var(--glass-bg)':`rgba(${accentRaw},0.08)`,color:loading?'var(--tx3)':accentCol,cursor:loading?'not-allowed':'pointer',fontSize:10,fontWeight:700,fontFamily:"'DM Sans',sans-serif",opacity:loading?0.6:1}}>
+                {loading?'Generating…':'✨ Generate AI Profile'}
+              </button>
+
+              {/* Flat observation history */}
+              {obs.length===0
+                ?<div style={{textAlign:'center',fontSize:11,color:'var(--tx3)',padding:'20px 0'}}>No observations yet.</div>
+                :[...obs].map((o,realIdx)=>({o,realIdx})).reverse().map(({o,realIdx})=>(
+                  <div key={realIdx} className="obs-history-entry" style={{position:'relative',flexShrink:0}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
+                      <div className="obs-history-date">{o.date}{o.thumb?' '+(o.thumb==='up'?'&#128077;':'&#128078;'):''}</div>
+                      <button onClick={()=>onDeleteObs(realIdx)}
+                        style={{fontSize:10,lineHeight:1,padding:'2px 6px',borderRadius:5,background:'rgba(232,112,90,0.1)',border:'1px solid rgba(232,112,90,0.25)',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>&#x2715;</button>
+                    </div>
+                    {o.tags&&o.tags.length>0&&(
+                      <div className="obs-history-tags">
+                        {o.tags.map((t,j)=>{
+                          const tagDef=OBS_TAGS.find(td=>td.label===t);
+                          const colors={green:{bg:'rgba(59,191,160,0.15)',cl:'var(--teal)'},yellow:{bg:'rgba(212,168,67,0.15)',cl:'var(--yellow)'},red:{bg:'rgba(232,112,90,0.15)',cl:'var(--coral)'}};
+                          const c=colors[tagDef?tagDef.color:'yellow']||colors.yellow;
+                          return<span key={j} className="obs-history-tag" style={{background:c.bg,color:c.cl}}>{t}</span>;
+                        })}
+                      </div>
+                    )}
+                    {o.note&&<div className="obs-history-note">&ldquo;{o.note}&rdquo;</div>}
+                    {o.escalation&&!o.escalationCleared&&<div className="obs-history-escalation">&#9888;&#65039; Escalation needed</div>}
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
