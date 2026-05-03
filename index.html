@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Order & Chaos — Grade 4</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800;12..96,900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,600;1,9..144,700&family=Bangers&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,600;1,9..144,700&family=Bangers&family=Vampire+One&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <!-- Firebase compat SDK (v8-style, no ES modules needed) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -2216,6 +2216,7 @@ html[data-ts="large"] .nb-name{font-size:13.5px !important;}
   if(sizes.indexOf(saved)<0)saved='normal';
   document.documentElement.setAttribute('data-ts',saved);
   function init(){
+    return; // Text size bar deactivated
     if(document.getElementById('ts-fab'))return;
     var wrap=document.createElement('div');
     wrap.id='ts-fab';
@@ -5736,7 +5737,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   }
 
   // Card is always light (ID card feel)
-  const cardBg='#f0ede8';
+  const cardBg='linear-gradient(180deg,#eeece8 0%,#d3ccc3 100%)';
   const cardText='#1a1a2e';
   const cardSubText='#6b7280';
   const cardBorder='rgba(0,0,0,0.08)';
@@ -5777,12 +5778,12 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
             display:'flex',flexDirection:'column',
           }}>
 
-            {/* Top row: photo + info */}
-            <div style={{display:'flex',flex:1,minHeight:0}}>
+            {/* Top row: photo (absolute, overlaps) + info panel (fixed right) */}
+            <div style={{position:'relative',flex:1,minHeight:0}}>
 
-              {/* Left — photo area */}
+              {/* Left — photo area — absolute so it overlaps right panel */}
               <div ref={photoAreaRef}
-                style={{position:'relative',width:photoColumnWidth,flexShrink:0,overflow:'hidden',
+                style={{position:'absolute',top:0,left:0,bottom:0,width:photoColumnWidth,zIndex:5,overflow:'hidden',
                   background:`linear-gradient(180deg,rgba(${glowColor},0.15) 0%,rgba(${glowColor},0.04) 100%)`,
                   cursor:editMode?'grab':'default'}}
                 onMouseDown={editMode?onPhotoDragStart:undefined}
@@ -5837,8 +5838,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
               </div>
 
-              {/* Right — info panel */}
-              <div style={{flex:1,display:'flex',flexDirection:'column',padding:'22px 24px 18px',minWidth:0,overflow:'hidden'}}>
+              {/* Right — info panel — always at fixed left:290, photo overlaps */}
+              <div style={{position:'absolute',top:0,left:290,right:0,bottom:0,display:'flex',flexDirection:'column',padding:'22px 24px 18px',overflow:'hidden',zIndex:3}}>
 
                 {/* School label */}
                 <div style={{fontSize:13,color:'#b5a899',letterSpacing:'.04em',marginBottom:6,fontFamily:"'DM Sans',sans-serif",textTransform:'uppercase',fontWeight:400}}>
@@ -5869,11 +5870,11 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                 }
 
               {/* ── Bars ── */}
-              <div style={{display:'flex',flexDirection:'column',gap:14,flex:1}}>
+              <div style={{display:'flex',flexDirection:'column',gap:14,flex:1,paddingRight:31.5}}>
 
                 {/* Attendance bar */}
                 <div>
-                  <div style={{width:'100%',height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
+                  <div style={{width:290,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {totalSessions===0
                       ?<div style={{flex:1,background:cardGreyBar}}/>
@@ -5883,7 +5884,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                           onMouseEnter={()=>setBarTooltip(`Absent: ${totalSessions-attendanceCount} sessions`)}/></>
                     }
                   </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:290}}>
                     <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
                     <span style={{fontSize:13,fontWeight:400,color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
                   </div>
@@ -5891,7 +5892,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
                 {/* Observations bar */}
                 <div>
-                  <div style={{width:'100%',height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
+                  <div style={{width:290,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {obs.length===0
                       ?<div style={{flex:1,background:cardGreyBar}}/>
@@ -5903,14 +5904,14 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                           onMouseEnter={()=>setBarTooltip(`Concerning: ${redObs} obs`)}/></>
                     }
                   </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:290}}>
                     <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>OBSERVATIONS</span>
                     <span style={{fontSize:13,fontWeight:400,color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>{obs.length}</span>
                   </div>
                 </div>
 
                 {/* Thumbs bar */}
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,width:290}}>
                   <span style={{fontSize:25,lineHeight:1,flexShrink:0}}>👍</span>
                   <div style={{flex:1,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default'}}
                     onMouseLeave={()=>setBarTooltip(null)}>
@@ -5927,37 +5928,37 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
               </div>
 
-              {/* Tooltip */}
+              {/* Tooltip — right aligned */}
               {barTooltip&&(
-                <div style={{marginTop:4,fontSize:12,color:cardSubText,fontFamily:"'DM Sans',sans-serif",height:16}}>{barTooltip}</div>
+                <div style={{marginTop:4,fontSize:12,color:'#b5a899',fontFamily:"'DM Sans',sans-serif",height:16,textAlign:'right',paddingRight:31.5}}>{barTooltip}</div>
               )}
 
-              {/* Student Profile button — 180×26px */}
+              {/* Student Profile button */}
               <button onClick={()=>setFlipped(true)}
                 style={{marginTop:10,alignSelf:'flex-end',
-                  width:180,height:26,
-                  fontSize:12,fontWeight:400,
+                  paddingInline:'14px 10px',height:26,
+                  fontSize:11.5,fontWeight:400,
                   borderRadius:13,border:'1px solid rgba(211,204,195,0.6)',background:'rgba(238,236,232,0.5)',
                   color:'#b5a899',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.04em',
-                  display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                STUDENT PROFILE &#9654;
+                  display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}>
+                STUDENT PROFILE <span style={{fontSize:8}}>&#9654;</span>
               </button>
             </div>
           </div>
 
-          {/* CHARACTER — absolute on card, overlaps photo area bottom-left */}
-          <div style={{position:'absolute',bottom:10,left:0,width:photoColumnWidth,zIndex:14,padding:'0 10px',
+          {/* CHARACTER — absolute at bottom of full card, not clipped */}
+          <div style={{position:'absolute',bottom:8,left:10,right:0,zIndex:14,
             pointerEvents:editMode?'auto':'none',
             backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden'}}>
             {editMode
               ?<input value={editCharacter} onChange={e=>setEditCharacter(e.target.value.toUpperCase())}
-                  style={{width:'100%',fontSize:28,fontFamily:"'Bangers',cursive",letterSpacing:'.06em',
-                    fontStyle:'italic',color:'#facc15',textShadow:'2px 2px 0 #dc2626,-1px -1px 0 #dc2626',
+                  style={{width:'60%',fontSize:36,fontFamily:"'Vampire One',cursive",letterSpacing:'.03em',
+                    color:'#facc15',textShadow:'2px 2px 0 #dc2626,-1px -1px 0 #dc2626',
                     background:'transparent',border:'none',borderBottom:'2px solid rgba(255,255,255,0.35)',
                     outline:'none',textTransform:'uppercase',lineHeight:1}}/>
-              :<div style={{fontFamily:"'Bangers',cursive",fontSize:48,letterSpacing:'.04em',lineHeight:1,
-                  fontStyle:'italic',color:'#facc15',
-                  textShadow:'2px 2px 0 #dc2626,-1px -1px 0 #dc2626',
+              :<div style={{fontFamily:"'Vampire One',cursive",fontSize:75,letterSpacing:'.03em',lineHeight:1,
+                  color:'#facc15',
+                  textShadow:'3px 3px 0 #dc2626,-1px -1px 0 #dc2626, 1px 1px 0 #dc2626',
                   whiteSpace:'nowrap'}}>
                 {student.cardCharacter||'CHARACTER'}
               </div>
@@ -7162,14 +7163,21 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                             onKeyDown={e=>{if(e.key==='Enter'){updateData(d=>{d.sessions[si].date=editDateVal||d.sessions[si].date;});setEditingDateIdx(null);}if(e.key==='Escape')setEditingDateIdx(null);}}/>
                         ):(
                           <span className="date-th-label"
-                            style={{cursor:sess.linkedSession?'pointer':'text',
-                              color:sess.sessType==='sub'?'var(--violet)':sess.sessType==='cancelled'?'var(--coral)':sess.linkedSession?'var(--teal)':'var(--tx2)'}}
-                            onClick={()=>{if(sess.linkedSession){setSlideSession(sess.linkedSession);setSlideOpen(true);}else if(teacherMode&&editMode){setEditingDateIdx(si);setEditDateVal(sess.date);}}}
-                            title={teacherMode&&editMode&&!sess.linkedSession?'Click to edit date':undefined}>
+                            style={{cursor:sess.linkedSession||sess.sessType==='manual'?'pointer':'text',
+                              color:sess.sessType==='sub'?'var(--violet)':sess.sessType==='cancelled'?'var(--coral)':sess.linkedSession?'var(--teal)':sess.sessType==='manual'?'var(--sky)':'var(--tx2)'}}
+                            onClick={()=>{
+                              if(sess.linkedSession){setSlideSession(sess.linkedSession);setSlideOpen(true);}
+                              else if(sess.sessType==='manual'){
+                                const msg=[sess.manualTitle&&`📌 ${sess.manualTitle}`,sess.manualActivity&&`🎨 ${sess.manualActivity}`].filter(Boolean).join('\n')||'Additional session (no details added)';
+                                alert(msg);
+                              }
+                              else if(teacherMode&&editMode){setEditingDateIdx(si);setEditDateVal(sess.date);}
+                            }}
+                            title={teacherMode&&editMode&&!sess.linkedSession&&sess.sessType!=='manual'?'Click to edit date':undefined}>
                             {sess.date}
                             {sess.sessType==='sub'&&<span style={{fontSize:8,display:'block',color:'var(--violet)',fontWeight:700,letterSpacing:'.05em'}}>SUB</span>}
                             {sess.sessType==='cancelled'&&<span style={{fontSize:8,display:'block',color:'var(--coral)',fontWeight:700,letterSpacing:'.05em'}}>OFF</span>}
-                            {sess.sessType==='manual'&&<span title={sess.manualTitle||'Additional session'} style={{fontSize:10,display:'block',color:'var(--sky)',lineHeight:1,textAlign:'center',marginTop:1}}>●</span>}
+                            {sess.sessType==='manual'&&<sup title={[sess.manualTitle,sess.manualActivity].filter(Boolean).join(' · ')||'Additional session'} style={{fontSize:7,color:'var(--sky)',fontWeight:700,verticalAlign:'super',lineHeight:0,marginLeft:1,cursor:'help'}}>●</sup>}
                           </span>
                         )}
                         {teacherMode&&editMode&&(
