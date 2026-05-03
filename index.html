@@ -5670,7 +5670,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
   return(
     <div className="obs-popup-overlay" onClick={editMode?undefined:onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{width:'min(560px,96vw)'}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'min(600px,96vw)'}}>
 
         {/* Nav row */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10,paddingInline:2}}>
@@ -5691,15 +5691,15 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
         </div>
 
         {/* Flip container */}
-        <div style={{position:'relative',width:'100%',height:300,transformStyle:'preserve-3d',transition:'transform .6s cubic-bezier(.4,0,.2,1)',transform:flipped?'rotateY(180deg)':'rotateY(0deg)'}}>
+        <div style={{position:'relative',width:'100%',height:375,transformStyle:'preserve-3d',transition:'transform .6s cubic-bezier(.4,0,.2,1)',transform:flipped?'rotateY(180deg)':'rotateY(0deg)'}}>
 
           {/* ══ FRONT — ID Card ══ */}
           <div style={{
             position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
             borderRadius:20,overflow:'hidden',
             background:cardBg,
-            border:`1px solid ${cardBorder}`,
-            boxShadow:`0 0 0 4px rgba(${glowColor},0.45), 0 0 60px rgba(${glowColor},0.40), 0 0 120px rgba(${glowColor},0.20), 0 8px 32px rgba(0,0,0,0.35)`,
+            border:'none',
+            boxShadow:`0 0 60px rgba(${glowColor},0.50), 0 0 120px rgba(${glowColor},0.25), 0 8px 32px rgba(0,0,0,0.4)`,
             display:'flex',flexDirection:'column',
           }}>
 
@@ -5708,149 +5708,179 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
               {/* Left — photo area */}
               <div ref={photoAreaRef}
-                style={{position:'relative',width:210,flexShrink:0,overflow:'hidden',
-                  background:`linear-gradient(160deg,rgba(${glowColor},0.22) 0%,rgba(${glowColor},0.06) 60%,${cardBg} 100%)`,
+                style={{position:'relative',width:290,flexShrink:0,overflow:'hidden',
+                  background:`linear-gradient(180deg,rgba(${glowColor},0.15) 0%,rgba(${glowColor},0.04) 100%)`,
                   cursor:editMode?'grab':'default'}}
                 onMouseDown={editMode?onPhotoDragStart:undefined}
                 onTouchStart={editMode?onPhotoDragStart:undefined}>
 
-              {/* Emoji — top left */}
-              {editMode
-                ?<input value={editEmoji} onChange={e=>setEditEmoji(e.target.value)}
-                    onMouseDown={e=>e.stopPropagation()}
-                    style={{position:'absolute',top:8,left:8,width:36,height:36,fontSize:20,textAlign:'center',background:'rgba(255,255,255,0.7)',border:'1px solid rgba(0,0,0,0.15)',borderRadius:8,zIndex:10,outline:'none'}}/>
-                :<div style={{position:'absolute',top:10,left:10,fontSize:30,zIndex:10,lineHeight:1,filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.25))'}}>{student.cardEmoji||'🐝'}</div>
-              }
+                {/* Emoji — top left */}
+                {editMode
+                  ?<input value={editEmoji} onChange={e=>setEditEmoji(e.target.value)}
+                      onMouseDown={e=>e.stopPropagation()}
+                      style={{position:'absolute',top:8,left:8,width:32,height:32,fontSize:16,textAlign:'center',background:'rgba(255,255,255,0.7)',border:'1px solid rgba(0,0,0,0.15)',borderRadius:8,zIndex:10,outline:'none'}}/>
+                  :<div style={{position:'absolute',top:10,left:10,width:42,height:45,fontSize:38,zIndex:12,lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center',filter:'drop-shadow(0 2px 6px rgba(0,0,0,0.4))'}}>{student.cardEmoji||'🐝'}</div>
+                }
 
-              {/* Photo */}
-              {student.photo
-                ?<img src={student.photo} draggable={false} alt=""
-                    style={{
-                      position:'absolute',bottom:0,left:0,right:0,
-                      width:'100%',height:'120%',
-                      objectFit:'cover',
-                      objectPosition:'top center',
-                      userSelect:'none',pointerEvents:'none',
-                      transform:`translate(${photoOffsetX}px,${photoOffsetY}px) scale(${photoScale})`,
-                      transformOrigin:'bottom center',
-                    }}/>
-                :<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:72,opacity:.10}}>👤</div>
-              }
+                {/* Photo */}
+                {student.photo
+                  ?<img src={student.photo} draggable={false} alt=""
+                      style={{
+                        position:'absolute',bottom:0,left:0,right:0,
+                        width:'100%',height:'100%',
+                        objectFit:'cover',
+                        objectPosition:'top center',
+                        userSelect:'none',pointerEvents:'none',
+                        transform:`translate(${photoOffsetX}px,${photoOffsetY}px) scale(${photoScale})`,
+                        transformOrigin:'bottom center',
+                      }}/>
+                  :<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:72,opacity:.10}}>👤</div>
+                }
 
-              {/* Edit mode dashed bounding box */}
-              {editMode&&<div style={{position:'absolute',inset:0,border:'2px dashed rgba(250,204,21,0.7)',zIndex:8,
-                pointerEvents:'none',display:'flex',alignItems:'flex-end',justifyContent:'center',paddingBottom:8}}>
-                <span style={{fontSize:9,color:'#fff',background:'rgba(0,0,0,0.5)',padding:'2px 8px',borderRadius:10,letterSpacing:'.04em'}}>drag · scroll to zoom</span>
-              </div>}
+                {/* CHARACTER — over photo bottom-left */}
+                <div style={{position:'absolute',bottom:10,left:0,right:0,padding:'0 10px',zIndex:9}}>
+                  {editMode
+                    ?<input value={editCharacter} onChange={e=>setEditCharacter(e.target.value.toUpperCase())}
+                        onMouseDown={e=>e.stopPropagation()}
+                        style={{width:'100%',fontSize:28,fontFamily:"'Bangers',cursive",letterSpacing:'.06em',
+                          fontStyle:'italic',color:'#facc15',textShadow:'2px 2px 0 #dc2626,-1px -1px 0 #dc2626',
+                          background:'transparent',border:'none',borderBottom:'2px solid rgba(255,255,255,0.35)',
+                          outline:'none',textTransform:'uppercase',lineHeight:1}}/>
+                    :<div style={{fontFamily:"'Bangers',cursive",fontSize:56,letterSpacing:'.06em',lineHeight:1,
+                        fontStyle:'italic',color:'#facc15',
+                        textShadow:'2px 2px 0 #dc2626,-1px -1px 0 #dc2626',
+                        whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',zIndex:13}}>
+                      {student.cardCharacter||'CHARACTER'}
+                    </div>
+                  }
+                </div>
 
-              {/* Photo upload — edit mode only */}
-              {editMode&&<div style={{position:'absolute',top:8,right:8,zIndex:10}} onMouseDown={e=>e.stopPropagation()}>
+                {/* Edit mode dashed bounding box */}
+                {editMode&&<div style={{position:'absolute',inset:0,border:'2px dashed rgba(250,204,21,0.7)',zIndex:8,
+                  pointerEvents:'none',display:'flex',alignItems:'flex-end',justifyContent:'center',paddingBottom:36}}>
+                  <span style={{fontSize:9,color:'#fff',background:'rgba(0,0,0,0.5)',padding:'2px 8px',borderRadius:10,letterSpacing:'.04em'}}>drag · scroll to zoom</span>
+                </div>}
+
+                {/* Photo upload — edit mode only */}
+                {editMode&&<div style={{position:'absolute',top:8,right:8,zIndex:10}} onMouseDown={e=>e.stopPropagation()}>
                   <label htmlFor={'snp-photo-'+studentIdx}
                     style={{fontSize:9,color:'rgba(255,255,255,0.9)',background:'rgba(0,0,0,0.55)',padding:'3px 8px',borderRadius:6,cursor:'pointer',backdropFilter:'blur(4px)',display:'block',letterSpacing:'.03em'}}>
                     📷 {student.photo?'Change':'Add'}
                   </label>
                   <input id={'snp-photo-'+studentIdx} type="file" accept="image/*" style={{display:'none'}}
                     onChange={e=>{const file=e.target.files[0];if(!file)return;onPhotoChange(file);e.target.value='';}}/>
-              </div>}
+                </div>}
 
-            </div>
-
-            {/* Right — info panel */}
-            <div style={{flex:1,display:'flex',flexDirection:'column',padding:'18px 20px 14px',minWidth:0,overflow:'hidden'}}>
-
-              {/* School label */}
-              <div style={{fontSize:9,color:cardSubText,letterSpacing:'.05em',marginBottom:8,fontFamily:"'DM Sans',sans-serif",textTransform:'uppercase'}}>
-                SNS | Grade 4: Kanha | 2026–27
               </div>
 
-              {/* Name — Fraunces serif */}
-              {editMode
-                ?<input value={editName} onChange={e=>setEditName(e.target.value)}
-                    style={{fontSize:24,fontWeight:700,fontFamily:"'Fraunces',serif",color:cardText,
-                      background:'transparent',border:'none',borderBottom:`2px solid rgba(${glowColor},0.5)`,
-                      outline:'none',marginBottom:2,width:'100%',lineHeight:1.1}}/>
-                :<div style={{fontSize:24,fontWeight:700,color:cardText,lineHeight:1.1,marginBottom:2,
-                    fontFamily:"'Fraunces',serif",whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                  {student.name}
+              {/* Right — info panel */}
+              <div style={{flex:1,display:'flex',flexDirection:'column',padding:'22px 24px 18px',minWidth:0,overflow:'hidden'}}>
+
+                {/* School label */}
+                <div style={{fontSize:14.5,color:cardSubText,letterSpacing:'.04em',marginBottom:8,fontFamily:"'DM Sans',sans-serif",textTransform:'uppercase'}}>
+                  SNS | Grade 4: Kanha | 2026–27
                 </div>
-              }
 
-              {/* ID */}
-              <div style={{fontSize:11,color:cardSubText,letterSpacing:'.07em',marginBottom:14,fontFamily:"'DM Sans',sans-serif"}}>
-                #{String(studentIdx+1).padStart(6,'0')}
-                {escalations>0&&<span style={{marginLeft:8,color:'#ef4444',fontWeight:700,fontSize:10}}>⚠ Escalation</span>}
-              </div>
+                {/* Name — first bold, last regular, 31.5px */}
+                {editMode
+                  ?<input value={editName} onChange={e=>setEditName(e.target.value)}
+                      style={{fontSize:31.5,fontWeight:700,fontFamily:"'Fraunces',serif",color:cardText,
+                        background:'transparent',border:'none',borderBottom:`2px solid rgba(${glowColor},0.5)`,
+                        outline:'none',marginBottom:2,width:'100%',lineHeight:1.05}}/>
+                  :<div style={{fontSize:31.5,color:cardText,lineHeight:1.05,marginBottom:2,
+                      fontFamily:"'Fraunces',serif",whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                    {(()=>{const parts=(student.name||'').trim().split(' ');const first=parts[0]||'';const rest=parts.slice(1).join(' ');return(<><span style={{fontWeight:700}}>{first}</span>{rest&&<span style={{fontWeight:400}}>{' '+rest}</span>}</>);})()}
+                  </div>
+                }
+
+                {/* ID — editable */}
+                {editMode
+                  ?<input value={String(studentIdx+1).padStart(6,'0')} readOnly
+                      style={{fontSize:25,color:cardSubText,letterSpacing:'.06em',marginBottom:16,
+                        fontFamily:"'DM Sans',sans-serif",background:'transparent',border:'none',outline:'none',width:'100%'}}/>
+                  :<div style={{fontSize:25,color:cardSubText,letterSpacing:'.06em',marginBottom:16,fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:8}}>
+                    #{String(studentIdx+1).padStart(6,'0')}
+                    {escalations>0&&<span style={{color:'#ef4444',fontWeight:700,fontSize:12}}>⚠ Escalation</span>}
+                  </div>
+                }
 
               {/* ── Bars ── */}
-                <div style={{display:'flex',flexDirection:'column',gap:10,flex:1}}>
+              <div style={{display:'flex',flexDirection:'column',gap:10,flex:1}}>
 
-                  {/* Attendance bar */}
-                  <div>
-                    <div style={{height:8,borderRadius:4,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
-                      onMouseLeave={()=>setBarTooltip(null)}>
-                      {totalSessions===0
-                        ?<div style={{flex:1,background:cardGreyBar}}/>
-                        :<><div style={{width:`${attGreenPct}%`,background:'#22c55e',transition:'width .5s ease'}}
-                            onMouseEnter={()=>setBarTooltip(`Present: ${attendanceCount} sessions`)}/>
-                          <div style={{flex:1,background:'#ef4444',transition:'width .5s ease'}}
-                            onMouseEnter={()=>setBarTooltip(`Absent: ${totalSessions-attendanceCount} sessions`)}/></>
-                      }
-                    </div>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                      <span style={{fontSize:9,fontWeight:700,letterSpacing:'.08em',color:cardSubText,fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
-                      <span style={{fontSize:10,fontWeight:700,color:totalSessions===0?cardSubText:cardText,fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
-                    </div>
+                {/* Attendance bar */}
+                <div>
+                  <div style={{width:290,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
+                    onMouseLeave={()=>setBarTooltip(null)}>
+                    {totalSessions===0
+                      ?<div style={{flex:1,background:cardGreyBar}}/>
+                      :<><div style={{width:`${attGreenPct}%`,background:'#22c55e',transition:'width .5s ease'}}
+                          onMouseEnter={()=>setBarTooltip(`Present: ${attendanceCount} sessions`)}/>
+                        <div style={{flex:1,background:'#ef4444',transition:'width .5s ease'}}
+                          onMouseEnter={()=>setBarTooltip(`Absent: ${totalSessions-attendanceCount} sessions`)}/></>
+                    }
                   </div>
-
-                  {/* Observations bar */}
-                  <div>
-                    <div style={{height:8,borderRadius:4,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
-                      onMouseLeave={()=>setBarTooltip(null)}>
-                      {obs.length===0
-                        ?<div style={{flex:1,background:cardGreyBar}}/>
-                        :<><div style={{width:`${greenObsPct}%`,background:'#22c55e',transition:'width .5s ease'}}
-                            onMouseEnter={()=>setBarTooltip(`Good: ${greenObs} obs`)}/>
-                          <div style={{width:`${yellowObsPct}%`,background:'#eab308',transition:'width .5s ease'}}
-                            onMouseEnter={()=>setBarTooltip(`Neutral: ${yellowObs} obs`)}/>
-                          <div style={{flex:1,background:'#ef4444',transition:'width .5s ease'}}
-                            onMouseEnter={()=>setBarTooltip(`Concerning: ${redObs} obs`)}/></>
-                      }
-                    </div>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                      <span style={{fontSize:9,fontWeight:700,letterSpacing:'.08em',color:cardSubText,fontFamily:"'DM Sans',sans-serif"}}>OBSERVATIONS</span>
-                      <span style={{fontSize:10,fontWeight:700,color:obs.length===0?cardSubText:cardText,fontFamily:"'DM Sans',sans-serif"}}>{obs.length}</span>
-                    </div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:290}}>
+                    <span style={{fontSize:14.5,fontWeight:600,letterSpacing:'.04em',color:cardSubText,fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
+                    <span style={{fontSize:14.5,fontWeight:700,color:totalSessions===0?cardSubText:cardText,fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
                   </div>
-
-                  {/* Thumbs bar */}
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <span style={{fontSize:16}}>👍</span>
-                    <div style={{flex:1,height:8,borderRadius:4,overflow:'hidden',display:'flex',cursor:'default'}}
-                      onMouseLeave={()=>setBarTooltip(null)}>
-                      {thumbsUp===0&&thumbsDown===0
-                        ?<div style={{flex:1,background:cardGreyBar}}/>
-                        :<><div style={{width:`${thumbsUpPct}%`,background:'#22c55e',transition:'width .5s ease'}}
-                            onMouseEnter={()=>setBarTooltip(`Thumbs up: ${thumbsUp}`)}/>
-                          <div style={{flex:1,background:'#ef4444',transition:'width .5s ease'}}
-                            onMouseEnter={()=>setBarTooltip(`Thumbs down: ${thumbsDown}`)}/></>
-                      }
-                    </div>
-                    <span style={{fontSize:16}}>👎</span>
-                  </div>
-
                 </div>
 
-                {barTooltip&&<div style={{marginTop:4,fontSize:9,color:cardSubText,fontFamily:"'DM Sans',sans-serif",height:14}}>{barTooltip}</div>}
+                {/* Observations bar */}
+                <div>
+                  <div style={{width:290,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
+                    onMouseLeave={()=>setBarTooltip(null)}>
+                    {obs.length===0
+                      ?<div style={{flex:1,background:cardGreyBar}}/>
+                      :<><div style={{width:`${greenObsPct}%`,background:'#22c55e',transition:'width .5s ease'}}
+                          onMouseEnter={()=>setBarTooltip(`Good: ${greenObs} obs`)}/>
+                        <div style={{width:`${yellowObsPct}%`,background:'#eab308',transition:'width .5s ease'}}
+                          onMouseEnter={()=>setBarTooltip(`Neutral: ${yellowObs} obs`)}/>
+                        <div style={{flex:1,background:'#ef4444',transition:'width .5s ease'}}
+                          onMouseEnter={()=>setBarTooltip(`Concerning: ${redObs} obs`)}/></>
+                    }
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:290}}>
+                    <span style={{fontSize:14.5,fontWeight:600,letterSpacing:'.04em',color:cardSubText,fontFamily:"'DM Sans',sans-serif"}}>OBSERVATIONS</span>
+                    <span style={{fontSize:14.5,fontWeight:700,color:obs.length===0?cardSubText:cardText,fontFamily:"'DM Sans',sans-serif"}}>{obs.length}</span>
+                  </div>
+                </div>
 
-                <button onClick={()=>setFlipped(true)}
-                  style={{marginTop:12,alignSelf:'flex-end',fontSize:10,fontWeight:700,padding:'5px 14px',
-                    borderRadius:20,border:'1px solid rgba(0,0,0,0.15)',background:'rgba(0,0,0,0.06)',
-                    color:cardSubText,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.04em',
-                    display:'flex',alignItems:'center',gap:5}}>
-                  STUDENT PROFILE &#9654;
-                </button>
+                {/* Thumbs bar */}
+                <div style={{display:'flex',alignItems:'center',gap:8,width:290+50}}>
+                  <span style={{fontSize:25,lineHeight:1}}>👍</span>
+                  <div style={{width:290,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default'}}
+                    onMouseLeave={()=>setBarTooltip(null)}>
+                    {thumbsUp===0&&thumbsDown===0
+                      ?<div style={{flex:1,background:cardGreyBar}}/>
+                      :<><div style={{width:`${thumbsUpPct}%`,background:'#22c55e',transition:'width .5s ease'}}
+                          onMouseEnter={()=>setBarTooltip(`Thumbs up: ${thumbsUp}`)}/>
+                        <div style={{flex:1,background:'#ef4444',transition:'width .5s ease'}}
+                          onMouseEnter={()=>setBarTooltip(`Thumbs down: ${thumbsDown}`)}/></>
+                    }
+                  </div>
+                  <span style={{fontSize:25,lineHeight:1}}>👎</span>
+                </div>
+
               </div>
+
+              {/* Tooltip */}
+              {barTooltip&&(
+                <div style={{marginTop:4,fontSize:12,color:cardSubText,fontFamily:"'DM Sans',sans-serif",height:16}}>{barTooltip}</div>
+              )}
+
+              {/* Student Profile button — 180×26px */}
+              <button onClick={()=>setFlipped(true)}
+                style={{marginTop:12,alignSelf:'flex-end',
+                  width:180,height:26,
+                  fontSize:14.5,fontWeight:600,
+                  borderRadius:13,border:'1px solid rgba(0,0,0,0.18)',background:'rgba(0,0,0,0.06)',
+                  color:cardSubText,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.04em',
+                  display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                STUDENT PROFILE &#9654;
+              </button>
             </div>
+          </div>
+
           </div>{/* end front card */}
 
           {/* ══ BACK — Notes history + AI profile ══ */}
