@@ -3193,20 +3193,25 @@ function useFirestore(sectionId, userId, init) {
   }, [sectionId, userId]);
 
   const saveTimerRef = React.useRef(null);
+  const latestValRef = React.useRef(null);
 
   const set = React.useCallback((v) => {
     setVal(prev => {
       const next = typeof v === 'function' ? v(prev) : v;
       // Always save to localStorage immediately
       try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+      // Keep a ref to the latest value so the debounced save always writes current state
+      latestValRef.current = next;
       // Debounce Firestore writes — wait 1.5s after last change before writing
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
+        const toSave = latestValRef.current;
+        if (!toSave) return;
         const db = window._db;
         const mainRef = db.collection('sections').doc(sharedDocId);
         const nextWithoutPhotos = {
-          ...next,
-          students: (next.students || []).map((st, i) => {
+          ...toSave,
+          students: (toSave.students || []).map((st, i) => {
             if (st.photo) {
               db.collection('sections').doc(sharedDocId + '-photo-' + i)
                 .set({ photo: st.photo })
