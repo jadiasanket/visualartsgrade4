@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Order & Chaos — Grade 4</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800;12..96,900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,600;1,9..144,700&family=Bangers&family=Vampire+One&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,600;1,9..144,700&family=Bangers&family=Boogaloo&family=Lilita+One&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <!-- Firebase compat SDK (v8-style, no ES modules needed) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -5586,6 +5586,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   const [editName,setEditName]=React.useState(student.name||'');
   const [editEmoji,setEditEmoji]=React.useState(student.cardEmoji||'🐝');
   const [editCharacter,setEditCharacter]=React.useState(student.cardCharacter||'CHARACTER');
+  const [characterSize,setCharacterSize]=React.useState(student.characterSize||72);
+  const [characterVisible,setCharacterVisible]=React.useState(student.characterVisible!==false);
   // Photo position — drag to reposition, scroll to scale
   const [photoOffsetX,setPhotoOffsetX]=React.useState(student.photoOffsetX||0);
   const [photoOffsetY,setPhotoOffsetY]=React.useState(student.photoOffsetY||0);
@@ -5601,6 +5603,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
     setEditName(student.name||'');
     setEditEmoji(student.cardEmoji||'🐝');
     setEditCharacter(student.cardCharacter||'CHARACTER');
+    setCharacterSize(student.characterSize||72);
+    setCharacterVisible(student.characterVisible!==false);
     setPhotoOffsetX(student.photoOffsetX||0);
     setPhotoOffsetY(student.photoOffsetY||0);
     setPhotoScale(student.photoScale||1.1);
@@ -5624,6 +5628,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
         d.students[studentIdx].name=editName;
         d.students[studentIdx].cardEmoji=editEmoji;
         d.students[studentIdx].cardCharacter=editCharacter;
+        d.students[studentIdx].characterSize=characterSize;
+        d.students[studentIdx].characterVisible=characterVisible;
         d.students[studentIdx].photoOffsetX=photoOffsetX;
         d.students[studentIdx].photoOffsetY=photoOffsetY;
         d.students[studentIdx].photoScale=photoScale;
@@ -5784,7 +5790,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
               {/* Left — photo area — absolute so it overlaps right panel */}
               <div ref={photoAreaRef}
                 style={{position:'absolute',top:0,left:0,bottom:0,width:photoColumnWidth,zIndex:5,overflow:'hidden',
-                  background:`linear-gradient(180deg,rgba(${glowColor},0.15) 0%,rgba(${glowColor},0.04) 100%)`,
+                  background:'linear-gradient(180deg,#eeece8 0%,#d3ccc3 100%)',
                   cursor:editMode?'grab':'default'}}
                 onMouseDown={editMode?onPhotoDragStart:undefined}
                 onTouchStart={editMode?onPhotoDragStart:undefined}>
@@ -5838,8 +5844,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
               </div>
 
-              {/* Right — info panel — always at fixed left:290, photo overlaps */}
-              <div style={{position:'absolute',top:0,left:290,right:0,bottom:0,display:'flex',flexDirection:'column',padding:'22px 24px 18px',overflow:'hidden',zIndex:3}}>
+              {/* Right — info panel — bars 290px, right margin 31.5px */}
+              <div style={{position:'absolute',top:0,left:290,right:0,bottom:0,display:'flex',flexDirection:'column',paddingTop:18,paddingBottom:16,paddingLeft:20,paddingRight:31.5,overflow:'hidden',zIndex:3}}>
 
                 {/* School label */}
                 <div style={{fontSize:13,color:'#b5a899',letterSpacing:'.04em',marginBottom:6,fontFamily:"'DM Sans',sans-serif",textTransform:'uppercase',fontWeight:400}}>
@@ -5870,11 +5876,11 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                 }
 
               {/* ── Bars ── */}
-              <div style={{display:'flex',flexDirection:'column',gap:14,flex:1,paddingRight:31.5}}>
+              <div style={{display:'flex',flexDirection:'column',gap:14,flex:1}}>
 
                 {/* Attendance bar */}
                 <div>
-                  <div style={{width:290,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
+                  <div style={{width:'100%',height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {totalSessions===0
                       ?<div style={{flex:1,background:cardGreyBar}}/>
@@ -5884,7 +5890,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                           onMouseEnter={()=>setBarTooltip(`Absent: ${totalSessions-attendanceCount} sessions`)}/></>
                     }
                   </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:290}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
                     <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
                     <span style={{fontSize:13,fontWeight:400,color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
                   </div>
@@ -5892,7 +5898,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
                 {/* Observations bar */}
                 <div>
-                  <div style={{width:290,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
+                  <div style={{width:'100%',height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {obs.length===0
                       ?<div style={{flex:1,background:cardGreyBar}}/>
@@ -5904,14 +5910,14 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                           onMouseEnter={()=>setBarTooltip(`Concerning: ${redObs} obs`)}/></>
                     }
                   </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:290}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
                     <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>OBSERVATIONS</span>
                     <span style={{fontSize:13,fontWeight:400,color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>{obs.length}</span>
                   </div>
                 </div>
 
                 {/* Thumbs bar */}
-                <div style={{display:'flex',alignItems:'center',gap:8,width:290}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,width:'100%'}}>
                   <span style={{fontSize:25,lineHeight:1,flexShrink:0}}>👍</span>
                   <div style={{flex:1,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default'}}
                     onMouseLeave={()=>setBarTooltip(null)}>
@@ -5930,7 +5936,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
               {/* Tooltip — right aligned */}
               {barTooltip&&(
-                <div style={{marginTop:4,fontSize:12,color:'#b5a899',fontFamily:"'DM Sans',sans-serif",height:16,textAlign:'right',paddingRight:31.5}}>{barTooltip}</div>
+                <div style={{marginTop:4,fontSize:12,color:'#b5a899',fontFamily:"'DM Sans',sans-serif",height:16,textAlign:'right'}}>{barTooltip}</div>
               )}
 
               {/* Student Profile button */}
@@ -5946,24 +5952,46 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
             </div>
           </div>
 
-          {/* CHARACTER — absolute at bottom of full card, not clipped */}
-          <div style={{position:'absolute',bottom:8,left:10,right:0,zIndex:14,
+          {/* CHARACTER — absolute at bottom-left of card */}
+          {(characterVisible||editMode)&&(
+          <div style={{position:'absolute',bottom:editMode?38:8,left:10,right:0,zIndex:14,
             pointerEvents:editMode?'auto':'none',
-            backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden'}}>
+            backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
+            opacity:characterVisible?1:0.3}}>
             {editMode
               ?<input value={editCharacter} onChange={e=>setEditCharacter(e.target.value.toUpperCase())}
-                  style={{width:'60%',fontSize:36,fontFamily:"'Vampire One',cursive",letterSpacing:'.03em',
-                    color:'#facc15',textShadow:'2px 2px 0 #dc2626,-1px -1px 0 #dc2626',
+                  style={{display:'block',fontSize:characterSize*0.55,fontFamily:"'Lilita One',cursive",letterSpacing:'.02em',
+                    color:'#facc15',textShadow:`2px 2px 0 #dc2626`,
                     background:'transparent',border:'none',borderBottom:'2px solid rgba(255,255,255,0.35)',
-                    outline:'none',textTransform:'uppercase',lineHeight:1}}/>
-              :<div style={{fontFamily:"'Vampire One',cursive",fontSize:75,letterSpacing:'.03em',lineHeight:1,
+                    outline:'none',textTransform:'uppercase',lineHeight:1,width:'70%'}}/>
+              :<div style={{fontFamily:"'Lilita One',cursive",fontSize:characterSize,letterSpacing:'.02em',lineHeight:1,
                   color:'#facc15',
-                  textShadow:'3px 3px 0 #dc2626,-1px -1px 0 #dc2626, 1px 1px 0 #dc2626',
+                  textShadow:`3px 3px 0 #dc2626, -1px -1px 0 rgba(0,0,0,0.3)`,
                   whiteSpace:'nowrap'}}>
                 {student.cardCharacter||'CHARACTER'}
               </div>
             }
           </div>
+          )}
+
+          {/* CHARACTER edit controls — size slider + hide toggle */}
+          {editMode&&(
+          <div style={{position:'absolute',bottom:8,left:10,right:12,zIndex:15,
+            backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
+            display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:10,color:'rgba(255,255,255,0.7)',fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>SIZE</span>
+            <input type="range" min={36} max={100} value={characterSize}
+              onChange={e=>setCharacterSize(Number(e.target.value))}
+              style={{flex:1,accentColor:'#facc15',height:3,cursor:'pointer'}}/>
+            <button onClick={()=>setCharacterVisible(v=>!v)}
+              style={{fontSize:9,fontWeight:700,padding:'3px 8px',borderRadius:6,
+                border:'1px solid rgba(255,255,255,0.3)',background:characterVisible?'rgba(250,204,21,0.25)':'rgba(0,0,0,0.3)',
+                color:characterVisible?'#facc15':'rgba(255,255,255,0.5)',cursor:'pointer',
+                fontFamily:"'DM Sans',sans-serif",flexShrink:0,letterSpacing:'.04em'}}>
+              {characterVisible?'HIDE':'SHOW'}
+            </button>
+          </div>
+          )}
 
           </div>{/* end front card */}
 
@@ -6467,7 +6495,7 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
               {/* FRONT */}
               <div className="pv-face pv-front" style={{borderRadius:16,overflow:'hidden',cursor:'pointer'}} onClick={()=>setFlipped(flipped===idx?null:idx)}>
                 {st.photo
-                  ?<img src={st.photo} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} draggable={false}/>
+                  ?<img src={st.photo} style={{width:'100%',height:'100%',objectFit:'contain',objectPosition:'center bottom',display:'block',background:'linear-gradient(180deg,#eeece8 0%,#d3ccc3 100%)'}} draggable={false}/>
                   :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:52,background:'var(--glass-bg3)'}}>👤</div>
                 }
                 {/* Attendance badge — tap to cycle P/A/–, long-press to mark Late */}
@@ -6531,22 +6559,21 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
 function AddSessionModal({phases,onAdd,onClose}){
   const [dateStr,setDateStr]=React.useState('');
   const [rawDate,setRawDate]=React.useState('');
-  const [sessType,setSessType]=React.useState('normal'); // normal | sub | cancelled | manual
+  const [sessType,setSessType]=React.useState('normal'); // normal | sub | cancelled
+  const [isExtra,setIsExtra]=React.useState(false);
   const [linkedSession,setLinkedSession]=React.useState(null);
-  const [manualTitle,setManualTitle]=React.useState('');
-  const [manualActivity,setManualActivity]=React.useState('');
   const allSessions=[];
   phases.forEach(p=>p.sessions.forEach(s=>allSessions.push({label:`S${s.n}: ${s.title}`,key:`${p.id}:${s.n}`,phaseId:p.id,sessionN:s.n})));
   function handleAdd(){
     if(!dateStr.trim()) return;
     const ls=linkedSession==='none'?null:linkedSession;
-    onAdd({date:dateStr.trim(),isDivider:false,sessType,linkedSession:ls,
-      manualTitle:sessType==='manual'?manualTitle:'',
-      manualActivity:sessType==='manual'?manualActivity:''});
+    // Extra session → store as sessType 'manual' internally for backward compat
+    onAdd({date:dateStr.trim(),isDivider:false,sessType:isExtra?'manual':sessType,linkedSession:ls,
+      manualTitle:'',manualActivity:''});
     onClose();
   }
-  const typeColors={normal:'var(--teal)',sub:'var(--violet)',cancelled:'var(--coral)',manual:'var(--sky)'};
-  const typeLabels={normal:'Normal class',sub:'Substitute class',cancelled:'Cancelled / Holiday',manual:'Additional session'};
+  const typeColors={normal:'var(--teal)',sub:'var(--violet)',cancelled:'var(--coral)'};
+  const typeLabels={normal:'Normal class',sub:'Substitute class',cancelled:'Cancelled / Holiday'};
   return(
     <div className="obs-popup-overlay" onClick={onClose}>
       <div className="add-session-modal" onClick={e=>e.stopPropagation()}>
@@ -6570,29 +6597,32 @@ function AddSessionModal({phases,onAdd,onClose}){
         <div className="modal-field">
           <div className="modal-label">Column Type</div>
           <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-            {['normal','sub','cancelled','manual'].map(t=>(
-              <button key={t} onClick={()=>setSessType(t)}
+            {['normal','sub','cancelled'].map(t=>(
+              <button key={t} onClick={()=>{setSessType(t);if(t==='cancelled')setIsExtra(false);}}
                 style={{flex:'1 1 auto',padding:'7px 4px',borderRadius:8,border:'1px solid',fontSize:11,fontWeight:600,cursor:'pointer',
-                  borderColor:sessType===t?typeColors[t]:'var(--glass-border)',
-                  background:sessType===t?'rgba('+{normal:'59,191,160',sub:'155,127,232',cancelled:'232,112,90',manual:'91,174,232'}[t]+',0.12)':'var(--glass-bg)',
-                  color:sessType===t?typeColors[t]:'var(--tx3)'}}>
+                  borderColor:sessType===t&&!isExtra?typeColors[t]:'var(--glass-border)',
+                  background:sessType===t&&!isExtra?'rgba('+{normal:'59,191,160',sub:'155,127,232',cancelled:'232,112,90'}[t]+',0.12)':'var(--glass-bg)',
+                  color:sessType===t&&!isExtra?typeColors[t]:'var(--tx3)'}}>
                 {typeLabels[t]}
               </button>
             ))}
           </div>
-          {sessType==='sub'&&<div style={{fontSize:10,color:'var(--violet)',marginTop:5}}>Column will be highlighted purple. Attendance still applies.</div>}
+          {sessType==='sub'&&!isExtra&&<div style={{fontSize:10,color:'var(--violet)',marginTop:5}}>Column will be highlighted purple. Attendance still applies.</div>}
           {sessType==='cancelled'&&<div style={{fontSize:10,color:'var(--coral)',marginTop:5}}>Column will show as cancelled. No attendance required.</div>}
-          {sessType==='manual'&&<div style={{fontSize:10,color:'var(--sky)',marginTop:5}}>Extra session — marked with a blue dot ●. Add title and activity in the sidebar.</div>}
         </div>
-        {sessType==='manual'&&(
-          <div className="modal-field">
-            <div className="modal-label">Session Title</div>
-            <input className="modal-input" placeholder="e.g. Extra practice, Field trip..." value={manualTitle} onChange={e=>setManualTitle(e.target.value)} style={{width:'100%'}}/>
-            <div className="modal-label" style={{marginTop:8}}>Activity / Notes</div>
-            <input className="modal-input" placeholder="What will students do?" value={manualActivity} onChange={e=>setManualActivity(e.target.value)} style={{width:'100%'}}/>
+        {/* Extra session toggle — only for non-cancelled */}
+        {sessType!=='cancelled'&&(
+          <div className="modal-field" style={{borderTop:'1px solid var(--glass-border)',paddingTop:10}}>
+            <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+              <input type="checkbox" checked={isExtra} onChange={e=>setIsExtra(e.target.checked)}
+                style={{width:14,height:14,accentColor:'var(--teal)',cursor:'pointer'}}/>
+              <span style={{fontSize:12,fontWeight:600,color:isExtra?'var(--teal)':'var(--tx2)',fontFamily:"'DM Sans',sans-serif"}}>
+                Extra / self-added session <span style={{fontSize:10,fontWeight:400,color:'var(--tx3)'}}>— marked with a green dot ●. Click the date to add details.</span>
+              </span>
+            </label>
           </div>
         )}
-        {sessType!=='cancelled'&&sessType!=='manual'&&(
+        {sessType!=='cancelled'&&!isExtra&&(
           <div className="modal-field">
             <div className="modal-label">Link to Session (optional)</div>
             <select className="modal-select" value={linkedSession?linkedSession==='none'?'none':linkedSession.key:''} onChange={e=>{
@@ -6863,6 +6893,8 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const [slideOpen,setSlideOpen]=React.useState(false);
   const [slideExpanded,setSlideExpanded]=React.useState(false);
   const [slideSession,setSlideSession]=React.useState(null);
+  const [manualSlideOpen,setManualSlideOpen]=React.useState(false);
+  const [manualSlideIdx,setManualSlideIdx]=React.useState(null);
   const [sortBy,setSortBy]=React.useState('alpha-asc');
   const [editMode,setEditMode]=React.useState(false);
   const [subMode,setSubMode]=React.useState(false);
@@ -7150,7 +7182,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                       const s={};
                       if(sess.sessType==='sub') s.background='rgba(155,127,232,0.13)';
                       if(sess.sessType==='cancelled') s.background='rgba(232,112,90,0.10)';
-                      if(sess.sessType==='manual') s.background='rgba(91,174,232,0.08)';
+                      if(sess.sessType==='manual') s.background='rgba(59,191,160,0.08)';
                       if(subMode){const pd=getSubPIN(section.id);if(pd&&pd.linkedDate){const li=data.sessions.findIndex(s2=>!s2.isDivider&&s2.date===pd.linkedDate);if(li!==-1&&si!==li){s.opacity=0.25;s.pointerEvents='none';}}}
                       return s;
                     })()}>
@@ -7164,20 +7196,17 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                         ):(
                           <span className="date-th-label"
                             style={{cursor:sess.linkedSession||sess.sessType==='manual'?'pointer':'text',
-                              color:sess.sessType==='sub'?'var(--violet)':sess.sessType==='cancelled'?'var(--coral)':sess.linkedSession?'var(--teal)':sess.sessType==='manual'?'var(--sky)':'var(--tx2)'}}
+                              color:sess.sessType==='sub'?'var(--violet)':sess.sessType==='cancelled'?'var(--coral)':sess.sessType==='manual'?'var(--teal)':sess.linkedSession?'var(--teal)':'var(--tx2)'}}
                             onClick={()=>{
                               if(sess.linkedSession){setSlideSession(sess.linkedSession);setSlideOpen(true);}
-                              else if(sess.sessType==='manual'){
-                                const msg=[sess.manualTitle&&`📌 ${sess.manualTitle}`,sess.manualActivity&&`🎨 ${sess.manualActivity}`].filter(Boolean).join('\n')||'Additional session (no details added)';
-                                alert(msg);
-                              }
+                              else if(sess.sessType==='manual'){setManualSlideIdx(si);setManualSlideOpen(true);}
                               else if(teacherMode&&editMode){setEditingDateIdx(si);setEditDateVal(sess.date);}
                             }}
                             title={teacherMode&&editMode&&!sess.linkedSession&&sess.sessType!=='manual'?'Click to edit date':undefined}>
                             {sess.date}
                             {sess.sessType==='sub'&&<span style={{fontSize:8,display:'block',color:'var(--violet)',fontWeight:700,letterSpacing:'.05em'}}>SUB</span>}
                             {sess.sessType==='cancelled'&&<span style={{fontSize:8,display:'block',color:'var(--coral)',fontWeight:700,letterSpacing:'.05em'}}>OFF</span>}
-                            {sess.sessType==='manual'&&<sup title={[sess.manualTitle,sess.manualActivity].filter(Boolean).join(' · ')||'Additional session'} style={{fontSize:7,color:'var(--sky)',fontWeight:700,verticalAlign:'super',lineHeight:0,marginLeft:1,cursor:'help'}}>●</sup>}
+                            {sess.sessType==='manual'&&<sup title={[sess.manualTitle,sess.manualActivity].filter(Boolean).join(' · ')||'Extra session — click to add details'} style={{fontSize:7,color:'var(--teal)',fontWeight:700,verticalAlign:'super',lineHeight:0,marginLeft:1,cursor:'pointer'}}>●</sup>}
                           </span>
                         )}
                         {teacherMode&&editMode&&(
@@ -7396,6 +7425,37 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
             </div>
             <div className="slide-panel-body" style={{padding:0,overflowY:'auto'}}>
               <SlideSessionContent slideSession={slideSession} phases={phases} onOpenFull={()=>{onOpenLinkedSession(slideSession);setSlideOpen(false);setSlideExpanded(false);}}/>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual (extra) session slide panel */}
+      {manualSlideOpen&&manualSlideIdx!=null&&data.sessions[manualSlideIdx]&&(
+        <div className="session-slide-overlay" style={{zIndex:350}} onClick={()=>setManualSlideOpen(false)}>
+          <div className="session-slide-panel" style={{width:'min(480px,90vw)'}} onClick={e=>e.stopPropagation()}>
+            <div className="slide-panel-header">
+              <div className="slide-panel-title">● My Session · {data.sessions[manualSlideIdx].date}</div>
+              <button className="slide-panel-close" onClick={()=>setManualSlideOpen(false)}>✕</button>
+            </div>
+            <div className="slide-panel-body" style={{overflowY:'auto'}}>
+              <div style={{padding:'16px 20px'}}>
+                <div style={{fontSize:9,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--teal)',marginBottom:5}}>Your session</div>
+                <input
+                  style={{width:'100%',fontSize:17,fontWeight:800,color:'var(--tx)',background:'transparent',border:'none',borderBottom:'1px solid var(--glass-border)',outline:'none',fontFamily:"'DM Sans',sans-serif",paddingBottom:6,marginBottom:12}}
+                  placeholder="Session title, e.g. Field trip, Art show prep…"
+                  defaultValue={data.sessions[manualSlideIdx].manualTitle||''}
+                  onBlur={e=>updateData(d=>{d.sessions[manualSlideIdx].manualTitle=e.target.value;})}/>
+                <div style={{fontSize:9,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--tx3)',marginBottom:8}}>Activity / Notes</div>
+                <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:9,padding:'9px 13px',marginBottom:12}}>
+                  <textarea
+                    style={{width:'100%',fontSize:12,color:'var(--tx2)',lineHeight:1.55,background:'transparent',border:'none',outline:'none',resize:'vertical',minHeight:100,fontFamily:"'DM Sans',sans-serif"}}
+                    placeholder="What did / will students do? Notes for yourself…"
+                    defaultValue={data.sessions[manualSlideIdx].manualActivity||''}
+                    onBlur={e=>updateData(d=>{d.sessions[manualSlideIdx].manualActivity=e.target.value;})}/>
+                </div>
+                <div style={{fontSize:10,color:'var(--tx3)',fontStyle:'italic'}}>Edits save automatically when you click outside a field.</div>
+              </div>
             </div>
           </div>
         </div>
