@@ -6417,8 +6417,9 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
   const [flipped,setFlipped]=React.useState(null);
   const [savedTag,setSavedTag]=React.useState(null);
   const [hintDone,setHintDone]=React.useState(false);
-  const [hintIdx,setHintIdx]=React.useState(null); // which card is doing the hint animation
+  const [hintIdx,setHintIdx]=React.useState(null);
   const [sbLeft,setSbLeft]=React.useState(236);
+  const [editPhotos,setEditPhotos]=React.useState(false); // global photo edit mode
 
   React.useEffect(()=>{
     let debounceTimer=null;
@@ -6485,8 +6486,17 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
     <div style={{position:'fixed',top:0,left:sbLeft,right:0,bottom:0,zIndex:99999,background:'var(--bg-solid)',display:'flex',flexDirection:'column',overflow:'hidden',transition:'left .25s ease'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 18px',borderBottom:'1px solid var(--glass-border)',background:'linear-gradient(to bottom, var(--glass-bg3), var(--glass-bg2))',backdropFilter:'blur(24px)',flexShrink:0}}>
         <div style={{fontFamily:"'Fraunces',serif",fontSize:17,fontWeight:700,color:'var(--tx)'}}>🪪 {sectionName}</div>
-        <div style={{fontSize:11,color:'var(--tx3)'}}>Tap card to flip · Tap badge to cycle attendance</div>
-        <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'4px 10px',borderRadius:8}}>✕</button>
+        <div style={{fontSize:11,color:'var(--tx3)'}}>{editPhotos?'Drag to reposition · Scroll to zoom · Click 📷 to change':'Tap card to flip · Tap badge to cycle attendance'}</div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          {teacherMode&&<button onClick={()=>{setEditPhotos(v=>!v);setFlipped(null);}}
+            style={{fontSize:11,fontWeight:700,padding:'5px 12px',borderRadius:8,cursor:'pointer',border:'1px solid',
+              borderColor:editPhotos?'var(--teal)':'var(--glass-border)',
+              background:editPhotos?'rgba(59,191,160,0.15)':'var(--glass-bg)',
+              color:editPhotos?'var(--teal)':'var(--tx3)',letterSpacing:'.03em'}}>
+            ✎ {editPhotos?'Done':'Edit Photos'}
+          </button>}
+          <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'4px 10px',borderRadius:8}}>✕</button>
+        </div>
       </div>
       <div style={{flex:1,overflowY:'auto',padding:'18px 20px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:14,alignContent:'start'}}>
         {[...data.students.map((st,idx)=>({st,idx}))].sort((a,b)=>a.st.name.localeCompare(b.st.name)).map(({st,idx})=>{
@@ -6498,11 +6508,72 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
           return(
             <div key={idx} className={`pv-card${isFlipped?' flipped':''}${hintIdx===idx?' hint':''}`} style={{height:260,borderRadius:16,border:`1px solid ${flash?'var(--teal)':'var(--glass-border)'}`,borderBottom:`3px solid ${progBorder[progColor]||'transparent'}`,background:'var(--glass-bg2)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
               {/* FRONT */}
-              <div className="pv-face pv-front" style={{borderRadius:16,overflow:'hidden',cursor:'pointer'}} onClick={()=>setFlipped(flipped===idx?null:idx)}>
-                {st.photo
-                  ?<img src={st.photo} style={{width:'100%',height:'100%',objectFit:'contain',objectPosition:'center bottom',display:'block',background:'transparent'}} draggable={false}/>
-                  :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:52,background:'var(--glass-bg3)'}}>👤</div>
-                }
+              <div className="pv-face pv-front" style={{borderRadius:16,overflow:'hidden',cursor:editPhotos?'default':'pointer'}}
+                onClick={()=>!editPhotos&&setFlipped(flipped===idx?null:idx)}>
+                {(()=>{
+                  const pvOffX=st.pvOffsetX||0;
+                  const pvOffY=st.pvOffsetY||0;
+                  const pvScale=st.pvScale||1;
+                  const pvAreaRef=React.createRef();
+                  function pvDragStart(e){
+                    if(!editPhotos) return;
+                    e.preventDefault();
+                    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+                    const clientY=e.touches?e.touches[0].clientY:e.clientY;
+                    const startX=clientX-pvOffX, startY=clientY-pvOffY;
+                    function onMove(ev){
+                      const cx=ev.touches?ev.touches[0].clientX:ev.clientX;
+                      const cy=ev.touches?ev.touches[0].clientY:ev.clientY;
+                      updateData(d=>{d.students[idx].pvOffsetX=cx-startX;d.students[idx].pvOffsetY=cy-startY;});
+                    }
+                    function onUp(){window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);window.removeEventListener('touchmove',onMove);window.removeEventListener('touchend',onUp);}
+                    window.addEventListener('mousemove',onMove);window.addEventListener('mouseup',onUp);
+                    window.addEventListener('touchmove',onMove,{passive:false});window.addEventListener('touchend',onUp);
+                  }
+                  return(
+                    <div style={{width:'100%',height:'100%',position:'relative',
+                      background:'linear-gradient(180deg,#eeece8 0%,#d3ccc3 100%)',
+                      cursor:editPhotos?'grab':'pointer'}}
+                      onMouseDown={editPhotos?pvDragStart:undefined}
+                      onTouchStart={editPhotos?pvDragStart:undefined}
+                      onWheel={editPhotos?e=>{e.preventDefault();updateData(d=>{d.students[idx].pvScale=Math.max(0.5,Math.min(3,(d.students[idx].pvScale||1)-e.deltaY*0.003));});}:undefined}>
+                      {st.photo
+                        ?<img src={st.photo} draggable={false}
+                            style={{position:'absolute',bottom:0,left:0,width:'100%',height:'100%',
+                              objectFit:'contain',objectPosition:'center bottom',
+                              transform:`translate(${pvOffX}px,${pvOffY}px) scale(${pvScale})`,
+                              transformOrigin:'bottom center',
+                              pointerEvents:'none',userSelect:'none'}}/>
+                        :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:52,opacity:0.3}}>👤</div>
+                      }
+                      {editPhotos&&<>
+                        <div style={{position:'absolute',inset:0,border:'2px dashed rgba(250,204,21,0.6)',borderRadius:16,pointerEvents:'none',zIndex:5}}/>
+                        <label htmlFor={`pv-photo-${idx}`}
+                          style={{position:'absolute',top:6,right:6,zIndex:6,fontSize:9,fontWeight:700,
+                            padding:'3px 8px',borderRadius:6,cursor:'pointer',letterSpacing:'.03em',
+                            background:'rgba(0,0,0,0.55)',color:'rgba(255,255,255,0.9)',backdropFilter:'blur(4px)'}}>
+                          📷 {st.photo?'Change':'Add'}
+                        </label>
+                        <input id={`pv-photo-${idx}`} type="file" accept="image/*" style={{display:'none'}}
+                          onChange={async e=>{
+                            const file=e.target.files[0]; if(!file) return;
+                            const isPng=file.type==='image/png';
+                            const dataUrl=await new Promise((res,rej)=>{
+                              const img=new Image(); const url=URL.createObjectURL(file);
+                              img.onload=()=>{URL.revokeObjectURL(url);const MAX=800;let w=img.width,h=img.height;
+                                if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+                                const c=document.createElement('canvas');c.width=w;c.height=h;
+                                const ctx=c.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);
+                                res(isPng?c.toDataURL('image/png'):c.toDataURL('image/jpeg',0.85));};
+                              img.onerror=()=>rej(); img.src=url;
+                            });
+                            updateData(d=>{d.students[idx].photo=dataUrl;d.students[idx].pvOffsetX=0;d.students[idx].pvOffsetY=0;d.students[idx].pvScale=1;});
+                            e.target.value='';
+                          }}/>
+                      </>}
+                    </div>
+                  );
+                })()}
                 {/* Attendance badge — tap to cycle P/A/–, long-press to mark Late */}
                 {lastSessionIdx!=null&&(
                   (()=>{
