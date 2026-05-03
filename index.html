@@ -3047,11 +3047,12 @@ function useLocalStorage(key,init){
 // sectionId : e.g. '4gir'
 // studentIdx : integer index in the students array
 // file       : File object from <input type="file">
-// Compress a photo File to a small base64 JPEG using canvas.
-// Max dimension 800px, quality 0.82 — good clarity, stays under ~150KB per photo.
-// Returns a data URL string saved directly into Firestore (no Storage needed).
+// Compress a photo File to a small base64 string using canvas.
+// PNGs preserved as PNG (keeps transparency). Other formats → JPEG.
+// Max dimension 800px. Returns a data URL saved into Firestore.
 function compressPhoto(file) {
   return new Promise((resolve, reject) => {
+    const isPng = file.type === 'image/png';
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
@@ -3062,8 +3063,10 @@ function compressPhoto(file) {
       else        { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', 0.82));
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.85));
     };
     img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Could not read image file.')); };
     img.src = objectUrl;
@@ -5587,7 +5590,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   const [editEmoji,setEditEmoji]=React.useState(student.cardEmoji||'🐝');
   const [editCharacter,setEditCharacter]=React.useState(student.cardCharacter||'CHARACTER');
   const [characterSize,setCharacterSize]=React.useState(student.characterSize||72);
-  const [characterVisible,setCharacterVisible]=React.useState(student.characterVisible!==false);
+  const [characterVisible,setCharacterVisible]=React.useState(student.characterVisible===true);
   // Photo position — drag to reposition, scroll to scale
   const [photoOffsetX,setPhotoOffsetX]=React.useState(student.photoOffsetX||0);
   const [photoOffsetY,setPhotoOffsetY]=React.useState(student.photoOffsetY||0);
@@ -5604,7 +5607,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
     setEditEmoji(student.cardEmoji||'🐝');
     setEditCharacter(student.cardCharacter||'CHARACTER');
     setCharacterSize(student.characterSize||72);
-    setCharacterVisible(student.characterVisible!==false);
+    setCharacterVisible(student.characterVisible===true);
     setPhotoOffsetX(student.photoOffsetX||0);
     setPhotoOffsetY(student.photoOffsetY||0);
     setPhotoScale(student.photoScale||1.1);
@@ -5748,6 +5751,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   const cardSubText='#6b7280';
   const cardBorder='rgba(0,0,0,0.08)';
   const cardGreyBar='#d8d2cb';
+  const cardGreyBarObs='#c9c2b8';
+  const cardGreyBarThumbs='#b8b0a5';
 
   return(
     <div className="obs-popup-overlay" onClick={editMode?undefined:onClose}>
@@ -5800,7 +5805,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                   ?<input value={editEmoji} onChange={e=>setEditEmoji(e.target.value)}
                       onMouseDown={e=>e.stopPropagation()}
                       style={{position:'absolute',top:8,left:8,width:32,height:32,fontSize:16,textAlign:'center',background:'rgba(255,255,255,0.7)',border:'1px solid rgba(0,0,0,0.15)',borderRadius:8,zIndex:10,outline:'none'}}/>
-                  :<div style={{position:'absolute',top:10,left:10,width:42,height:45,fontSize:38,zIndex:12,lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center',filter:'drop-shadow(0 2px 6px rgba(0,0,0,0.4))'}}>{student.cardEmoji||'🐝'}</div>
+                  :<div style={{position:'absolute',top:10,left:10,width:42,height:45,fontSize:38,zIndex:12,lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center',filter:'drop-shadow(0 3px 8px rgba(180,168,155,0.7))'}}>{student.cardEmoji||(()=>{const E=['🌸','🌼','🌻','🦋','🐬','🦁','🐘','🦒','🐧','🦜','🌺','🐢','🦊','🐳','🌷'];return E[(studentIdx||0)%E.length];})()} </div>
                 }
 
                 {/* Photo — contain (no crop), positioned to bottom */}
@@ -5812,7 +5817,6 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                         objectFit:'contain',
                         objectPosition:'center bottom',
                         userSelect:'none',pointerEvents:'none',
-                        mixBlendMode:'multiply',
                         transform:`translate(${photoOffsetX}px,${photoOffsetY}px) scale(${photoScale})`,
                         transformOrigin:'bottom center',
                       }}/>
@@ -5846,7 +5850,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
               </div>
 
               {/* Right — info panel — bars 290px, right margin 31.5px */}
-              <div style={{position:'absolute',top:0,left:290,right:0,bottom:0,display:'flex',flexDirection:'column',paddingTop:18,paddingBottom:16,paddingLeft:20,paddingRight:31.5,overflow:'hidden',zIndex:3}}>
+              <div style={{position:'absolute',top:0,left:260,right:0,bottom:0,display:'flex',flexDirection:'column',paddingTop:18,paddingBottom:16,paddingLeft:20,paddingRight:31.5,overflow:'hidden',zIndex:3}}>
 
                 {/* School label */}
                 <div style={{fontSize:13,color:'#b5a899',letterSpacing:'.04em',marginBottom:6,fontFamily:"'DM Sans',sans-serif",textTransform:'uppercase',fontWeight:400}}>
@@ -5868,9 +5872,9 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                 {/* ID — editable */}
                 {editMode
                   ?<input value={String(studentIdx+1).padStart(6,'0')} readOnly
-                      style={{fontSize:25,color:'#b5a899',letterSpacing:'.06em',marginBottom:12,
+                      style={{fontSize:20,color:'#b5a899',letterSpacing:'.06em',marginBottom:10,
                         fontFamily:"'DM Sans',sans-serif",background:'transparent',border:'none',outline:'none',width:'100%',fontWeight:400}}/>
-                  :<div style={{fontSize:25,color:'#b5a899',letterSpacing:'.06em',marginBottom:14,fontFamily:"'DM Sans',sans-serif",fontWeight:400,display:'flex',alignItems:'center',gap:8}}>
+                  :<div style={{fontSize:20,color:'#b5a899',letterSpacing:'.06em',marginBottom:10,fontFamily:"'DM Sans',sans-serif",fontWeight:400,display:'flex',alignItems:'center',gap:8}}>
                     #{String(studentIdx+1).padStart(6,'0')}
                     {escalations>0&&<span style={{color:'#ef4444',fontWeight:700,fontSize:12}}>⚠ Escalation</span>}
                   </div>
@@ -5892,8 +5896,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                     }
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
-                    <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
-                    <span style={{fontSize:13,fontWeight:400,color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
+                    <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#7a6f65',fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
+                    <span style={{fontSize:13,fontWeight:400,color:'#7a6f65',fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
                   </div>
                 </div>
 
@@ -5902,7 +5906,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                   <div style={{width:'100%',height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {obs.length===0
-                      ?<div style={{flex:1,background:cardGreyBar}}/>
+                      ?<div style={{flex:1,background:cardGreyBarObs}}/>
                       :<><div style={{width:`${greenObsPct}%`,background:'#22c55e',transition:'width .5s ease'}}
                           onMouseEnter={()=>setBarTooltip(`Good: ${greenObs} obs`)}/>
                         <div style={{width:`${yellowObsPct}%`,background:'#eab308',transition:'width .5s ease'}}
@@ -5912,8 +5916,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                     }
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
-                    <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>OBSERVATIONS</span>
-                    <span style={{fontSize:13,fontWeight:400,color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>{obs.length}</span>
+                    <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#7a6f65',fontFamily:"'DM Sans',sans-serif"}}>OBSERVATIONS</span>
+                    <span style={{fontSize:13,fontWeight:400,color:'#7a6f65',fontFamily:"'DM Sans',sans-serif"}}>{obs.length}</span>
                   </div>
                 </div>
 
@@ -5923,7 +5927,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                   <div style={{flex:1,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default'}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {thumbsUp===0&&thumbsDown===0
-                      ?<div style={{flex:1,background:cardGreyBar}}/>
+                      ?<div style={{flex:1,background:cardGreyBarThumbs}}/>
                       :<><div style={{width:`${thumbsUpPct}%`,background:'#22c55e',transition:'width .5s ease'}}
                           onMouseEnter={()=>setBarTooltip(`Thumbs up: ${thumbsUp}`)}/>
                         <div style={{flex:1,background:'#ef4444',transition:'width .5s ease'}}
@@ -5942,7 +5946,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
               {/* Student Profile button */}
               <button onClick={()=>setFlipped(true)}
-                style={{marginTop:10,alignSelf:'flex-end',
+                style={{marginTop:10,alignSelf:'flex-end',marginRight:-15,
                   paddingInline:'14px 10px',height:26,
                   fontSize:11.5,fontWeight:400,
                   borderRadius:13,border:'1px solid rgba(211,204,195,0.6)',background:'rgba(238,236,232,0.5)',
