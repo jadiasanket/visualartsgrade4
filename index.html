@@ -5752,7 +5752,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   const cardBorder='rgba(0,0,0,0.08)';
   const cardGreyBar='#d8d2cb';
   const cardGreyBarObs='#c9c2b8';
-  const cardGreyBarThumbs='#b8b0a5';
+  const cardGreyBarThumbs='#bdb5aa';
 
   return(
     <div className="obs-popup-overlay" onClick={editMode?undefined:onClose}>
@@ -5795,7 +5795,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
               {/* Left — photo area — absolute so it overlaps right panel */}
               <div ref={photoAreaRef}
                 style={{position:'absolute',top:0,left:0,bottom:0,width:photoColumnWidth,zIndex:5,overflow:'hidden',
-                  background:'linear-gradient(180deg,#eeece8 0%,#d3ccc3 100%)',
+                  background:'none',
                   cursor:editMode?'grab':'default'}}
                 onMouseDown={editMode?onPhotoDragStart:undefined}
                 onTouchStart={editMode?onPhotoDragStart:undefined}>
@@ -5884,7 +5884,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
               <div style={{display:'flex',flexDirection:'column',gap:14,flex:1}}>
 
                 {/* Attendance bar */}
-                <div>
+                <div style={{marginTop:15}}>
                   <div style={{width:'100%',height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {totalSessions===0
