@@ -2176,10 +2176,23 @@ body, [data-theme="dark"] body, [data-theme="light"] body {
 [data-theme="dark"] .po-fill{background:linear-gradient(90deg,var(--coral) 0%,var(--yellow) 33%,var(--teal) 66%,var(--violet) 100%) !important;}
 
 /* Text size toggle button */
-.text-size-fab{position:fixed;bottom:82px;right:24px;z-index:295;width:44px;height:44px;border-radius:50%;background:#fff;border:1.5px solid rgba(0,0,0,0.10);box-shadow:0 4px 16px rgba(0,0,0,0.10);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:900;color:var(--tx);cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;}
-.text-size-fab:hover{transform:scale(1.1);}
-[data-theme="dark"] .text-size-fab{background:#1C1A2E !important;border-color:rgba(255,255,255,0.14) !important;color:var(--tx) !important;}
+.text-size-fab{position:fixed;bottom:82px;right:14px;z-index:295;}
+[data-theme="dark"] #ts-fab button{color:var(--tx3) !important;}
 
+/* Small text mode */
+html[data-ts="small"] .pt,html[data-ts="small"] .tn-tx,html[data-ts="small"] .mc-summary-text,html[data-ts="small"] .mc-parent-text{font-size:11px !important;line-height:1.55 !important;}
+html[data-ts="small"] .step-t{font-size:11px !important;}
+html[data-ts="small"] .sc-title{font-size:12px !important;}
+html[data-ts="small"] .pc-name{font-size:13px !important;}
+html[data-ts="small"] .page-title{font-size:24px !important;}
+html[data-ts="small"] .dh-title{font-size:18px !important;}
+html[data-ts="small"] .dh-sub,html[data-ts="small"] .pc-sub{font-size:11px !important;}
+html[data-ts="small"] .bq-q,html[data-ts="small"] .recap-tx,html[data-ts="small"] .ref-why{font-size:11px !important;}
+html[data-ts="small"] .soi-tx{font-size:12px !important;}
+html[data-ts="small"] .slb-title{font-size:19px !important;}
+html[data-ts="small"] .slb-text{font-size:12px !important;}
+html[data-ts="small"] .kw-popup-word{font-size:14px !important;}
+html[data-ts="small"] .nb-name{font-size:10px !important;}
 /* Large text mode */
 html[data-ts="large"] .pt,html[data-ts="large"] .tn-tx,html[data-ts="large"] .mc-summary-text,html[data-ts="large"] .mc-parent-text{font-size:15px !important;line-height:1.75 !important;}
 html[data-ts="large"] .step-t{font-size:15px !important;}
@@ -2198,22 +2211,49 @@ html[data-ts="large"] .nb-name{font-size:13.5px !important;}
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800;12..96,900&display=swap" rel="stylesheet">
 <script>
 (function(){
+  var sizes=['small','normal','large'];
   var saved=localStorage.getItem('g4-textsize')||'normal';
+  if(sizes.indexOf(saved)<0)saved='normal';
   document.documentElement.setAttribute('data-ts',saved);
   function init(){
     if(document.getElementById('ts-fab'))return;
-    var btn=document.createElement('button');
-    btn.id='ts-fab';btn.className='text-size-fab';
-    btn.title='Toggle text size';
-    btn.innerHTML=saved==='large'?'A−':'A+';
-    btn.onclick=function(){
-      var cur=document.documentElement.getAttribute('data-ts');
-      var next=cur==='large'?'normal':'large';
-      document.documentElement.setAttribute('data-ts',next);
-      localStorage.setItem('g4-textsize',next);
-      btn.innerHTML=next==='large'?'A−':'A+';
-    };
-    document.body.appendChild(btn);
+    var wrap=document.createElement('div');
+    wrap.id='ts-fab';
+    wrap.title='Text size';
+    wrap.style.cssText='position:fixed;bottom:82px;right:14px;z-index:295;display:flex;flex-direction:column;align-items:center;gap:3px;';
+    var label=document.createElement('span');
+    label.style.cssText='font-size:9px;font-weight:700;color:var(--tx3);font-family:"DM Sans",sans-serif;letter-spacing:.04em;text-transform:uppercase;';
+    label.textContent='SIZE';
+    wrap.appendChild(label);
+    var track=document.createElement('div');
+    track.style.cssText='display:flex;flex-direction:column;gap:2px;background:var(--glass-bg);border:1.5px solid rgba(0,0,0,0.10);border-radius:12px;padding:3px;box-shadow:0 4px 16px rgba(0,0,0,0.10);';
+    var labels=['S','M','L'];
+    sizes.forEach(function(sz,i){
+      var btn=document.createElement('button');
+      btn.dataset.sz=sz;
+      btn.style.cssText='width:28px;height:24px;border-radius:9px;border:none;cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:700;transition:all .15s;';
+      btn.textContent=labels[i];
+      function update(){
+        var cur=document.documentElement.getAttribute('data-ts');
+        if(btn.dataset.sz===cur){
+          btn.style.background='var(--teal,#3bbfa0)';btn.style.color='#fff';btn.style.fontSize='12px';
+        }else{
+          btn.style.background='transparent';btn.style.color='var(--tx3)';btn.style.fontSize='10px';
+        }
+      }
+      btn.onclick=function(){
+        document.documentElement.setAttribute('data-ts',sz);
+        localStorage.setItem('g4-textsize',sz);
+        track.querySelectorAll('button').forEach(function(b){
+          if(b.dataset.sz===sz){b.style.background='var(--teal,#3bbfa0)';b.style.color='#fff';b.style.fontSize='12px';}
+          else{b.style.background='transparent';b.style.color='var(--tx3)';b.style.fontSize='10px';}
+        });
+      };
+      update();
+      track.appendChild(btn);
+    });
+    wrap.appendChild(track);
+    document.body.appendChild(wrap);
   }
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){setTimeout(init,1000);});}
   else{setTimeout(init,1000);}
@@ -4626,11 +4666,22 @@ function Timer(){
           const next=r<=1?0:r-1;
           if(next===0){
             setRunning(false);
-            setTimeout(()=>beep(523,0.25,0.5),0);
-            setTimeout(()=>beep(659,0.25,0.5),280);
-            setTimeout(()=>beep(784,0.5,0.5),560);
-          } else if(next<=5){
-            beep(330+next*30,0.1,0.22);
+            // 5-second end fanfare — loud and clear
+            setTimeout(()=>beep(523,0.25,0.7),0);
+            setTimeout(()=>beep(659,0.25,0.7),250);
+            setTimeout(()=>beep(784,0.25,0.7),500);
+            setTimeout(()=>beep(1047,0.4,0.8),750);
+            setTimeout(()=>beep(784,0.2,0.6),1100);
+            setTimeout(()=>beep(1047,0.5,0.8),1350);
+            setTimeout(()=>beep(1319,0.6,0.85),1700);
+            setTimeout(()=>beep(1047,0.3,0.6),2200);
+            setTimeout(()=>beep(1319,0.3,0.6),2500);
+            setTimeout(()=>beep(1568,1.2,0.8),2800);
+          } else if(next<=10){
+            // Tick beep every second for last 10 seconds — clearly audible
+            const freq=next<=3?1047:880;
+            const vol=next<=3?0.6:0.4;
+            beep(freq,0.1,vol);
           }
           return next;
         });
@@ -5538,7 +5589,9 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   const [photoOffsetX,setPhotoOffsetX]=React.useState(student.photoOffsetX||0);
   const [photoOffsetY,setPhotoOffsetY]=React.useState(student.photoOffsetY||0);
   const [photoScale,setPhotoScale]=React.useState(student.photoScale||1.1);
+  const [photoColumnWidth,setPhotoColumnWidth]=React.useState(student.photoColumnWidth||290);
   const photoAreaRef=React.useRef(null);
+  const resizingRef=React.useRef(null);
   const dragState=React.useRef(null);
   // Tooltip for bars
   const [barTooltip,setBarTooltip]=React.useState(null);
@@ -5550,6 +5603,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
     setPhotoOffsetX(student.photoOffsetX||0);
     setPhotoOffsetY(student.photoOffsetY||0);
     setPhotoScale(student.photoScale||1.1);
+    setPhotoColumnWidth(student.photoColumnWidth||290);
   },[studentIdx]);
 
   React.useEffect(()=>{
@@ -5572,6 +5626,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
         d.students[studentIdx].photoOffsetX=photoOffsetX;
         d.students[studentIdx].photoOffsetY=photoOffsetY;
         d.students[studentIdx].photoScale=photoScale;
+        d.students[studentIdx].photoColumnWidth=photoColumnWidth;
       });
     }
     setEditMode(false);
@@ -5614,6 +5669,25 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
     el.addEventListener('wheel',onWheel,{passive:false});
     return()=>el.removeEventListener('wheel',onWheel);
   },[editMode]);
+
+  // Resize column width from right edge (edit mode only)
+  function onResizeHandleMouseDown(e){
+    if(!editMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const startX=e.clientX;
+    const startW=photoColumnWidth;
+    function onMove(ev){
+      const delta=ev.clientX-startX;
+      setPhotoColumnWidth(Math.max(160,Math.min(440,startW+delta)));
+    }
+    function onUp(){
+      window.removeEventListener('mousemove',onMove);
+      window.removeEventListener('mouseup',onUp);
+    }
+    window.addEventListener('mousemove',onMove);
+    window.addEventListener('mouseup',onUp);
+  }
 
   // Stats
   const allTags=obs.flatMap(o=>o.tags||[]);
@@ -5708,7 +5782,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
               {/* Left — photo area */}
               <div ref={photoAreaRef}
-                style={{position:'relative',width:240,flexShrink:0,overflow:'hidden',
+                style={{position:'relative',width:photoColumnWidth,flexShrink:0,overflow:'hidden',
                   background:`linear-gradient(180deg,rgba(${glowColor},0.15) 0%,rgba(${glowColor},0.04) 100%)`,
                   cursor:editMode?'grab':'default'}}
                 onMouseDown={editMode?onPhotoDragStart:undefined}
@@ -5722,38 +5796,20 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                   :<div style={{position:'absolute',top:10,left:10,width:42,height:45,fontSize:38,zIndex:12,lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center',filter:'drop-shadow(0 2px 6px rgba(0,0,0,0.4))'}}>{student.cardEmoji||'🐝'}</div>
                 }
 
-                {/* Photo */}
+                {/* Photo — contain (no crop), positioned to bottom */}
                 {student.photo
                   ?<img src={student.photo} draggable={false} alt=""
                       style={{
                         position:'absolute',bottom:0,left:0,right:0,
                         width:'100%',height:'100%',
-                        objectFit:'cover',
-                        objectPosition:'top center',
+                        objectFit:'contain',
+                        objectPosition:'center bottom',
                         userSelect:'none',pointerEvents:'none',
                         transform:`translate(${photoOffsetX}px,${photoOffsetY}px) scale(${photoScale})`,
                         transformOrigin:'bottom center',
                       }}/>
                   :<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:72,opacity:.10}}>👤</div>
                 }
-
-                {/* CHARACTER — over photo bottom-left */}
-                <div style={{position:'absolute',bottom:10,left:0,right:0,padding:'0 10px',zIndex:9}}>
-                  {editMode
-                    ?<input value={editCharacter} onChange={e=>setEditCharacter(e.target.value.toUpperCase())}
-                        onMouseDown={e=>e.stopPropagation()}
-                        style={{width:'100%',fontSize:28,fontFamily:"'Bangers',cursive",letterSpacing:'.06em',
-                          fontStyle:'italic',color:'#facc15',textShadow:'2px 2px 0 #dc2626,-1px -1px 0 #dc2626',
-                          background:'transparent',border:'none',borderBottom:'2px solid rgba(255,255,255,0.35)',
-                          outline:'none',textTransform:'uppercase',lineHeight:1}}/>
-                    :<div style={{fontFamily:"'Bangers',cursive",fontSize:56,letterSpacing:'.06em',lineHeight:1,
-                        fontStyle:'italic',color:'#facc15',
-                        textShadow:'2px 2px 0 #dc2626,-1px -1px 0 #dc2626',
-                        whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',zIndex:13}}>
-                      {student.cardCharacter||'CHARACTER'}
-                    </div>
-                  }
-                </div>
 
                 {/* Edit mode dashed bounding box */}
                 {editMode&&<div style={{position:'absolute',inset:0,border:'2px dashed rgba(250,204,21,0.7)',zIndex:8,
@@ -5771,13 +5827,21 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                     onChange={e=>{const file=e.target.files[0];if(!file)return;onPhotoChange(file);e.target.value='';}}/>
                 </div>}
 
+                {/* Resize handle — right edge, edit mode only */}
+                {editMode&&<div
+                  onMouseDown={onResizeHandleMouseDown}
+                  style={{position:'absolute',top:0,right:0,width:8,height:'100%',cursor:'ew-resize',zIndex:20,
+                    background:'rgba(250,204,21,0.35)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <div style={{width:2,height:40,borderRadius:2,background:'rgba(250,204,21,0.8)'}}/>
+                </div>}
+
               </div>
 
               {/* Right — info panel */}
               <div style={{flex:1,display:'flex',flexDirection:'column',padding:'22px 24px 18px',minWidth:0,overflow:'hidden'}}>
 
                 {/* School label */}
-                <div style={{fontSize:14.5,color:cardSubText,letterSpacing:'.04em',marginBottom:8,fontFamily:"'DM Sans',sans-serif",textTransform:'uppercase'}}>
+                <div style={{fontSize:13,color:'#b5a899',letterSpacing:'.04em',marginBottom:6,fontFamily:"'DM Sans',sans-serif",textTransform:'uppercase',fontWeight:400}}>
                   SNS | Grade 4: Kanha | 2026–27
                 </div>
 
@@ -5787,25 +5851,25 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                       style={{fontSize:31.5,fontWeight:700,fontFamily:"'Fraunces',serif",color:cardText,
                         background:'transparent',border:'none',borderBottom:`2px solid rgba(${glowColor},0.5)`,
                         outline:'none',marginBottom:2,width:'100%',lineHeight:1.05}}/>
-                  :<div style={{fontSize:31.5,color:cardText,lineHeight:1.05,marginBottom:2,
-                      fontFamily:"'Fraunces',serif",whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                    {(()=>{const parts=(student.name||'').trim().split(' ');const first=parts[0]||'';const rest=parts.slice(1).join(' ');return(<><span style={{fontWeight:700}}>{first}</span>{rest&&<span style={{fontWeight:400}}>{' '+rest}</span>}</>);})()}
+                  :<div style={{fontSize:31.5,color:cardText,lineHeight:1.1,marginBottom:2,
+                      fontFamily:"'Fraunces',serif",overflow:'hidden'}}>
+                    {(()=>{const parts=(student.name||'').trim().split(' ');const first=parts[0]||'';const rest=parts.slice(1).join(' ');const lastName=rest||'___';return(<><div style={{fontWeight:700}}>{first}</div><div style={{fontWeight:400,color:rest?cardText:'#c9b8a8'}}>{lastName}</div></>);})()}
                   </div>
                 }
 
                 {/* ID — editable */}
                 {editMode
                   ?<input value={String(studentIdx+1).padStart(6,'0')} readOnly
-                      style={{fontSize:25,color:cardSubText,letterSpacing:'.06em',marginBottom:16,
-                        fontFamily:"'DM Sans',sans-serif",background:'transparent',border:'none',outline:'none',width:'100%'}}/>
-                  :<div style={{fontSize:25,color:cardSubText,letterSpacing:'.06em',marginBottom:16,fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:8}}>
+                      style={{fontSize:25,color:'#b5a899',letterSpacing:'.06em',marginBottom:12,
+                        fontFamily:"'DM Sans',sans-serif",background:'transparent',border:'none',outline:'none',width:'100%',fontWeight:400}}/>
+                  :<div style={{fontSize:25,color:'#b5a899',letterSpacing:'.06em',marginBottom:14,fontFamily:"'DM Sans',sans-serif",fontWeight:400,display:'flex',alignItems:'center',gap:8}}>
                     #{String(studentIdx+1).padStart(6,'0')}
                     {escalations>0&&<span style={{color:'#ef4444',fontWeight:700,fontSize:12}}>⚠ Escalation</span>}
                   </div>
                 }
 
               {/* ── Bars ── */}
-              <div style={{display:'flex',flexDirection:'column',gap:10,flex:1}}>
+              <div style={{display:'flex',flexDirection:'column',gap:14,flex:1}}>
 
                 {/* Attendance bar */}
                 <div>
@@ -5820,8 +5884,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                     }
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
-                    <span style={{fontSize:14.5,fontWeight:600,letterSpacing:'.04em',color:cardSubText,fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
-                    <span style={{fontSize:14.5,fontWeight:700,color:totalSessions===0?cardSubText:cardText,fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
+                    <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
+                    <span style={{fontSize:13,fontWeight:400,color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
                   </div>
                 </div>
 
@@ -5840,14 +5904,14 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                     }
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
-                    <span style={{fontSize:14.5,fontWeight:600,letterSpacing:'.04em',color:cardSubText,fontFamily:"'DM Sans',sans-serif"}}>OBSERVATIONS</span>
-                    <span style={{fontSize:14.5,fontWeight:700,color:obs.length===0?cardSubText:cardText,fontFamily:"'DM Sans',sans-serif"}}>{obs.length}</span>
+                    <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>OBSERVATIONS</span>
+                    <span style={{fontSize:13,fontWeight:400,color:'#b5a899',fontFamily:"'DM Sans',sans-serif"}}>{obs.length}</span>
                   </div>
                 </div>
 
                 {/* Thumbs bar */}
-                <div style={{display:'flex',alignItems:'center',gap:8,width:'100%'}}>
-                  <span style={{fontSize:25,lineHeight:1}}>👍</span>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:25,lineHeight:1,flexShrink:0}}>👍</span>
                   <div style={{flex:1,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default'}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {thumbsUp===0&&thumbsDown===0
@@ -5858,7 +5922,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                           onMouseEnter={()=>setBarTooltip(`Thumbs down: ${thumbsDown}`)}/></>
                     }
                   </div>
-                  <span style={{fontSize:25,lineHeight:1}}>👎</span>
+                  <span style={{fontSize:25,lineHeight:1,flexShrink:0}}>👎</span>
                 </div>
 
               </div>
@@ -5870,15 +5934,34 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
               {/* Student Profile button — 180×26px */}
               <button onClick={()=>setFlipped(true)}
-                style={{marginTop:12,alignSelf:'flex-end',
+                style={{marginTop:10,alignSelf:'flex-end',
                   width:180,height:26,
-                  fontSize:14.5,fontWeight:600,
-                  borderRadius:13,border:'1px solid rgba(0,0,0,0.18)',background:'rgba(0,0,0,0.06)',
-                  color:cardSubText,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.04em',
+                  fontSize:12,fontWeight:400,
+                  borderRadius:13,border:'1px solid rgba(211,204,195,0.6)',background:'rgba(238,236,232,0.5)',
+                  color:'#b5a899',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.04em',
                   display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
                 STUDENT PROFILE &#9654;
               </button>
             </div>
+          </div>
+
+          {/* CHARACTER — absolute on card, overlaps photo area bottom-left */}
+          <div style={{position:'absolute',bottom:10,left:0,width:photoColumnWidth,zIndex:14,padding:'0 10px',
+            pointerEvents:editMode?'auto':'none',
+            backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden'}}>
+            {editMode
+              ?<input value={editCharacter} onChange={e=>setEditCharacter(e.target.value.toUpperCase())}
+                  style={{width:'100%',fontSize:28,fontFamily:"'Bangers',cursive",letterSpacing:'.06em',
+                    fontStyle:'italic',color:'#facc15',textShadow:'2px 2px 0 #dc2626,-1px -1px 0 #dc2626',
+                    background:'transparent',border:'none',borderBottom:'2px solid rgba(255,255,255,0.35)',
+                    outline:'none',textTransform:'uppercase',lineHeight:1}}/>
+              :<div style={{fontFamily:"'Bangers',cursive",fontSize:48,letterSpacing:'.04em',lineHeight:1,
+                  fontStyle:'italic',color:'#facc15',
+                  textShadow:'2px 2px 0 #dc2626,-1px -1px 0 #dc2626',
+                  whiteSpace:'nowrap'}}>
+                {student.cardCharacter||'CHARACTER'}
+              </div>
+            }
           </div>
 
           </div>{/* end front card */}
@@ -6447,18 +6530,22 @@ function ClassPhotoView({data,section,teacherMode,onObsPopup,onClose,updateData,
 function AddSessionModal({phases,onAdd,onClose}){
   const [dateStr,setDateStr]=React.useState('');
   const [rawDate,setRawDate]=React.useState('');
-  const [sessType,setSessType]=React.useState('normal'); // normal | sub | cancelled
+  const [sessType,setSessType]=React.useState('normal'); // normal | sub | cancelled | manual
   const [linkedSession,setLinkedSession]=React.useState(null);
+  const [manualTitle,setManualTitle]=React.useState('');
+  const [manualActivity,setManualActivity]=React.useState('');
   const allSessions=[];
   phases.forEach(p=>p.sessions.forEach(s=>allSessions.push({label:`S${s.n}: ${s.title}`,key:`${p.id}:${s.n}`,phaseId:p.id,sessionN:s.n})));
   function handleAdd(){
     if(!dateStr.trim()) return;
     const ls=linkedSession==='none'?null:linkedSession;
-    onAdd({date:dateStr.trim(),isDivider:false,sessType,linkedSession:ls});
+    onAdd({date:dateStr.trim(),isDivider:false,sessType,linkedSession:ls,
+      manualTitle:sessType==='manual'?manualTitle:'',
+      manualActivity:sessType==='manual'?manualActivity:''});
     onClose();
   }
-  const typeColors={normal:'var(--teal)',sub:'var(--violet)',cancelled:'var(--coral)'};
-  const typeLabels={normal:'Normal class',sub:'Substitute class',cancelled:'Cancelled / Holiday'};
+  const typeColors={normal:'var(--teal)',sub:'var(--violet)',cancelled:'var(--coral)',manual:'var(--sky)'};
+  const typeLabels={normal:'Normal class',sub:'Substitute class',cancelled:'Cancelled / Holiday',manual:'Additional session'};
   return(
     <div className="obs-popup-overlay" onClick={onClose}>
       <div className="add-session-modal" onClick={e=>e.stopPropagation()}>
@@ -6481,12 +6568,12 @@ function AddSessionModal({phases,onAdd,onClose}){
         </div>
         <div className="modal-field">
           <div className="modal-label">Column Type</div>
-          <div style={{display:'flex',gap:6}}>
-            {['normal','sub','cancelled'].map(t=>(
+          <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+            {['normal','sub','cancelled','manual'].map(t=>(
               <button key={t} onClick={()=>setSessType(t)}
-                style={{flex:1,padding:'7px 4px',borderRadius:8,border:'1px solid',fontSize:11,fontWeight:600,cursor:'pointer',
+                style={{flex:'1 1 auto',padding:'7px 4px',borderRadius:8,border:'1px solid',fontSize:11,fontWeight:600,cursor:'pointer',
                   borderColor:sessType===t?typeColors[t]:'var(--glass-border)',
-                  background:sessType===t?'rgba('+{normal:'59,191,160',sub:'155,127,232',cancelled:'232,112,90'}[t]+',0.12)':'var(--glass-bg)',
+                  background:sessType===t?'rgba('+{normal:'59,191,160',sub:'155,127,232',cancelled:'232,112,90',manual:'91,174,232'}[t]+',0.12)':'var(--glass-bg)',
                   color:sessType===t?typeColors[t]:'var(--tx3)'}}>
                 {typeLabels[t]}
               </button>
@@ -6494,8 +6581,17 @@ function AddSessionModal({phases,onAdd,onClose}){
           </div>
           {sessType==='sub'&&<div style={{fontSize:10,color:'var(--violet)',marginTop:5}}>Column will be highlighted purple. Attendance still applies.</div>}
           {sessType==='cancelled'&&<div style={{fontSize:10,color:'var(--coral)',marginTop:5}}>Column will show as cancelled. No attendance required.</div>}
+          {sessType==='manual'&&<div style={{fontSize:10,color:'var(--sky)',marginTop:5}}>Extra session — marked with a blue dot ●. Add title and activity in the sidebar.</div>}
         </div>
-        {sessType!=='cancelled'&&(
+        {sessType==='manual'&&(
+          <div className="modal-field">
+            <div className="modal-label">Session Title</div>
+            <input className="modal-input" placeholder="e.g. Extra practice, Field trip..." value={manualTitle} onChange={e=>setManualTitle(e.target.value)} style={{width:'100%'}}/>
+            <div className="modal-label" style={{marginTop:8}}>Activity / Notes</div>
+            <input className="modal-input" placeholder="What will students do?" value={manualActivity} onChange={e=>setManualActivity(e.target.value)} style={{width:'100%'}}/>
+          </div>
+        )}
+        {sessType!=='cancelled'&&sessType!=='manual'&&(
           <div className="modal-field">
             <div className="modal-label">Link to Session (optional)</div>
             <select className="modal-select" value={linkedSession?linkedSession==='none'?'none':linkedSession.key:''} onChange={e=>{
@@ -7053,6 +7149,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                       const s={};
                       if(sess.sessType==='sub') s.background='rgba(155,127,232,0.13)';
                       if(sess.sessType==='cancelled') s.background='rgba(232,112,90,0.10)';
+                      if(sess.sessType==='manual') s.background='rgba(91,174,232,0.08)';
                       if(subMode){const pd=getSubPIN(section.id);if(pd&&pd.linkedDate){const li=data.sessions.findIndex(s2=>!s2.isDivider&&s2.date===pd.linkedDate);if(li!==-1&&si!==li){s.opacity=0.25;s.pointerEvents='none';}}}
                       return s;
                     })()}>
@@ -7072,6 +7169,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                             {sess.date}
                             {sess.sessType==='sub'&&<span style={{fontSize:8,display:'block',color:'var(--violet)',fontWeight:700,letterSpacing:'.05em'}}>SUB</span>}
                             {sess.sessType==='cancelled'&&<span style={{fontSize:8,display:'block',color:'var(--coral)',fontWeight:700,letterSpacing:'.05em'}}>OFF</span>}
+                            {sess.sessType==='manual'&&<span title={sess.manualTitle||'Additional session'} style={{fontSize:10,display:'block',color:'var(--sky)',lineHeight:1,textAlign:'center',marginTop:1}}>●</span>}
                           </span>
                         )}
                         {teacherMode&&editMode&&(
@@ -7363,11 +7461,8 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
       {addSessionOpen&&<AddSessionModal phases={phases} onAdd={(sess)=>{
         updateData(d=>{
           d.sessions.push(sess);
-          // Auto-mark present for normal and sub sessions (not cancelled)
-          if(sess.sessType!=='cancelled'){
-            const colIdx=d.sessions.length-1;
-            d.students.forEach(st=>{if(!st.attendance)st.attendance={};st.attendance[colIdx]='present';});
-          }
+          // New sessions: default absent (not cancelled sessions still show in grid)
+          // No auto-mark — students default to absent
         });
       }} onClose={()=>setAddSessionOpen(false)}/>}
 {/* link picker removed — linking now done in AddSessionModal */}
