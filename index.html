@@ -5708,7 +5708,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
               {/* Left — photo area */}
               <div ref={photoAreaRef}
-                style={{position:'relative',width:290,flexShrink:0,overflow:'hidden',
+                style={{position:'relative',width:240,flexShrink:0,overflow:'hidden',
                   background:`linear-gradient(180deg,rgba(${glowColor},0.15) 0%,rgba(${glowColor},0.04) 100%)`,
                   cursor:editMode?'grab':'default'}}
                 onMouseDown={editMode?onPhotoDragStart:undefined}
@@ -5809,7 +5809,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
                 {/* Attendance bar */}
                 <div>
-                  <div style={{width:290,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
+                  <div style={{width:'100%',height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {totalSessions===0
                       ?<div style={{flex:1,background:cardGreyBar}}/>
@@ -5819,7 +5819,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                           onMouseEnter={()=>setBarTooltip(`Absent: ${totalSessions-attendanceCount} sessions`)}/></>
                     }
                   </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:290}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
                     <span style={{fontSize:14.5,fontWeight:600,letterSpacing:'.04em',color:cardSubText,fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
                     <span style={{fontSize:14.5,fontWeight:700,color:totalSessions===0?cardSubText:cardText,fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
                   </div>
@@ -5827,7 +5827,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
                 {/* Observations bar */}
                 <div>
-                  <div style={{width:290,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
+                  <div style={{width:'100%',height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default',marginBottom:4}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {obs.length===0
                       ?<div style={{flex:1,background:cardGreyBar}}/>
@@ -5839,16 +5839,16 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                           onMouseEnter={()=>setBarTooltip(`Concerning: ${redObs} obs`)}/></>
                     }
                   </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:290}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
                     <span style={{fontSize:14.5,fontWeight:600,letterSpacing:'.04em',color:cardSubText,fontFamily:"'DM Sans',sans-serif"}}>OBSERVATIONS</span>
                     <span style={{fontSize:14.5,fontWeight:700,color:obs.length===0?cardSubText:cardText,fontFamily:"'DM Sans',sans-serif"}}>{obs.length}</span>
                   </div>
                 </div>
 
                 {/* Thumbs bar */}
-                <div style={{display:'flex',alignItems:'center',gap:8,width:290+50}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,width:'100%'}}>
                   <span style={{fontSize:25,lineHeight:1}}>👍</span>
-                  <div style={{width:290,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default'}}
+                  <div style={{flex:1,height:14,borderRadius:7,overflow:'hidden',display:'flex',cursor:'default'}}
                     onMouseLeave={()=>setBarTooltip(null)}>
                     {thumbsUp===0&&thumbsDown===0
                       ?<div style={{flex:1,background:cardGreyBar}}/>
