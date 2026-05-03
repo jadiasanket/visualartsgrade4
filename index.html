@@ -5539,6 +5539,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   const [photoOffsetY,setPhotoOffsetY]=React.useState(student.photoOffsetY||0);
   const [photoScale,setPhotoScale]=React.useState(student.photoScale||1.1);
   const dragRef=React.useRef(null);
+  const photoAreaRef=React.useRef(null);
   // Tooltip for bars
   const [barTooltip,setBarTooltip]=React.useState(null);
 
@@ -5601,11 +5602,17 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
     window.addEventListener('touchmove',onMove,{passive:false});
     window.addEventListener('touchend',onUp);
   }
-  function onPhotoWheel(e){
-    if(!editMode) return;
-    e.preventDefault();
-    setPhotoScale(prev=>Math.max(0.5,Math.min(2.5,prev-e.deltaY*0.002)));
-  }
+  React.useEffect(()=>{
+    const el=photoAreaRef.current;
+    if(!el) return;
+    function handleWheel(e){
+      if(!editMode) return;
+      e.preventDefault();
+      setPhotoScale(prev=>Math.max(0.5,Math.min(2.5,prev-e.deltaY*0.002)));
+    }
+    el.addEventListener('wheel',handleWheel,{passive:false});
+    return()=>el.removeEventListener('wheel',handleWheel);
+  },[editMode]);
 
 
   const tagFreq={};allTags.forEach(t=>{tagFreq[t]=(tagFreq[t]||0)+1;});
@@ -5690,7 +5697,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
             borderRadius:20,overflow:'hidden',
             background:cardBg,
             border:`1px solid ${cardBorder}`,
-            boxShadow:`0 0 0 3px rgba(${glowColor},0.28), 0 0 36px rgba(${glowColor},0.20), 0 8px 32px rgba(0,0,0,0.35)`,
+            boxShadow:`0 0 0 4px rgba(${glowColor},0.45), 0 0 60px rgba(${glowColor},0.40), 0 0 120px rgba(${glowColor},0.20), 0 8px 32px rgba(0,0,0,0.35)`,
             display:'flex',flexDirection:'column',
           }}>
 
@@ -5701,9 +5708,9 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
               <div style={{position:'relative',width:220,flexShrink:0,overflow:'hidden',
                 background:`linear-gradient(160deg, rgba(${glowColor},0.22) 0%, rgba(${glowColor},0.06) 60%, ${cardBg} 100%)`,
                 cursor:editMode?'grab':'default'}}
+                ref={photoAreaRef}
                 onMouseDown={editMode?onPhotoDragStart:undefined}
-                onTouchStart={editMode?onPhotoDragStart:undefined}
-                onWheel={editMode?onPhotoWheel:undefined}>
+                onTouchStart={editMode?onPhotoDragStart:undefined}>
 
                 {/* Emoji — top left */}
                 {editMode
