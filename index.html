@@ -3230,6 +3230,84 @@ function useFirestore(sectionId, userId, init) {
 }
 
 // ── Sign-in modal overlay (shown from within the app or standalone) ──
+function TeacherPINModal({onClose, onSuccess}) {
+  const [input, setInput] = React.useState('');
+  const [err, setErr] = React.useState('');
+  const [show, setShow] = React.useState(false);
+  const [lastKey, setLastKey] = React.useState('');
+  const pinReady = input.length === 4;
+
+  function handleCheck() {
+    if(input === '1234') { onSuccess(); onClose(); }
+    else { setErr('Incorrect PIN.'); setInput(''); }
+  }
+
+  function handleChange(e) {
+    const val = e.target.value.replace(/\D/g,'').slice(0,4);
+    const added = val.length > input.length;
+    setInput(val);
+    if(added) {
+      setLastKey(val.slice(-1));
+      setShow(true);
+      setTimeout(()=>setShow(false), 600);
+    }
+    setErr('');
+  }
+
+  const displayed = input.split('').map((ch,i) =>
+    (show && i === input.length-1) ? lastKey : '●'
+  ).join('');
+  const padded = displayed + '····'.slice(input.length);
+
+  return (
+    <div className="obs-popup-overlay" onClick={onClose} style={{zIndex:1000}}>
+      <div onClick={e=>e.stopPropagation()} style={{
+        background:'var(--glass-bg2)', border:'1px solid var(--glass-border2)',
+        borderRadius:24, padding:'36px 44px', textAlign:'center',
+        boxShadow:'var(--glass-shadow2)',
+        maxWidth:360, width:'90%'
+      }}>
+        <div style={{fontSize:32, marginBottom:10}}>🔐</div>
+        <div style={{fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, marginBottom:4, color:'var(--tx)'}}>
+          Teacher PIN
+        </div>
+        <div style={{fontSize:12, color:'var(--tx3)', marginBottom:24, lineHeight:1.5}}>
+          Enter your 4-digit PIN to unlock teacher mode.
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:8,width:'100%',maxWidth:260,margin:'0 auto'}}>
+          <div style={{position:'relative'}}>
+            <input
+              type="text" inputMode="numeric" value={input}
+              onChange={handleChange}
+              onKeyDown={e=>e.key==='Enter'&&pinReady&&handleCheck()}
+              maxLength={4} autoFocus
+              style={{position:'absolute',opacity:0,inset:0,width:'100%',height:'100%',cursor:'text',zIndex:2}}/>
+            <div style={{
+              width:'100%', background:'var(--glass-bg2)', border:`1px solid ${err?'var(--coral)':pinReady?'var(--teal)':'var(--glass-border2)'}`,
+              borderRadius:12, padding:'12px 16px', color:'var(--tx)',
+              fontFamily:"'DM Sans',sans-serif", fontSize:28, fontWeight:800,
+              textAlign:'center', letterSpacing:12, userSelect:'none',
+              transition:'border-color .2s'
+            }}>
+              {padded}
+            </div>
+          </div>
+          {err&&<div style={{fontSize:11,color:'var(--coral)',textAlign:'center'}}>{err}</div>}
+          <button className="roster-btn" onClick={handleCheck} disabled={!pinReady}
+            style={{width:'100%',justifyContent:'center',padding:'10px',fontWeight:700,fontSize:13,
+              background:pinReady?'rgba(59,191,160,0.2)':'var(--glass-bg)',
+              borderColor:pinReady?'var(--teal)':'var(--glass-border)',
+              color:pinReady?'var(--teal)':'var(--tx3)',
+              cursor:pinReady?'pointer':'not-allowed',
+              transition:'all .2s',opacity:pinReady?1:0.6}}>
+            Unlock
+          </button>
+        </div>
+        {onClose&&<button onClick={onClose} style={{marginTop:16,background:'none',border:'none',color:'var(--tx3)',fontSize:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>}
+      </div>
+    </div>
+  );
+}
 function SignInModal({onClose}) {
   const [error, setError] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -4186,18 +4264,15 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
   const totalPct=totalSessions?Math.round(totalDone/totalSessions*100):0;
   const [showProfilePopup,setShowProfilePopup]=React.useState(false);
   const [visitorsMode,setVisitorsMode]=React.useState(false);
+  const [showTeacherPIN,setShowTeacherPIN]=React.useState(false);
 
   const handleTeacherToggle=React.useCallback(()=>{
-    if(teacherMode){
-      setTeacherMode(false);
-    } else {
-      const pin=window.prompt('Enter teacher PIN to unlock editing:');
-      if(pin==='1234') setTeacherMode(true);
-      else if(pin!==null) window.alert('Incorrect PIN.');
-    }
+    if(teacherMode){ setTeacherMode(false); }
+    else { setShowTeacherPIN(true); }
   },[teacherMode,setTeacherMode]);
 
   return(
+    {showTeacherPIN&&<TeacherPINModal onClose={()=>setShowTeacherPIN(false)} onSuccess={()=>setTeacherMode(true)}/>}
     <div className={`sidebar${collapsed?' collapsed':''}`}>
       <button className="sb-collapse-btn" onClick={()=>setCollapsed(c=>!c)} title={collapsed?'Expand':'Collapse'}>
         {collapsed?'›':'‹'}
