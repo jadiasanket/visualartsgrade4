@@ -4272,6 +4272,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
   },[teacherMode,setTeacherMode]);
 
   return(
+    <React.Fragment>
     {showTeacherPIN&&<TeacherPINModal onClose={()=>setShowTeacherPIN(false)} onSuccess={()=>setTeacherMode(true)}/>}
     <div className={`sidebar${collapsed?' collapsed':''}`}>
       <button className="sb-collapse-btn" onClick={()=>setCollapsed(c=>!c)} title={collapsed?'Expand':'Collapse'}>
@@ -4466,6 +4467,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
         </div>
       </div>
     </div>
+    </React.Fragment>
   );
 }
 
