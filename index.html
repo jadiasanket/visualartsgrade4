@@ -5032,6 +5032,23 @@ function exportHTML(){
 function generateSessionPDF(s,phaseColor){
   const {jsPDF}=window.jspdf||{};
   if(!jsPDF){alert('jsPDF not loaded. Check your internet connection.');return;}
+  // Null-guard all session fields so a missing field never crashes the PDF
+  const safe={
+    n:s.n||'',
+    title:s.title||'Untitled Session',
+    objective:s.objective||'',
+    overview:s.overview||'',
+    dur:s.dur||'',
+    tn:s.tn||'',
+    bridge:s.bridge||'',
+    tags:Array.isArray(s.tags)?s.tags:[],
+    mats:Array.isArray(s.mats)?s.mats:[],
+    kws:Array.isArray(s.kws)?s.kws:[],
+    bigQ:Array.isArray(s.bigQ)?s.bigQ:[],
+    activity:Array.isArray(s.activity)?s.activity:[],
+    refs:Array.isArray(s.refs)?s.refs:[],
+  };
+  s=safe;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=210, M=20, CW=W-M*2;
   const accentMap={coral:[220,90,72],yellow:[200,150,50],teal:[46,175,140],violet:[140,110,220],sky:[70,155,215]};
@@ -6401,90 +6418,140 @@ function AttendancePDFModal({data,section,onClose}){
   }
 
   function generatePDF(){
-    // Filter sessions by selected months
     const filteredSessions=allMonths.length===1&&allMonths[0]==='All'
       ?realSessions
-      :realSessions.filter(s=>{
-        return [...selMonths].some(m=>s.date.includes(m));
-      });
+      :realSessions.filter(s=>[...selMonths].some(m=>s.date.includes(m)));
     if(filteredSessions.length===0){alert('No sessions found for selected months.');return;}
-    // Map each filtered session to its real index in data.sessions (for attendance lookup)
-    const filteredSessionIndices=filteredSessions.map(sess=>data.sessions.indexOf(sess));
+
+    // Build a reliable lookup: for each filtered session, find its index in data.sessions
+    // data.sessions may include dividers — match by object reference
+    const allSessions=data.sessions||[];
+    const filteredSessionIndices=filteredSessions.map(sess=>{
+      const idx=allSessions.findIndex(s=>s===sess);
+      return idx; // -1 if not found (shouldn't happen)
+    });
 
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'a4'});
     const pageW=doc.internal.pageSize.getWidth();
     const pageH=doc.internal.pageSize.getHeight();
     const margin=30;
-    const colW=Math.min(32,Math.floor((pageW-margin*2-120)/filteredSessions.length));
-    const rowH=16;
-    const nameW=120;
-    const startX=margin;
-    let y=margin+30;
+    const nameW=130;
+    const attW=30;
+    const availableW=pageW-margin*2-nameW-attW;
+    // colW: at least 14pt so dates are readable, shrinks to fit many sessions
+    const colW=Math.max(14,Math.min(32,Math.floor(availableW/filteredSessions.length)));
+    const tableW=nameW+attW+filteredSessions.length*colW;
+    const rowH=18;
+    const headerRowH=filteredSessions.length>15?44:24; // taller header if dates need more space
+    let y=margin+36;
 
-    // Title
+    // ── Title block ──
     doc.setFont('helvetica','bold');
     doc.setFontSize(14);
     doc.setTextColor(30,30,40);
-    doc.text(`${section.name} — Attendance Register`,startX,margin+14);
-    doc.setFontSize(9);
+    doc.text(`${section.name} — Attendance Register`,margin,margin+14);
+    doc.setFontSize(8);
     doc.setFont('helvetica','normal');
     doc.setTextColor(120,120,140);
-    doc.text(`Months: ${[...selMonths].join(', ')} · Generated ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}`,startX,margin+26);
+    const monthLabel=allMonths[0]==='All'?'All sessions':[...selMonths].join(', ');
+    doc.text(`${monthLabel}  ·  ${filteredSessions.length} session${filteredSessions.length!==1?'s':''}  ·  ${data.students.length} students  ·  Generated ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}`,margin,margin+26);
 
-    // Header row
-    doc.setFillColor(240,240,248);
-    doc.rect(startX,y,nameW+filteredSessions.length*colW+40,rowH,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(60,60,80);
-    doc.text('Student',startX+3,y+11);
-    doc.text('Att.',startX+nameW+3,y+11);
+    // ── Header row ──
+    doc.setFillColor(235,237,248);
+    doc.rect(margin,y,tableW,headerRowH,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(50,50,70);
+    doc.text('Student',margin+4,y+headerRowH/2+3);
+    doc.text('Att.',margin+nameW+4,y+headerRowH/2+3);
+
+    // Date headers — rotated if colW is tight
     filteredSessions.forEach((sess,i)=>{
-      const x=startX+nameW+40+i*colW;
-      // rotate date label
+      const x=margin+nameW+attW+i*colW+colW/2;
       doc.save();
-      doc.text(sess.date,x+colW/2+2,y+10,{angle:0,maxWidth:colW-2,align:'center'});
+      if(colW<22){
+        // Rotate dates 90° when columns are narrow
+        doc.text(sess.date||'',x,y+headerRowH-4,{angle:90,align:'left',maxWidth:headerRowH-6});
+      } else {
+        const dateLines=doc.splitTextToSize(sess.date||'',colW-3);
+        const lineH=8;
+        const totalH=dateLines.length*lineH;
+        const startTy=y+(headerRowH-totalH)/2+lineH*0.8;
+        dateLines.forEach((dl,li)=>doc.text(dl,x,startTy+li*lineH,{align:'center'}));
+      }
       doc.restore();
     });
-    y+=rowH;
+    // Column dividers in header
+    doc.setDrawColor(210,213,230);doc.setLineWidth(0.5);
+    doc.line(margin+nameW,y,margin+nameW,y+headerRowH);
+    doc.line(margin+nameW+attW,y,margin+nameW+attW,y+headerRowH);
+    filteredSessions.forEach((_,i)=>{
+      const x=margin+nameW+attW+i*colW;
+      doc.line(x,y,x,y+headerRowH);
+    });
+    doc.setDrawColor(190,193,215);doc.setLineWidth(1);
+    doc.line(margin,y+headerRowH,margin+tableW,y+headerRowH);
+    y+=headerRowH;
 
-    // Student rows
-    doc.setFont('helvetica','normal');doc.setFontSize(8);
+    // ── Student rows ──
     data.students.forEach((st,si)=>{
-      if(y+rowH>pageH-margin){doc.addPage();y=margin;}
-      // alternating bg
-      if(si%2===0){doc.setFillColor(250,250,253);doc.rect(startX,y,nameW+filteredSessions.length*colW+40,rowH,'F');}
-      doc.setTextColor(30,30,40);
-      doc.text(st.name,startX+3,y+11,{maxWidth:nameW-6});
-      // Attendance count for filtered sessions
-      const attCount=filteredSessions.filter((sess,ci)=>{
-        const realIdx=filteredSessionIndices[ci];
-        const v=st.attendance&&st.attendance[realIdx];
+      if(y+rowH>pageH-margin){
+        doc.addPage();
+        y=margin;
+        // Repeat header on new page
+        doc.setFillColor(235,237,248);
+        doc.rect(margin,y,tableW,16,'F');
+        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(50,50,70);
+        doc.text('Student',margin+4,y+11);
+        doc.text('Att.',margin+nameW+4,y+11);
+        filteredSessions.forEach((sess,i)=>{
+          const x=margin+nameW+attW+i*colW+colW/2;
+          doc.text(sess.date||'',x,y+11,{align:'center',maxWidth:colW-2});
+        });
+        y+=16;
+      }
+
+      // Alternating row bg
+      if(si%2===0){doc.setFillColor(250,251,255);doc.rect(margin,y,tableW,rowH,'F');}
+
+      // Name
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(30,30,40);
+      doc.text(st.name||'',margin+4,y+rowH/2+3,{maxWidth:nameW-8});
+
+      // Attendance count
+      const attCount=filteredSessionIndices.filter((realIdx)=>{
+        const v=st.attendance&&realIdx>=0?st.attendance[realIdx]:null;
         return v==='present'||v==='late';
       }).length;
-      doc.text(String(attCount),startX+nameW+8,y+11);
-      filteredSessions.forEach((sess,ci)=>{
-        const realIdx=filteredSessionIndices[ci];
-        const v=st.attendance&&st.attendance[realIdx];
-        const x=startX+nameW+40+ci*colW;
-        if(v==='present'){doc.setTextColor(59,191,160);doc.text('P',x+colW/2,y+11,{align:'center'});}
-        else if(v==='late'){doc.setTextColor(212,168,67);doc.text('L',x+colW/2,y+11,{align:'center'});}
-        else if(v==='absent'){doc.setTextColor(232,112,90);doc.text('A',x+colW/2,y+11,{align:'center'});}
-        else{doc.setTextColor(200,200,210);doc.text('-',x+colW/2,y+11,{align:'center'});}
+      doc.setFont('helvetica','bold');
+      doc.text(`${attCount}/${filteredSessions.length}`,margin+nameW+4,y+rowH/2+3);
+
+      // Per-session marks
+      doc.setFont('helvetica','normal');
+      filteredSessionIndices.forEach((realIdx,ci)=>{
+        const v=realIdx>=0&&st.attendance?st.attendance[realIdx]:null;
+        const x=margin+nameW+attW+ci*colW+colW/2;
+        const ty=y+rowH/2+3;
+        if(v==='present'){doc.setTextColor(46,160,130);doc.setFont('helvetica','bold');doc.text('P',x,ty,{align:'center'});}
+        else if(v==='late'){doc.setTextColor(190,140,40);doc.setFont('helvetica','bold');doc.text('L',x,ty,{align:'center'});}
+        else if(v==='absent'){doc.setTextColor(200,70,55);doc.setFont('helvetica','bold');doc.text('A',x,ty,{align:'center'});}
+        else{doc.setTextColor(200,202,215);doc.setFont('helvetica','normal');doc.text('·',x,ty,{align:'center'});}
         doc.setTextColor(30,30,40);
       });
-      // row border
-      doc.setDrawColor(220,220,230);doc.line(startX,y+rowH,startX+nameW+filteredSessions.length*colW+40,y+rowH);
+
+      // Row bottom border
+      doc.setDrawColor(225,227,238);doc.setLineWidth(0.3);
+      doc.line(margin,y+rowH,margin+tableW,y+rowH);
       y+=rowH;
     });
 
-    // Legend
-    if(y+20<pageH-margin){
-      y+=10;
-      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,140,160);
-      doc.text('P = Present  L = Late  A = Absent  - = Not marked',startX,y);
+    // ── Legend ──
+    y+=8;
+    if(y+14<pageH-margin){
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,145,165);
+      doc.text('P = Present  ·  L = Late  ·  A = Absent  ·  · = Not marked',margin,y);
     }
 
-    doc.save(`${section.name.replace(/\s+/g,'-')}-Attendance-${[...selMonths].join('-')}.pdf`);
+    doc.save(`${section.name.replace(/\s+/g,'-')}-Attendance-${new Date().toISOString().slice(0,10)}.pdf`);
     onClose();
   }
 
