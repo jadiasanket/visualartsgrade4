@@ -3047,9 +3047,39 @@ function useLocalStorage(key,init){
 // sectionId : e.g. '4gir'
 // studentIdx : integer index in the students array
 // file       : File object from <input type="file">
-// Compress a photo File to a small base64 string using canvas.
-// PNGs preserved as PNG (keeps transparency). Other formats → JPEG.
-// Max dimension 800px. Returns a data URL saved into Firestore.
+// ── Upload a photo to Firebase Storage, return download URL ──────────────────
+// Compresses to max 800px, uploads to Storage, returns a permanent https URL.
+// sectionId and studentIdx are used to name the file in Storage.
+async function uploadPhotoToStorage(file, sectionId, studentIdx) {
+  const isPng = file.type === 'image/png';
+  // Compress on canvas first
+  const blob = await new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
+      else        { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const mime = isPng ? 'image/png' : 'image/jpeg';
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas toBlob failed')), mime, isPng ? 1 : 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Could not read image file.')); };
+    img.src = objectUrl;
+  });
+  const ext = isPng ? 'png' : 'jpg';
+  const ref = window._storage.ref(`photos/${sectionId}/${studentIdx}.${ext}`);
+  await ref.put(blob, { contentType: isPng ? 'image/png' : 'image/jpeg' });
+  return await ref.getDownloadURL();
+}
+
+// Legacy base64 compress — kept for backward compat with old data paths
 function compressPhoto(file) {
   return new Promise((resolve, reject) => {
     const isPng = file.type === 'image/png';
@@ -3123,31 +3153,65 @@ function useFirestore(sectionId, userId, init) {
     const db = window._db;
     const sharedRef = db.collection('sections').doc(sharedDocId);
     let cancelled = false;
+    let migratingOld = false;
 
-    sharedRef.get().then(async snap => {
+    async function resolvePhotos(fsData) {
+      const students = fsData.students || [];
+      // For each student: if photo is already an https URL, use it as-is.
+      // If it's __photo_ref__ or missing, fetch from the legacy -photo-{i} doc.
+      const photoPromises = students.map((st, i) => {
+        if (st.photo && st.photo.startsWith('http')) return Promise.resolve(st.photo);
+        if (st.photo === '__photo_ref__' || !st.photo) {
+          return db.collection('sections').doc(sharedDocId + '-photo-' + i).get()
+            .then(s => {
+              if (!s.exists) return null;
+              const p = s.data().photo;
+              // If legacy doc has a base64 string, migrate it to Storage silently
+              if (p && p.startsWith('data:')) {
+                const blob = dataURLtoBlob(p);
+                const ext = p.startsWith('data:image/png') ? 'png' : 'jpg';
+                const ref = window._storage.ref(`photos/${sectionId}/${i}.${ext}`);
+                return ref.put(blob, { contentType: ext === 'png' ? 'image/png' : 'image/jpeg' })
+                  .then(() => ref.getDownloadURL())
+                  .then(url => {
+                    // Persist the migrated URL back to Firestore main doc
+                    sharedRef.get().then(snap => {
+                      if (!snap.exists) return;
+                      const d = snap.data();
+                      if (d.students && d.students[i]) {
+                        d.students[i].photo = url;
+                        sharedRef.set(d).catch(() => {});
+                      }
+                    }).catch(() => {});
+                    return url;
+                  })
+                  .catch(() => p); // fallback: keep base64 if upload fails
+              }
+              return p || null;
+            })
+            .catch(() => null);
+        }
+        return Promise.resolve(null);
+      });
+      const photos = await Promise.all(photoPromises);
+      return {
+        ...fsData,
+        students: students.map((st, i) => ({ ...st, photo: photos[i] || null }))
+      };
+    }
+
+    const unsubscribe = sharedRef.onSnapshot(async snap => {
       if (cancelled) return;
       if (snap.exists && snap.data() && snap.data().students) {
         let fsData = snap.data();
-        // Fetch each student's photo from its own doc in the sections collection
-        try {
-          const students = fsData.students || [];
-          const photoPromises = students.map((st, i) =>
-            db.collection('sections').doc(sharedDocId + '-photo-' + i).get()
-              .then(s => s.exists ? s.data().photo : null)
-              .catch(() => null)
-          );
-          const photos = await Promise.all(photoPromises);
-          fsData = {
-            ...fsData,
-            students: students.map((st, i) => ({ ...st, photo: photos[i] || null }))
-          };
-        } catch(e) { console.warn('Could not load photos:', e); }
+        try { fsData = await resolvePhotos(fsData); } catch(e) { console.warn('Could not resolve photos:', e); }
         if (cancelled) return;
         setVal(fsData);
         try { localStorage.setItem(lsKey, JSON.stringify(fsData)); } catch {}
         setLoading(false);
-      } else {
+      } else if (!migratingOld) {
         // Shared doc empty — try migrating from old userId-sectionId doc
+        migratingOld = true;
         const tryMigrate = async () => {
           let migrated = false;
           if (userId) {
@@ -3157,15 +3221,12 @@ function useFirestore(sectionId, userId, init) {
               if (oldSnap.exists && oldSnap.data() && oldSnap.data().students) {
                 const oldData = oldSnap.data();
                 await sharedRef.set(oldData);
-                // Delete old doc after successful migration
                 oldRef.delete().catch(() => {});
-                if (!cancelled) { setVal(oldData); try { localStorage.setItem(lsKey, JSON.stringify(oldData)); } catch {} setLoading(false); }
                 migrated = true;
               }
             } catch {}
           }
           if (!migrated && !cancelled) {
-            // Fall back to localStorage
             try {
               const lsRaw = localStorage.getItem(lsKey);
               if (lsRaw) {
@@ -3180,7 +3241,7 @@ function useFirestore(sectionId, userId, init) {
         };
         tryMigrate();
       }
-    }).catch(() => {
+    }, () => {
       if (cancelled) return;
       try {
         const lsRaw = localStorage.getItem(lsKey);
@@ -3189,15 +3250,22 @@ function useFirestore(sectionId, userId, init) {
       setLoading(false);
     });
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; unsubscribe(); };
   }, [sectionId, userId]);
 
   const saveTimerRef = React.useRef(null);
   const latestValRef = React.useRef(null);
 
+  const changedPhotosRef = React.useRef(new Set());
+
   const set = React.useCallback((v) => {
     setVal(prev => {
       const next = typeof v === 'function' ? v(prev) : v;
+      // Track which student indices have a new/changed photo
+      (next.students || []).forEach((st, i) => {
+        const prevPhoto = prev && prev.students && prev.students[i] ? prev.students[i].photo : undefined;
+        if (st.photo !== prevPhoto) changedPhotosRef.current.add(i);
+      });
       // Always save to localStorage immediately
       try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
       // Keep a ref to the latest value so the debounced save always writes current state
@@ -3209,10 +3277,18 @@ function useFirestore(sectionId, userId, init) {
         if (!toSave) return;
         const db = window._db;
         const mainRef = db.collection('sections').doc(sharedDocId);
+        // Only write photo docs for students whose photo actually changed this debounce window
+        const changedNow = new Set(changedPhotosRef.current);
+        changedPhotosRef.current.clear();
         const nextWithoutPhotos = {
           ...toSave,
           students: (toSave.students || []).map((st, i) => {
-            if (st.photo) {
+            // Storage URL — save directly in main doc, no photo sub-doc needed
+            if (st.photo && st.photo.startsWith('http')) {
+              return { ...st };
+            }
+            // Base64 photo that changed — write to legacy photo sub-doc
+            if (changedNow.has(i) && st.photo) {
               db.collection('sections').doc(sharedDocId + '-photo-' + i)
                 .set({ photo: st.photo })
                 .catch(e => console.error('Photo save failed for student', i, e));
@@ -6528,22 +6604,10 @@ function PvPhotoArea({st,idx,editPhotos,updateData,section}){
   }
   async function handlePhotoUpload(e){
     const file=e.target.files[0]; if(!file) return;
-    const isPng=file.type==='image/png';
-    const dataUrl=await new Promise((res,rej)=>{
-      const img=new Image(); const url=URL.createObjectURL(file);
-      img.onload=()=>{URL.revokeObjectURL(url);const MAX=800;let w=img.width,h=img.height;
-        if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
-        const c=document.createElement('canvas');c.width=w;c.height=h;
-        const ctx=c.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);
-        res(isPng?c.toDataURL('image/png'):c.toDataURL('image/jpeg',0.85));};
-      img.onerror=()=>rej(); img.src=url;
-    });
-    // Save photo immediately to its own Firestore doc (no debounce — prevents loss on refresh)
-    const sharedDocId='shared-'+section.id;
-    window._db.collection('sections').doc(sharedDocId+'-photo-'+idx)
-      .set({photo:dataUrl})
-      .catch(e=>console.error('Photo save failed',idx,e));
-    updateData(d=>{d.students[idx].photo=dataUrl;d.students[idx].pvOffsetX=0;d.students[idx].pvOffsetY=0;d.students[idx].pvScale=1;});
+    try{
+      const url=await uploadPhotoToStorage(file,section.id,idx);
+      updateData(d=>{d.students[idx].photo=url;d.students[idx].pvOffsetX=0;d.students[idx].pvOffsetY=0;d.students[idx].pvScale=1;});
+    }catch(err){console.error('Photo upload failed',idx,err);}
     e.target.value='';
   }
   return(
@@ -7656,8 +7720,8 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
             }
             setPhotoUploading(true);setPhotoError(null);
             try{
-              const dataUrl=await compressPhoto(fileOrNull);
-              updateData(d=>{d.students[obsPopup.studentIdx].photo=dataUrl;});
+              const url=await uploadPhotoToStorage(fileOrNull,section.id,obsPopup.studentIdx);
+              updateData(d=>{d.students[obsPopup.studentIdx].photo=url;});
             }catch(e){
               console.error('Photo failed',e);
               setPhotoError('Could not save photo: '+(e.message||'Unknown error'));
@@ -7686,8 +7750,8 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
             }
             setPhotoUploading(true);setPhotoError(null);
             try{
-              const dataUrl=await compressPhoto(fileOrNull);
-              updateData(d=>{d.students[namePopup].photo=dataUrl;});
+              const url=await uploadPhotoToStorage(fileOrNull,section.id,namePopup);
+              updateData(d=>{d.students[namePopup].photo=url;});
             }catch(e){
               console.error('Photo failed',e);
               setPhotoError('Could not save photo: '+(e.message||'Unknown error'));
@@ -7744,7 +7808,16 @@ function App(){
   },[]);
 
   const [view,setView]=React.useState(()=>{
-    try{const h=window.location.hash.slice(1);const p=JSON.parse(decodeURIComponent(h));return p.view||'annual';}catch{return 'annual';}
+    try{
+      const h=window.location.hash.slice(1);
+      const p=JSON.parse(decodeURIComponent(h));
+      if(p.section){
+        for(const ph2 of PHASES){
+          if(ph2.sections&&ph2.sections.find(x=>x.id===p.section)) return 'section';
+        }
+      }
+      return p.view||'annual';
+    }catch{return 'annual';}
   });
   const [phase,setPhase]=React.useState(()=>{
     try{const h=window.location.hash.slice(1);const p=JSON.parse(decodeURIComponent(h));return p.phase?PHASES.find(x=>x.id===p.phase)||null:null;}catch{return null;}
@@ -7826,22 +7899,6 @@ function App(){
     if(ph){setPhase(ph);setView('phase');setSection(null);}
   },[]);
 
-  React.useEffect(()=>{
-    try{
-      const h=window.location.hash.slice(1);
-      const p=JSON.parse(decodeURIComponent(h));
-      if(p.section){
-        for(const ph2 of PHASES){
-          const s=ph2.sections&&ph2.sections.find(x=>x.id===p.section);
-          if(s){setSection(s);setView('section');break;}
-        }
-      } else if(p.phase){
-        const found=PHASES.find(x=>x.id===p.phase);
-        if(found){setPhase(found);setView('phase');}
-      }
-    }catch{}
-  },[]);
-
   function handleSignOut(){
     window._auth.signOut();
     try{sessionStorage.removeItem('g4-teacher');}catch{}
@@ -7852,22 +7909,22 @@ function App(){
     const db=window._db;
     const SECTION_IDS=['4gir','4sariska','4ranthambore','4kanha','4corbett'];
     const exportObj={exportedAt:new Date().toISOString(),sections:{},localStorage:{}};
-    // Export all 5 sections from Firestore (students, attendance, observations, class logs)
     for(const sid of SECTION_IDS){
       const sharedDocId='shared-'+sid;
       try{
         const snap=await db.collection('sections').doc(sharedDocId).get();
         const main=snap.exists?snap.data():{};
         const students=main.students||[];
-        const photoPromises=students.map((_,i)=>
-          db.collection('sections').doc(sharedDocId+'-photo-'+i).get()
-            .then(s=>s.exists?s.data().photo:null).catch(()=>null)
-        );
+        // Fetch any legacy base64 photo docs for students not yet on Storage
+        const photoPromises=students.map((st,i)=>{
+          if(st.photo&&st.photo.startsWith('http')) return Promise.resolve(st.photo);
+          return db.collection('sections').doc(sharedDocId+'-photo-'+i).get()
+            .then(s=>s.exists?s.data().photo:null).catch(()=>null);
+        });
         const photos=await Promise.all(photoPromises);
         exportObj.sections[sid]={...main,_photos:photos};
       }catch(e){console.warn('Export failed for',sid,e);}
     }
-    // Export ALL localStorage (references, artist images, session notes, global notes, step ticks)
     try{
       for(let i=0;i<localStorage.length;i++){
         const k=localStorage.key(i);
@@ -7897,17 +7954,29 @@ function App(){
         const photos=data._photos||[];
         const mainData={...data};
         delete mainData._photos;
-        // Write student photo docs
         const students=mainData.students||[];
-        mainData.students=students.map((st,i)=>({...st,photo:'__photo_ref__'}));
-        await db.collection('sections').doc(sharedDocId).set(mainData);
-        for(let i=0;i<photos.length;i++){
-          if(photos[i]){
-            await db.collection('sections').doc(sharedDocId+'-photo-'+i).set({photo:photos[i]});
+        // For each student: if _photos[i] is a URL, save directly; if base64, upload to Storage
+        const resolvedStudents=await Promise.all(students.map(async(st,i)=>{
+          const p=photos[i];
+          if(!p) return{...st,photo:null};
+          if(p.startsWith('http')) return{...st,photo:p};
+          // base64 → upload to Storage
+          try{
+            const blob=dataURLtoBlob(p);
+            const ext=p.startsWith('data:image/png')?'png':'jpg';
+            const ref=window._storage.ref(`photos/${sid}/${i}.${ext}`);
+            await ref.put(blob,{contentType:ext==='png'?'image/png':'image/jpeg'});
+            const url=await ref.getDownloadURL();
+            return{...st,photo:url};
+          }catch{
+            // fallback: write to legacy photo doc
+            await db.collection('sections').doc(sharedDocId+'-photo-'+i).set({photo:p}).catch(()=>{});
+            return{...st,photo:'__photo_ref__'};
           }
-        }
+        }));
+        mainData.students=resolvedStudents;
+        await db.collection('sections').doc(sharedDocId).set(mainData);
       }
-      // Restore localStorage (references, notes, artist images, step ticks)
       if(importObj.localStorage){
         try{
           for(const [k,v] of Object.entries(importObj.localStorage)){
