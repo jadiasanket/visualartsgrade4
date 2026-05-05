@@ -6462,21 +6462,14 @@ function AttendancePDFModal({data,section,onClose}){
     doc.text('Student',margin+4,y+headerRowH/2+3);
     doc.text('Att.',margin+nameW+4,y+headerRowH/2+3);
 
-    // Date headers — rotated if colW is tight
+    // Date headers
     filteredSessions.forEach((sess,i)=>{
       const x=margin+nameW+attW+i*colW+colW/2;
-      doc.save();
-      if(colW<22){
-        // Rotate dates 90° when columns are narrow
-        doc.text(sess.date||'',x,y+headerRowH-4,{angle:90,align:'left',maxWidth:headerRowH-6});
-      } else {
-        const dateLines=doc.splitTextToSize(sess.date||'',colW-3);
-        const lineH=8;
-        const totalH=dateLines.length*lineH;
-        const startTy=y+(headerRowH-totalH)/2+lineH*0.8;
-        dateLines.forEach((dl,li)=>doc.text(dl,x,startTy+li*lineH,{align:'center'}));
-      }
-      doc.restore();
+      const dateLines=doc.splitTextToSize(sess.date||'',colW-3);
+      const lineH=8;
+      const totalH=dateLines.length*lineH;
+      const startTy=y+(headerRowH-totalH)/2+lineH*0.8;
+      dateLines.forEach((dl,li)=>doc.text(dl,x,startTy+li*lineH,{align:'center'}));
     });
     // Column dividers in header
     doc.setDrawColor(210,213,230);doc.setLineWidth(0.5);
