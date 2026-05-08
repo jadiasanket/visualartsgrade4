@@ -5703,9 +5703,9 @@ function generateUnitPlanPDF(){
 
 // ── SUB PIN SYSTEM ──
 // ── ANTHROPIC API KEY — stored in localStorage, never hardcoded ──
-function getAnthropicKey(){try{return localStorage.getItem('g4-anthropic-key')||'';}catch{return '';}}
+function getAnthropicKey(){return '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';}
 function saveAnthropicKey(k){try{localStorage.setItem('g4-anthropic-key',k);}catch{}}
-const ANTHROPIC_API_KEY = getAnthropicKey(); // legacy compat for existing profile generator calls
+const ANTHROPIC_API_KEY = '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'; // your actual key here
 
 // ── AI CHATBOT COMPONENT ──
 function AIChatbot({phases,teacherMode,currentView,currentPhase,currentSection}){
