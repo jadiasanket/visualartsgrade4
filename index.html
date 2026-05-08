@@ -5702,101 +5702,10 @@ function generateUnitPlanPDF(){
 // ══════════════════════════════════════════
 
 // ── SUB PIN SYSTEM ──
-// ── GEMINI API KEY ──
-function getGeminiKey(){return 'YOUR_GEMINI_KEY_HERE';}
-function saveGeminiKey(k){try{localStorage.setItem('g4-gemini-key',k);}catch{}}
-// Legacy compat — profile generator still uses this
-function getAnthropicKey(){return getGeminiKey();}
-
-// ── RENDER MARKDOWN — converts AI markdown to clean styled HTML ──
-function renderMarkdown(text){
-  if(!text) return null;
-  const lines=text.split('\n');
-  const elements=[];
-  let i=0;
-  while(i<lines.length){
-    const line=lines[i];
-    // Skip empty lines between blocks
-    if(!line.trim()){i++;continue;}
-    // H3 ###
-    if(line.startsWith('### ')){
-      elements.push(<div key={i} style={{fontSize:11,fontWeight:800,color:'var(--violet)',textTransform:'uppercase',letterSpacing:'.07em',marginTop:10,marginBottom:3}}>{line.slice(4)}</div>);
-      i++;continue;
-    }
-    // H2 ##
-    if(line.startsWith('## ')){
-      elements.push(<div key={i} style={{fontSize:12,fontWeight:800,color:'var(--tx)',marginTop:12,marginBottom:4,borderBottom:'1px solid var(--glass-border)',paddingBottom:3}}>{line.slice(3)}</div>);
-      i++;continue;
-    }
-    // H1 #
-    if(line.startsWith('# ')){
-      elements.push(<div key={i} style={{fontSize:13,fontWeight:800,color:'var(--tx)',marginTop:12,marginBottom:5}}>{line.slice(2)}</div>);
-      i++;continue;
-    }
-    // Bullet - or *
-    if(line.match(/^[\-\*] /)){
-      const bullets=[];
-      while(i<lines.length&&lines[i].match(/^[\-\*] /)){
-        bullets.push(<div key={i} style={{display:'flex',gap:7,marginBottom:3}}>
-          <span style={{color:'var(--violet)',flexShrink:0,marginTop:1}}>◆</span>
-          <span>{inlineFormat(lines[i].slice(2))}</span>
-        </div>);
-        i++;
-      }
-      elements.push(<div key={'b'+i} style={{marginTop:4,marginBottom:4}}>{bullets}</div>);
-      continue;
-    }
-    // Numbered list
-    if(line.match(/^\d+\. /)){
-      const items=[];
-      let n=1;
-      while(i<lines.length&&lines[i].match(/^\d+\. /)){
-        items.push(<div key={i} style={{display:'flex',gap:7,marginBottom:3}}>
-          <span style={{color:'var(--violet)',flexShrink:0,fontWeight:700,minWidth:14}}>{n}.</span>
-          <span>{inlineFormat(lines[i].replace(/^\d+\. /,''))}</span>
-        </div>);
-        i++;n++;
-      }
-      elements.push(<div key={'n'+i} style={{marginTop:4,marginBottom:4}}>{items}</div>);
-      continue;
-    }
-    // [NAVIGATE] prefix
-    if(line.startsWith('[NAVIGATE]')){
-      elements.push(<div key={i} style={{background:'rgba(155,127,232,0.12)',border:'1px solid rgba(155,127,232,0.3)',borderRadius:8,padding:'6px 10px',marginTop:6,marginBottom:6,fontSize:11}}>
-        <span style={{fontWeight:700,color:'var(--violet)',marginRight:6}}>→ Nav</span>
-        {line.replace('[NAVIGATE]','').trim()}
-      </div>);
-      i++;continue;
-    }
-    // Horizontal rule ---
-    if(line.match(/^---+$/)){
-      elements.push(<hr key={i} style={{border:'none',borderTop:'1px solid var(--glass-border)',margin:'8px 0'}}/>);
-      i++;continue;
-    }
-    // Normal paragraph
-    elements.push(<div key={i} style={{marginBottom:4,lineHeight:1.6}}>{inlineFormat(line)}</div>);
-    i++;
-  }
-  return elements;
-}
-
-// Inline formatting — bold, italic, code
-function inlineFormat(text){
-  // Split on **bold**, *italic*, `code`
-  const parts=[];
-  const regex=/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
-  let last=0,m,idx=0;
-  while((m=regex.exec(text))!==null){
-    if(m.index>last) parts.push(<span key={idx++}>{text.slice(last,m.index)}</span>);
-    const raw=m[0];
-    if(raw.startsWith('**')) parts.push(<strong key={idx++} style={{fontWeight:700,color:'var(--tx)'}}>{raw.slice(2,-2)}</strong>);
-    else if(raw.startsWith('*')) parts.push(<em key={idx++} style={{fontStyle:'italic'}}>{raw.slice(1,-1)}</em>);
-    else parts.push(<code key={idx++} style={{fontFamily:"'DM Mono',monospace",fontSize:'0.9em',background:'rgba(155,127,232,0.15)',borderRadius:3,padding:'1px 4px'}}>{raw.slice(1,-1)}</code>);
-    last=m.index+raw.length;
-  }
-  if(last<text.length) parts.push(<span key={idx++}>{text.slice(last)}</span>);
-  return parts.length>0?parts:text;
-}
+// ── ANTHROPIC API KEY — stored in localStorage, never hardcoded ──
+function getAnthropicKey(){return 'AIzaSyBYqQph3ilZJ_H1PlyyUNa7sbTrUu2kxA4';}
+function saveAnthropicKey(k){try{localStorage.setItem('g4-anthropic-key',k);}catch{}}
+const ANTHROPIC_API_KEY = 'AIzaSyBYqQph3ilZJ_H1PlyyUNa7sbTrUu2kxA4'; // your actual key here
 
 // ── AI CHATBOT COMPONENT ──
 function AIChatbot({phases,sections,teacherMode,currentView,currentPhase,currentSection}){
@@ -5804,19 +5713,18 @@ function AIChatbot({phases,sections,teacherMode,currentView,currentPhase,current
   const [messages,setMessages]=React.useState([]);
   const [input,setInput]=React.useState('');
   const [loading,setLoading]=React.useState(false);
+  const [apiKey,setApiKey]=React.useState(()=>getAnthropicKey());
+  const [keyDraft,setKeyDraft]=React.useState('');
   const [unread,setUnread]=React.useState(false);
   const [pos,setPos]=React.useState({x:null,y:null});
-  const [size,setSize]=React.useState({w:380,h:500});
-  const [model,setModel]=React.useState('gemini-2.0-flash');
-  const [liveData,setLiveData]=React.useState(null);
-  const [dataLoading,setDataLoading]=React.useState(false);
+  const [size,setSize]=React.useState({w:360,h:480});
   const popupRef=React.useRef(null);
   const dragRef=React.useRef(null);
+  const resizeRef=React.useRef(null);
   const msgsEndRef=React.useRef(null);
   const inputRef=React.useRef(null);
-  const dataFetchedRef=React.useRef(false);
 
-  // Scroll to bottom
+  // Scroll to bottom when new messages arrive
   React.useEffect(()=>{
     if(msgsEndRef.current) msgsEndRef.current.scrollIntoView({behavior:'smooth'});
   },[messages,loading]);
@@ -5829,45 +5737,27 @@ function AIChatbot({phases,sections,teacherMode,currentView,currentPhase,current
   // Clear unread dot when opened
   React.useEffect(()=>{if(open)setUnread(false);},[open]);
 
-  // Fetch all sections' live data from Firestore — once per session
-  async function fetchAllSectionsData(){
-    if(dataFetchedRef.current) return;
-    dataFetchedRef.current=true;
-    setDataLoading(true);
-    try{
-      const db=window._db;
-      const sectionIds=['4gir','4sariska','4ranthambore','4kanha','4corbett'];
-      const results={};
-      await Promise.all(sectionIds.map(async sid=>{
-        try{
-          const snap=await db.collection('sections').doc('shared-'+sid).get();
-          if(snap.exists) results[sid]=snap.data();
-        }catch(e){console.warn('Failed to fetch',sid,e);}
-      }));
-      setLiveData(results);
-    }catch(e){console.warn('Firestore fetch failed',e);}
-    setDataLoading(false);
-  }
-
+  // Position popup above the AI FAB (which is above the timer FAB)
   function openPopup(){
     if(!open){
-      if(pos.x===null) setPos({x:window.innerWidth-size.w-24,y:window.innerHeight-size.h-170});
+      if(pos.x===null){
+        setPos({x:window.innerWidth-size.w-24,y:window.innerHeight-size.h-170});
+      }
       setOpen(true);
-      fetchAllSectionsData();
     } else {
       setOpen(false);
     }
   }
 
-  // Drag — header only
+  // Drag logic
   function onHeaderMouseDown(e){
-    if(e.button!==0||e.target.closest('.ai-no-drag')) return;
+    if(e.button!==0) return;
     const rect=popupRef.current.getBoundingClientRect();
     dragRef.current={ox:e.clientX-rect.left,oy:e.clientY-rect.top};
     function onMove(ev){
       const nx=ev.clientX-dragRef.current.ox;
       const ny=ev.clientY-dragRef.current.oy;
-      setPos({x:Math.max(0,Math.min(nx,window.innerWidth-size.w)),y:Math.max(0,Math.min(ny,window.innerHeight-60))});
+      setPos({x:Math.max(0,Math.min(nx,window.innerWidth-size.w)),y:Math.max(0,Math.min(ny,window.innerHeight-100))});
     }
     function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);}
     document.addEventListener('mousemove',onMove);
@@ -5875,17 +5765,25 @@ function AIChatbot({phases,sections,teacherMode,currentView,currentPhase,current
     e.preventDefault();
   }
 
-  // Resize — bottom-right corner handle, separate from header
+  // Resize logic
   function onResizeMouseDown(e){
     if(e.button!==0) return;
     const startX=e.clientX,startY=e.clientY,startW=size.w,startH=size.h;
     function onMove(ev){
-      setSize({w:Math.max(320,startW+(ev.clientX-startX)),h:Math.max(280,startH+(ev.clientY-startY))});
+      setSize({w:Math.max(300,startW+(ev.clientX-startX)),h:Math.max(260,startH+(ev.clientY-startY))});
     }
     function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);}
     document.addEventListener('mousemove',onMove);
     document.addEventListener('mouseup',onUp);
-    e.stopPropagation();e.preventDefault();
+    e.preventDefault();e.stopPropagation();
+  }
+
+  function saveKey(){
+    const k=keyDraft.trim();
+    saveAnthropicKey(k);
+    setApiKey(k);
+    setKeyDraft('');
+    setMessages([{role:'assistant',content:"Key saved! I'm ready. Ask me anything about the curriculum, lessons, or students."}]);
   }
 
   function buildSystemPrompt(){
@@ -5894,105 +5792,76 @@ function AIChatbot({phases,sections,teacherMode,currentView,currentPhase,current
       :`Currently viewing: ${currentView} view`;
 
     const curriculumSummary=phases.map(ph=>{
-      const lessons=ph.sessions.map(s=>`  Lesson ${s.n}: "${s.title}" [${s.cluster||''}] — ${s.overview||s.objective||''}\n    Materials: ${(s.mats||[]).join(', ')||'none'}\n    Keywords: ${(s.kws||[]).join(', ')||'none'}`).join('\n');
+      const lessons=ph.sessions.map(s=>`  Lesson ${s.n}: "${s.title}" [${s.cluster||''}] — ${s.overview||s.objective||''}`).join('\n');
       return `Wave: ${ph.name} (${ph.sub})\n${lessons}`;
     }).join('\n\n');
 
-    // Build rich student data from live Firestore data
-    let studentContext='';
-    if(liveData){
-      const sectionNames={'4gir':'4 Gir','4sariska':'4 Sariska','4ranthambore':'4 Ranthambore','4kanha':'4 Kanha','4corbett':'4 Corbett'};
-      studentContext=Object.entries(liveData).map(([sid,secData])=>{
-        const sName=sectionNames[sid]||sid;
-        const students=(secData.students||[]);
-        const sessions=(secData.sessions||[]).filter(s=>!s.isDivider&&s.sessType!=='cancelled');
-        const totalSess=sessions.length;
-        const studentLines=students.map(st=>{
-          const obs=st.observations||[];
-          const att=st.attendance||{};
-          const attCount=Object.values(att).filter(v=>v==='present'||v===true).length;
-          const thumbsUp=obs.filter(o=>o.thumb==='up').length;
-          const thumbsDown=obs.filter(o=>o.thumb==='down').length;
-          const escalations=obs.filter(o=>o.escalation&&!o.escalationCleared).length;
-          const allTags=obs.flatMap(o=>o.tags||[]);
-          const tagCounts={};
-          allTags.forEach(t=>{tagCounts[t]=(tagCounts[t]||0)+1;});
-          const topTags=Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([t])=>t);
-          const recentNotes=obs.filter(o=>o.note).slice(-2).map(o=>o.note);
-          return `    ${st.name}: Attendance ${attCount}/${totalSess} | 👍${thumbsUp} 👎${thumbsDown}${escalations>0?` | ⚠️ ${escalations} escalation(s)`:''} | Tags: ${topTags.join(', ')||'none'}${recentNotes.length>0?` | Notes: ${recentNotes.join('; ')}`:''}`;
-        }).join('\n');
-        return `${sName} (${students.length} students, ${totalSess} sessions):\n${studentLines}`;
-      }).join('\n\n');
-    } else {
-      // Fallback to just names from static sections
-      studentContext=(sections||[]).map(sec=>
-        `${sec.name}: ${sec.students.join(', ')}`
-      ).join('\n');
-    }
+    const rosterSummary=(sections||[]).map(sec=>
+      `${sec.name} (${sec.students.length} students): ${sec.students.join(', ')}`
+    ).join('\n');
 
-    return `You are a smart, warm teaching assistant embedded in a Grade 4 Visual Arts app called "Order & Chaos". You help the teacher Sanket with curriculum, lesson planning, student tracking, and app navigation.
+    return `You are a smart teaching assistant embedded in a Grade 4 Visual Arts app called "Order & Chaos". You help the teacher (Sanket) with curriculum questions, lesson planning, student observations, and app navigation.
 
-CURRENT APP STATE:
-${viewDesc} | Teacher mode: ${teacherMode?'ON':'OFF'}${dataLoading?' | Student data: loading…':liveData?' | Student data: live from Firebase':' | Student data: names only'}
+App context:
+- ${viewDesc}
+- Teacher mode: ${teacherMode?'ON (full access)':'OFF'}
 
-STUDENT DATA (all 5 sections):
-${studentContext}
+Class rosters:
+${rosterSummary}
 
-CURRICULUM:
+Curriculum overview:
 ${curriculumSummary}
 
-RESPONSE STYLE — VERY IMPORTANT:
-- Write in clean, warm, conversational prose. You are talking to a teacher, not writing a report.
-- Use markdown naturally: ## for section headings, bullet points for lists, **bold** for names or key info.
-- Never use raw symbols like asterisks mid-sentence. Never write "**Sanket:**" or similar.
-- For student reports or summaries, organise clearly with headings per section or per concern.
-- Keep it concise. A busy teacher doesn't want walls of text.
-- For navigation requests, prefix with [NAVIGATE].
-- When flagging students of concern, be specific: name, section, what the data shows.`;
+Guidelines:
+- Be concise and practical. You know the full curriculum and student rosters above.
+- If asked to navigate ("go to Lesson 7"), respond with a clear instruction prefixed with [NAVIGATE] like: [NAVIGATE] Go to Wave 2, Lesson 7.
+- If asked about a specific lesson, pull details from the curriculum above.
+- If asked about students, use the rosters above.
+- If you don't have enough detail about a specific lesson's activities, say so honestly.
+- Keep responses focused and helpful for a busy classroom teacher.`;
   }
 
   async function sendMessage(){
     const text=input.trim();
     if(!text||loading) return;
-    const key=getGeminiKey();
-    if(!key){
-      setMessages(m=>[...m,{role:'assistant',content:'No API key found. Please add your Gemini API key in the code (search for getGeminiKey).'}]);
-      return;
-    }
+    const key=apiKey||getAnthropicKey();
+    if(!key){setMessages(m=>[...m,{role:'assistant',content:'Please add your Anthropic API key first (click the key icon above).'}]);return;}
+
     const userMsg={role:'user',content:text};
     const newHistory=[...messages,userMsg];
     setMessages(newHistory);
     setInput('');
     setLoading(true);
 
-    // Build Gemini contents array (user/model alternating)
-    const contents=newHistory.map(m=>({
-      role:m.role==='assistant'?'model':'user',
-      parts:[{text:m.content}]
-    }));
-
-    const endpoint=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    // Build messages array for API (filter out system-note type)
+    const apiMessages=newHistory.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role,content:m.content}));
 
     try{
-      const res=await fetch(endpoint,{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:{
+          'Content-Type':'application/json',
+          'x-api-key':key,
+          'anthropic-version':'2023-06-01',
+          'anthropic-dangerous-direct-browser-access':'true'
+        },
         body:JSON.stringify({
-          systemInstruction:{parts:[{text:buildSystemPrompt()}]},
-          contents,
-          generationConfig:{maxOutputTokens:1500,temperature:0.7}
+          model:'claude-sonnet-4-6',
+          max_tokens:1000,
+          system:buildSystemPrompt(),
+          messages:apiMessages
         })
       });
       const data=await res.json();
       if(data.error){
-        setMessages(m=>[...m,{role:'assistant',content:`Error: ${data.error.message||'API call failed.'}`}]);
+        setMessages(m=>[...m,{role:'assistant',content:`Error: ${data.error.message||'API call failed. Check your key.'}`}]);
       } else {
-        const reply=data.candidates?.[0]?.content?.parts?.[0]?.text||'No response.';
+        const reply=data.content?.[0]?.text||'No response.';
         setMessages(m=>[...m,{role:'assistant',content:reply}]);
         if(!open) setUnread(true);
       }
     }catch(err){
-      setMessages(m=>[...m,{role:'assistant',content:'Network error. Check your connection.'}]);
+      setMessages(m=>[...m,{role:'assistant',content:'Network error. Check your internet connection.'}]);
     }
     setLoading(false);
   }
@@ -6001,16 +5870,31 @@ RESPONSE STYLE — VERY IMPORTANT:
     if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}
   }
 
+  function clearKey(){saveAnthropicKey('');setApiKey('');setMessages([]);}
+
   const popupStyle={
     width:size.w+'px',height:size.h+'px',
     ...(pos.x!==null?{left:pos.x+'px',top:pos.y+'px'}:{right:'24px',bottom:'170px'})
   };
 
+  // Render message content — handle [NAVIGATE] prefix specially
+  function renderMsg(content){
+    if(content.startsWith('[NAVIGATE]')){
+      return(
+        <span>
+          <span style={{fontSize:10,fontWeight:700,color:'var(--violet)',textTransform:'uppercase',letterSpacing:'.06em',marginRight:5}}>→ Nav tip</span>
+          {content.replace('[NAVIGATE]','').trim()}
+        </span>
+      );
+    }
+    return content;
+  }
+
   if(!teacherMode) return null;
 
   return(
     <>
-      {/* FAB */}
+      {/* FAB — positioned above the timer FAB */}
       <div style={{position:'fixed',bottom:'86px',right:'24px',zIndex:310}}>
         <button className={`ai-fab-btn${unread?' has-unread':''}`} onClick={openPopup} title="AI Teaching Assistant">
           ✦
@@ -6020,97 +5904,95 @@ RESPONSE STYLE — VERY IMPORTANT:
       {/* Popup */}
       {open&&(
         <div className="ai-chat-popup" ref={popupRef} style={popupStyle}>
-
-          {/* Header — draggable */}
+          {/* Header */}
           <div className="ai-chat-header" onMouseDown={onHeaderMouseDown}>
-            <span style={{fontSize:15}}>✦</span>
+            <div className="ai-resize-handle" onMouseDown={onResizeMouseDown}>⤡</div>
+            <span style={{fontSize:16,marginLeft:16}}>✦</span>
             <div style={{flex:1}}>
               <div style={{fontSize:12,fontWeight:700,color:'var(--tx)',lineHeight:1}}>Teaching Assistant</div>
-              <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>
-                {dataLoading?'Loading student data…':loading?'Thinking…':'Ask anything about lessons or students'}
-              </div>
+              <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{loading?'Thinking…':'Ask about lessons, students, curriculum'}</div>
             </div>
-            {/* Model switcher */}
-            <div className="ai-no-drag" style={{display:'flex',gap:3,marginRight:6}}>
-              {[{id:'gemini-2.0-flash',label:'⚡ Flash'},{id:'gemini-2.5-pro',label:'🧠 Pro'}].map(m=>(
-                <button key={m.id} onClick={()=>setModel(m.id)}
-                  className="ai-no-drag"
-                  style={{fontSize:9,fontWeight:700,padding:'3px 7px',borderRadius:6,cursor:'pointer',
-                    fontFamily:"'DM Sans',sans-serif",border:'1px solid',transition:'all .15s',
-                    background:model===m.id?'rgba(155,127,232,0.25)':'transparent',
-                    borderColor:model===m.id?'rgba(155,127,232,0.5)':'var(--glass-border)',
-                    color:model===m.id?'var(--violet)':'var(--tx3)'}}>
-                  {m.label}
-                </button>
-              ))}
-            </div>
-            <button onClick={()=>setOpen(false)} className="ai-no-drag"
+            <button onClick={()=>setOpen(false)}
               style={{fontSize:13,color:'var(--tx3)',background:'none',border:'none',cursor:'pointer',padding:'2px 6px',borderRadius:6,lineHeight:1}}>✕</button>
           </div>
 
-          {/* Messages */}
-          <div className="ai-chat-messages">
-            {messages.length===0&&(
-              <div style={{textAlign:'center',marginTop:24}}>
-                <div style={{fontSize:28,marginBottom:8}}>✦</div>
-                <div style={{fontSize:12,color:'var(--tx2)',lineHeight:1.6,marginBottom:16}}>
-                  Hi Sanket! I have full access to your curriculum and{liveData?' live student data':" student rosters"}. Ask me anything.
-                </div>
-                <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                  {[
-                    'Any students of concern across all sections?',
-                    'Summarise 4 Kanha\'s attendance',
-                    'What\'s covered in Wave 2?',
-                    'Which students have escalation flags?'
-                  ].map((s,i)=>(
-                    <button key={i} onClick={()=>{setInput(s);setTimeout(()=>inputRef.current&&inputRef.current.focus(),50);}}
-                      style={{fontSize:11,padding:'7px 11px',borderRadius:9,border:'1px solid var(--glass-border)',
-                        background:'var(--glass-bg)',color:'var(--tx2)',cursor:'pointer',
-                        fontFamily:"'DM Sans',sans-serif",textAlign:'left',transition:'background .1s'}}
-                      onMouseEnter={e=>e.target.style.background='var(--glass-bg2)'}
-                      onMouseLeave={e=>e.target.style.background='var(--glass-bg)'}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
+          {/* Key setup screen */}
+          {!apiKey?(
+            <div className="ai-key-setup">
+              <div style={{fontSize:28}}>🔑</div>
+              <div style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>Add your Anthropic API Key</div>
+              <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.5,maxWidth:260}}>Your key is saved locally on this device only — never sent anywhere except directly to Anthropic.</div>
+              <input
+                className="ai-key-input"
+                type="password"
+                placeholder="sk-ant-..."
+                value={keyDraft}
+                onChange={e=>setKeyDraft(e.target.value)}
+                onKeyDown={e=>e.key==='Enter'&&saveKey()}
+                autoFocus
+              />
+              <button onClick={saveKey} disabled={!keyDraft.trim().startsWith('sk-')}
+                style={{padding:'8px 22px',borderRadius:10,border:'1px solid rgba(155,127,232,0.45)',
+                  background:'linear-gradient(135deg,rgba(155,127,232,0.3),rgba(91,174,232,0.2))',
+                  color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,
+                  cursor:keyDraft.trim().startsWith('sk-')?'pointer':'not-allowed',
+                  opacity:keyDraft.trim().startsWith('sk-')?1:0.5}}>
+                Save Key
+              </button>
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener"
+                style={{fontSize:10,color:'var(--violet)',textDecoration:'none'}}>
+                Get your key → console.anthropic.com
+              </a>
+            </div>
+          ):(
+            <>
+              {/* Messages */}
+              <div className="ai-chat-messages">
+                {messages.length===0&&(
+                  <div style={{textAlign:'center',marginTop:20}}>
+                    <div style={{fontSize:24,marginBottom:8}}>✦</div>
+                    <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.6}}>Hi Sanket! Ask me anything about your lessons, students, or curriculum.</div>
+                    <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
+                      {["What's in Lesson 7?","Which lessons cover colour?","How many lessons in Wave 2?"].map((s,i)=>(
+                        <button key={i} onClick={()=>{setInput(s);setTimeout(()=>inputRef.current&&inputRef.current.focus(),50);}}
+                          style={{fontSize:11,padding:'5px 10px',borderRadius:9,border:'1px solid var(--glass-border)',
+                            background:'var(--glass-bg)',color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",textAlign:'left'}}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {messages.map((m,i)=>(
+                  <div key={i} className={`ai-msg ${m.role==='user'?'user':m.role==='system-note'?'system-note':'assistant'}`}>
+                    {renderMsg(m.content)}
+                  </div>
+                ))}
+                {loading&&(
+                  <div className="ai-msg assistant" style={{color:'var(--tx3)',fontStyle:'italic'}}>
+                    Thinking…
+                  </div>
+                )}
+                <div ref={msgsEndRef}/>
               </div>
-            )}
-            {messages.map((m,i)=>(
-              <div key={i} className={`ai-msg ${m.role==='user'?'user':'assistant'}`}>
-                {m.role==='assistant'?renderMarkdown(m.content):m.content}
-              </div>
-            ))}
-            {loading&&(
-              <div className="ai-msg assistant" style={{color:'var(--tx3)',fontStyle:'italic',fontSize:11}}>
-                {model==='gemini-2.5-pro'?'Pro is thinking, this may take a moment…':'Thinking…'}
-              </div>
-            )}
-            <div ref={msgsEndRef}/>
-          </div>
 
-          {/* Input */}
-          <div className="ai-chat-input-row">
-            <textarea
-              ref={inputRef}
-              className="ai-chat-input"
-              placeholder="Ask about lessons, students, curriculum…"
-              value={input}
-              onChange={e=>setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-            />
-            <button className="ai-send-btn" onClick={sendMessage} disabled={loading||!input.trim()} title="Send (Enter)">
-              ↑
-            </button>
-          </div>
-
-          {/* Resize handle — bottom right, outside header so no drag conflict */}
-          <div onMouseDown={onResizeMouseDown}
-            style={{position:'absolute',bottom:0,right:0,width:18,height:18,cursor:'nwse-resize',
-              display:'flex',alignItems:'flex-end',justifyContent:'flex-end',padding:'4px',
-              color:'rgba(155,127,232,0.4)',fontSize:11,userSelect:'none'}}>
-            ⊿
-          </div>
+              {/* Input */}
+              <div className="ai-chat-input-row">
+                <textarea
+                  ref={inputRef}
+                  className="ai-chat-input"
+                  placeholder="Ask about lessons, students, curriculum…"
+                  value={input}
+                  onChange={e=>setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  rows={1}
+                />
+                <button className="ai-send-btn" onClick={sendMessage} disabled={loading||!input.trim()} title="Send (Enter)">
+                  ↑
+                </button>
+              </div>
+            </>
+          )}
 
         </div>
       )}
@@ -6363,14 +6245,13 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
     const notes=obs.filter(o=>o.note).map(o=>o.note);
     const prompt=`You are a warm, encouraging art teacher writing a brief student profile for a Grade 4 student. Tone: supportive, positive, growth-focused. Mention concerns very gently as areas of growth, never harshly.\n\nStudent: ${student.name}\nAttendance: ${attendanceCount}/${totalSessions} sessions\nPositive signals: ${thumbsUp} thumbs up, ${thumbsDown} thumbs down\nTop observed traits: ${topTags.join(', ')||'Not enough data yet'}\nEscalation incidents: ${escalations}\nRecent teacher notes: ${notes.slice(-3).join(' | ')||'None recorded'}\n\nWrite 3-4 sentences. Start with a genuine strength. Mention attendance naturally. If concerns exist, frame as growth opportunities. End encouragingly.`;
     try{
-      const gKey=getGeminiKey();
-      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gKey}`,{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:300}})
+        headers:{'Content-Type':'application/json','x-api-key':getAnthropicKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:prompt}]})
       });
       const data=await res.json();
-      setProfile(data.candidates?.[0]?.content?.parts?.[0]?.text||'Could not generate. Check your API key.');
+      setProfile(data.content?.[0]?.text||'Could not generate. Check your API key.');
     }catch{setProfile('Error generating profile.');}
     setLoading(false);
   }
@@ -6857,14 +6738,13 @@ Recent teacher notes: ${notes.slice(-3).join(' | ')||'None recorded'}
 Write 3-4 sentences. Start with a genuine strength. Mention attendance naturally. If concerns exist, frame as growth opportunities. End encouragingly.`;
 
     try{
-      const gKey=getGeminiKey();
-      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gKey}`,{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:300}})
+        headers:{'Content-Type':'application/json','x-api-key':getAnthropicKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:prompt}]})
       });
       const data=await res.json();
-      setProfile(data.candidates?.[0]?.content?.parts?.[0]?.text||'Could not generate. Check your API key.');
+      setProfile(data.content?.[0]?.text||'Could not generate. Check your API key.');
     }catch{setProfile('Error generating profile.');}
     setLoading(false);
   }
