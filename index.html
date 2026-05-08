@@ -5703,7 +5703,7 @@ function generateUnitPlanPDF(){
 
 // ── SUB PIN SYSTEM ──
 // ── GEMINI API KEY ──
-function getGeminiKey(){return 'AIzaSyAH3zsTbl4nhWDUMW3T9oXGgYLJCuHGDR8';}
+function getGeminiKey(){return 'AIzaSyChJACrKd3vHrjy9CE3a5wvUh_AKsm_SJQ';}
 function saveGeminiKey(k){try{localStorage.setItem('g4-gemini-key',k);}catch{}}
 // Legacy compat — profile generator still uses this
 function getAnthropicKey(){return getGeminiKey();}
@@ -6032,7 +6032,7 @@ RESPONSE STYLE — VERY IMPORTANT:
             </div>
             {/* Model switcher */}
             <div className="ai-no-drag" style={{display:'flex',gap:3,marginRight:6}}>
-              {[{id:'gemini-2.0-flash-lite',label:'⚡ Flash'},{id:'gemini-2.5-pro-preview-05-06',label:'🧠 Pro'}].map(m=>(
+              {[{id:'gemini-2.0-flash-lite',label:'⚡ Flash'},{id:'gemini-2.5-pro',label:'🧠 Pro'}].map(m=>(
                 <button key={m.id} onClick={()=>setModel(m.id)}
                   className="ai-no-drag"
                   style={{fontSize:9,fontWeight:700,padding:'3px 7px',borderRadius:6,cursor:'pointer',
