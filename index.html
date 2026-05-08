@@ -5708,7 +5708,7 @@ function saveAnthropicKey(k){try{localStorage.setItem('g4-anthropic-key',k);}cat
 const ANTHROPIC_API_KEY = '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'; // your actual key here
 
 // ── AI CHATBOT COMPONENT ──
-function AIChatbot({phases,teacherMode,currentView,currentPhase,currentSection}){
+function AIChatbot({phases,sections,teacherMode,currentView,currentPhase,currentSection}){
   const [open,setOpen]=React.useState(false);
   const [messages,setMessages]=React.useState([]);
   const [input,setInput]=React.useState('');
@@ -5796,19 +5796,27 @@ function AIChatbot({phases,teacherMode,currentView,currentPhase,currentSection})
       return `Wave: ${ph.name} (${ph.sub})\n${lessons}`;
     }).join('\n\n');
 
+    const rosterSummary=(sections||[]).map(sec=>
+      `${sec.name} (${sec.students.length} students): ${sec.students.join(', ')}`
+    ).join('\n');
+
     return `You are a smart teaching assistant embedded in a Grade 4 Visual Arts app called "Order & Chaos". You help the teacher (Sanket) with curriculum questions, lesson planning, student observations, and app navigation.
 
 App context:
 - ${viewDesc}
 - Teacher mode: ${teacherMode?'ON (full access)':'OFF'}
 
+Class rosters:
+${rosterSummary}
+
 Curriculum overview:
 ${curriculumSummary}
 
 Guidelines:
-- Be concise and practical. You know the full curriculum above.
+- Be concise and practical. You know the full curriculum and student rosters above.
 - If asked to navigate ("go to Lesson 7"), respond with a clear instruction prefixed with [NAVIGATE] like: [NAVIGATE] Go to Wave 2, Lesson 7.
 - If asked about a specific lesson, pull details from the curriculum above.
+- If asked about students, use the rosters above.
 - If you don't have enough detail about a specific lesson's activities, say so honestly.
 - Keep responses focused and helpful for a busy classroom teacher.`;
   }
@@ -8429,7 +8437,7 @@ function App(){
         </div>
         <GlobalKWPopup activeKw={activeKw} onClose={()=>setActiveKw(null)}/>
         <Timer/>
-        <AIChatbot phases={PHASES} teacherMode={teacherMode} currentView={view} currentPhase={phase} currentSection={section}/>
+        <AIChatbot phases={PHASES} sections={G4_SECTIONS} teacherMode={teacherMode} currentView={view} currentPhase={phase} currentSection={section}/>
         {/* Sign-in modal — can be triggered from sidebar when not logged in */}
         {showSignIn&&<SignInModal onClose={()=>setShowSignIn(false)}/>}
       </div>
