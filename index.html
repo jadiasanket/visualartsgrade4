@@ -2636,6 +2636,21 @@ const PM={
   violet:{l:'var(--violet)',s:'var(--vs)',b:'var(--vb)',na:'var(--vs)',bg:'var(--vs)'},
 };
 
+// ── ARTWORK ASSESSMENT TAGS ──
+const DEFAULT_ARTWORK_TAGS=[
+  {label:'Confident',color:'green'},{label:'Expressive',color:'green'},{label:'Detailed',color:'green'},
+  {label:'Composed',color:'green'},{label:'Fluid',color:'green'},{label:'Bold',color:'green'},
+  {label:'Innovative',color:'green'},{label:'Imaginative',color:'green'},{label:'Focused',color:'green'},
+  {label:'Independent',color:'green'},
+  {label:'Emerging',color:'yellow'},{label:'Experimental',color:'yellow'},{label:'Inconsistent',color:'yellow'},
+  {label:'Hesitant',color:'yellow'},{label:'Needs prompting',color:'yellow'},{label:'Partially complete',color:'yellow'},
+  {label:'Developing control',color:'yellow'},
+  {label:'Struggling',color:'red'},{label:'Off-brief',color:'red'},{label:'Incomplete',color:'red'},
+  {label:'Disengaged',color:'red'},{label:'Needs reteaching',color:'red'},{label:'Limited response',color:'red'},
+];
+function getArtworkTags(){try{const s=localStorage.getItem('g4-artwork-tags');if(s)return JSON.parse(s);}catch{}return DEFAULT_ARTWORK_TAGS;}
+function saveArtworkTags(tags){try{localStorage.setItem('g4-artwork-tags',JSON.stringify(tags));}catch{}}
+
 // ── 3 Waves · 14 Lessons · Order & Chaos — Grade 4 ──
 const PHASES=[
   {
@@ -4417,7 +4432,8 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
           {!collapsed&&<div className="sb-section">Overview</div>}
           {[{id:'annual',icon:IC.home,name:'Unit Overview'},
             {id:'months',icon:IC.calendar,name:'Monthly Summaries'},
-            ...(!isVisitor?[{id:'notes',icon:IC.notes,name:'Unit Notes'}]:[])].map(item=>(
+            ...(!isVisitor?[{id:'notes',icon:IC.notes,name:'Unit Notes'}]:[]),
+            ...(!isVisitor?[{id:'gallery',icon:'🖼',name:'Gallery'}]:[])].map(item=>(
             <button key={item.id} className={`nb ${view===item.id?'active':''}`}
               title={collapsed?item.name:''}
               onClick={()=>onNav(item.id)}>
@@ -6208,7 +6224,7 @@ function EnterSubPINModal({section,onSuccess,onClose}){
 
 
 // ── STUDENT NAME POPUP — school ID card design ──
-function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio,disableKeyNav}){
+function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio}){
   const obs=observations||[];
   const [flipped,setFlipped]=React.useState(false);
   const [profile,setProfile]=React.useState('');
@@ -6245,15 +6261,14 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
   React.useEffect(()=>{
     function handleKey(e){
-      if(editMode) return;
-      if(disableKeyNav) return;
+      if(editMode) return; // don't nav while editing
       if(e.key==='ArrowLeft'&&onPrev){onPrev();}
       if(e.key==='ArrowRight'&&onNext){onNext();}
       if(e.key==='Escape'){onClose();}
     }
     window.addEventListener('keydown',handleKey);
     return()=>window.removeEventListener('keydown',handleKey);
-  },[onPrev,onNext,onClose,editMode,disableKeyNav]);
+  },[onPrev,onNext,onClose,editMode]);
 
   function saveEdits(){
     if(updateData){
@@ -6744,17 +6759,20 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   const [active,setActive]=React.useState(portfolio.length>0?portfolio.length-1:0);
   const [fullscreen,setFullscreen]=React.useState(false);
   const [uploading,setUploading]=React.useState(false);
-  const [editCaption,setEditCaption]=React.useState(null); // index being edited
+  const [editCaption,setEditCaption]=React.useState(null);
   const [captionVal,setCaptionVal]=React.useState('');
+  const [artworkTags,setArtworkTagsState]=React.useState(getArtworkTags);
+  const [showAddArtTag,setShowAddArtTag]=React.useState(false);
+  const [newArtTagLabel,setNewArtTagLabel]=React.useState('');
+  const [newArtTagColor,setNewArtTagColor]=React.useState('green');
   const fileInputRef=React.useRef(null);
   const overlayRef=React.useRef(null);
+  const allLessons=React.useMemo(()=>PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color,phaseId:ph.id}))),[]);
 
-  // Clamp active to valid range
   React.useEffect(()=>{
     if(portfolio.length>0&&active>=portfolio.length) setActive(portfolio.length-1);
   },[portfolio.length]);
 
-  // Keyboard nav
   React.useEffect(()=>{
     function onKey(e){
       if(editCaption!==null) return;
@@ -6777,9 +6795,9 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
         const date=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
         updateData(d=>{
           if(!d.students[studentIdx].portfolio) d.students[studentIdx].portfolio=[];
-          d.students[studentIdx].portfolio.push({url,date,caption:''});
+          d.students[studentIdx].portfolio.push({url,date,caption:'',type:'artwork',lessons:[],artTags:[],review:''});
         });
-        setActive((student.portfolio||[]).length); // will point to new last item
+        setActive((student.portfolio||[]).length);
       }
     }catch(err){alert('Upload failed: '+err.message);}
     setUploading(false);
@@ -6797,19 +6815,51 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
     setEditCaption(null);
   }
 
+  function updateField(idx,field,val){
+    updateData(d=>{d.students[studentIdx].portfolio[idx][field]=val;});
+  }
+
+  function toggleLesson(idx,lessonN){
+    const curr=(portfolio[idx]&&portfolio[idx].lessons)||[];
+    const next=curr.includes(lessonN)?curr.filter(l=>l!==lessonN):[...curr,lessonN];
+    updateField(idx,'lessons',next);
+  }
+
+  function toggleArtTag(idx,label){
+    const curr=(portfolio[idx]&&portfolio[idx].artTags)||[];
+    const next=curr.includes(label)?curr.filter(t=>t!==label):[...curr,label];
+    updateField(idx,'artTags',next);
+  }
+
+  function addArtworkTag(){
+    if(!newArtTagLabel.trim()) return;
+    const next=[...artworkTags,{label:newArtTagLabel.trim(),color:newArtTagColor}];
+    setArtworkTagsState(next);
+    saveArtworkTags(next);
+    setNewArtTagLabel('');setShowAddArtTag(false);
+  }
+
+  function deleteArtworkTag(label){
+    const next=artworkTags.filter(t=>t.label!==label);
+    setArtworkTagsState(next);
+    saveArtworkTags(next);
+  }
+
   const current=portfolio[active]||null;
+  const tagColors={green:{bg:'rgba(59,191,160,0.15)',cl:'var(--teal)'},yellow:{bg:'rgba(212,168,67,0.15)',cl:'var(--yellow)'},red:{bg:'rgba(232,112,90,0.15)',cl:'var(--coral)'}};
+  const phaseColors={coral:'var(--coral)',yellow:'var(--yellow)',teal:'var(--teal)',violet:'var(--violet)'};
 
   if(fullscreen){
     return ReactDOM.createPortal(
       <div style={{position:'fixed',inset:0,zIndex:9999,background:'#000',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}
         onClick={()=>setFullscreen(false)}>
         {current&&<img src={current.url} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}} onClick={e=>e.stopPropagation()}/>}
-        <button onClick={()=>setFullscreen(false)} style={{position:'absolute',top:16,right:20,background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',fontSize:13,padding:'5px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕ Exit Fullscreen</button>
+        <button onClick={()=>setFullscreen(false)} style={{position:'absolute',top:16,right:20,background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',fontSize:13,padding:'5px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>&#x2715; Exit Fullscreen</button>
         {portfolio.length>1&&<>
           <button onClick={e=>{e.stopPropagation();setActive(p=>Math.max(0,p-1));}} disabled={active===0}
-            style={{position:'absolute',left:24,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:active===0?'not-allowed':'pointer',opacity:active===0?0.3:1}}>‹</button>
+            style={{position:'absolute',left:24,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:active===0?'not-allowed':'pointer',opacity:active===0?0.3:1}}>&#8249;</button>
           <button onClick={e=>{e.stopPropagation();setActive(p=>Math.min(portfolio.length-1,p+1));}} disabled={active===portfolio.length-1}
-            style={{position:'absolute',right:24,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:active===portfolio.length-1?'not-allowed':'pointer',opacity:active===portfolio.length-1?0.3:1}}>›</button>
+            style={{position:'absolute',right:24,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:active===portfolio.length-1?'not-allowed':'pointer',opacity:active===portfolio.length-1?0.3:1}}>&#8250;</button>
         </>}
         {current&&current.caption&&<div style={{position:'absolute',bottom:32,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,0.6)',color:'#fff',fontSize:13,padding:'6px 18px',borderRadius:20,maxWidth:'60%',textAlign:'center'}}>{current.caption}</div>}
       </div>,
@@ -6820,30 +6870,27 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   return ReactDOM.createPortal(
     <div ref={overlayRef} style={{position:'fixed',inset:0,zIndex:3000,background:'rgba(10,15,26,0.92)',backdropFilter:'blur(12px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
       onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{width:'min(780px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:20,boxShadow:'var(--glass-shadow2)',overflow:'hidden'}}>
-
+      <div onClick={e=>e.stopPropagation()} style={{width:'min(900px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:20,boxShadow:'var(--glass-shadow2)',overflow:'hidden'}}>
         {/* Header */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',borderBottom:'1px solid var(--glass-border)',flexShrink:0,background:'var(--glass-bg)'}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <span style={{fontSize:16}}>🖼</span>
+            <span style={{fontSize:16}}>&#x1F5BC;</span>
             <span style={{fontFamily:"'Fraunces',serif",fontSize:14,fontWeight:700,color:'var(--tx)'}}>{student.name}</span>
-            <span style={{fontSize:10,color:'var(--tx3)'}}>· {portfolio.length} photo{portfolio.length!==1?'s':''}</span>
+            <span style={{fontSize:10,color:'var(--tx3)'}}>&middot; {portfolio.length} photo{portfolio.length!==1?'s':''}</span>
           </div>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             {portfolio.length>0&&<button onClick={()=>setFullscreen(true)} title="Fullscreen (F)"
-              style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:8,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>⛶ Fullscreen</button>}
+              style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:8,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>&#x26F6; Fullscreen</button>}
             <label style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:8,border:'1px solid var(--teal)',background:'rgba(59,191,160,0.1)',color:'var(--teal)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:5}}>
               {uploading?'Uploading…':'+ Add Photos'}
               <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleUpload} disabled={uploading}/>
             </label>
-            <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:18,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+            <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:18,cursor:'pointer',padding:'2px 6px'}}>&#x2715;</button>
           </div>
         </div>
-
         {portfolio.length===0?(
-          /* Empty state */
           <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:48}}>
-            <div style={{fontSize:48,opacity:0.3}}>🖼</div>
+            <div style={{fontSize:48,opacity:0.3}}>&#x1F5BC;</div>
             <div style={{fontSize:14,color:'var(--tx3)',textAlign:'center'}}>No portfolio photos yet.</div>
             <label style={{fontSize:12,fontWeight:700,padding:'8px 20px',borderRadius:10,border:'1px solid var(--teal)',background:'rgba(59,191,160,0.1)',color:'var(--teal)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
               + Upload First Photo
@@ -6851,63 +6898,152 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
             </label>
           </div>
         ):(
-          <>
-            {/* Main image */}
-            <div style={{flex:1,minHeight:0,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.3)',overflow:'hidden'}}>
-              {current&&<img src={current.url} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block'}}/>}
-              {/* Arrows */}
-              {portfolio.length>1&&<>
-                <button onClick={()=>setActive(p=>Math.max(0,p-1))} disabled={active===0}
-                  style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:26,padding:'4px 12px',cursor:active===0?'not-allowed':'pointer',opacity:active===0?0.25:0.8}}>‹</button>
-                <button onClick={()=>setActive(p=>Math.min(portfolio.length-1,p+1))} disabled={active===portfolio.length-1}
-                  style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:26,padding:'4px 12px',cursor:active===portfolio.length-1?'not-allowed':'pointer',opacity:active===portfolio.length-1?0.25:0.8}}>›</button>
-              </>}
-              {/* Date badge */}
-              {current&&<div style={{position:'absolute',top:10,left:12,background:'rgba(0,0,0,0.55)',color:'rgba(255,255,255,0.7)',fontSize:10,padding:'3px 10px',borderRadius:12,backdropFilter:'blur(4px)'}}>{current.date}</div>}
-              {/* Delete button */}
-              <button onClick={()=>handleDelete(active)}
-                style={{position:'absolute',top:10,right:12,background:'rgba(232,112,90,0.25)',border:'1px solid rgba(232,112,90,0.4)',borderRadius:8,color:'var(--coral)',fontSize:10,fontWeight:700,padding:'3px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕ Delete</button>
+          <div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+            <div style={{flex:1,minHeight:0,display:'flex',overflow:'hidden'}}>
+              {/* Image pane */}
+              <div style={{flex:1,minWidth:0,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.3)'}}>
+                {current&&<img src={current.url} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block'}}/>}
+                {portfolio.length>1&&<>
+                  <button onClick={()=>setActive(p=>Math.max(0,p-1))} disabled={active===0}
+                    style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:24,padding:'4px 10px',cursor:active===0?'not-allowed':'pointer',opacity:active===0?0.2:0.8}}>&#8249;</button>
+                  <button onClick={()=>setActive(p=>Math.min(portfolio.length-1,p+1))} disabled={active===portfolio.length-1}
+                    style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:24,padding:'4px 10px',cursor:active===portfolio.length-1?'not-allowed':'pointer',opacity:active===portfolio.length-1?0.2:0.8}}>&#8250;</button>
+                </>}
+                <div style={{position:'absolute',top:10,left:12,background:'rgba(0,0,0,0.55)',color:'rgba(255,255,255,0.7)',fontSize:10,padding:'3px 10px',borderRadius:12,backdropFilter:'blur(4px)'}}>{current&&current.date}</div>
+                {current&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:current.type==='documentation'?'rgba(155,127,232,0.75)':' rgba(59,191,160,0.75)',color:'#fff',fontSize:9,fontWeight:700,padding:'2px 10px',borderRadius:12,letterSpacing:'.05em',whiteSpace:'nowrap'}}>{current.type==='documentation'?'DOCS':'ARTWORK'}</div>}
+                <button onClick={()=>handleDelete(active)}
+                  style={{position:'absolute',top:10,right:12,background:'rgba(232,112,90,0.25)',border:'1px solid rgba(232,112,90,0.4)',borderRadius:8,color:'var(--coral)',fontSize:10,fontWeight:700,padding:'3px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>&#x2715; Delete</button>
+              </div>
+              {/* Meta panel */}
+              <div style={{width:250,flexShrink:0,borderLeft:'1px solid var(--glass-border)',display:'flex',flexDirection:'column',overflowY:'auto',background:'var(--glass-bg)'}}>
+                {current&&(
+                  <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:14}}>
+                    {/* Type */}
+                    <div>
+                      <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Type</div>
+                      <div style={{display:'flex',gap:6}}>
+                        {['artwork','documentation'].map(t=>(
+                          <button key={t} onClick={()=>updateField(active,'type',t)}
+                            style={{flex:1,fontSize:10,fontWeight:700,padding:'5px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                              border:(current.type||'artwork')===t?'1px solid var(--teal)':'1px solid var(--glass-border)',
+                              background:(current.type||'artwork')===t?'rgba(59,191,160,0.15)':'var(--glass-bg)',
+                              color:(current.type||'artwork')===t?'var(--teal)':'var(--tx3)'}}>
+                            {t==='artwork'?'Artwork':'Docs'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Caption */}
+                    <div>
+                      <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Caption</div>
+                      {editCaption===active?(
+                        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                          <input autoFocus value={captionVal} onChange={e=>setCaptionVal(e.target.value)}
+                            onKeyDown={e=>{if(e.key==='Enter')saveCaption(active);if(e.key==='Escape')setEditCaption(null);}}
+                            placeholder="Add a caption…"
+                            style={{width:'100%',background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',borderRadius:8,color:'var(--tx)',fontSize:11,padding:'5px 8px',outline:'none',fontFamily:"'DM Sans',sans-serif"}}/>
+                          <div style={{display:'flex',gap:5}}>
+                            <button onClick={()=>saveCaption(active)} style={{flex:1,fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:7,border:'1px solid #22c55e',background:'rgba(34,197,94,0.1)',color:'#16a34a',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Save</button>
+                            <button onClick={()=>setEditCaption(null)} style={{flex:1,fontSize:10,padding:'4px 0',borderRadius:7,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+                          </div>
+                        </div>
+                      ):(
+                        <div onClick={()=>{setEditCaption(active);setCaptionVal(current.caption||'');}}
+                          style={{fontSize:11,color:current.caption?'var(--tx2)':'var(--tx3)',fontStyle:current.caption?'normal':'italic',cursor:'pointer',padding:'5px 8px',borderRadius:7,border:'1px solid var(--glass-border)',background:'var(--glass-bg2)',minHeight:30}}>
+                          {current.caption||'Click to add caption…'}
+                        </div>
+                      )}
+                    </div>
+                    {/* Review note */}
+                    <div>
+                      <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Review Note</div>
+                      <textarea value={current.review||''} onChange={e=>updateField(active,'review',e.target.value)}
+                        placeholder="Teacher's notes on this work…"
+                        rows={3}
+                        style={{width:'100%',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:8,color:'var(--tx)',fontSize:11,padding:'6px 8px',outline:'none',fontFamily:"'DM Sans',sans-serif",resize:'none',lineHeight:1.5}}/>
+                    </div>
+                    {/* Lessons */}
+                    <div>
+                      <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Lessons</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                        {allLessons.map(l=>{
+                          const sel=(current.lessons||[]).includes(l.n);
+                          const cl=phaseColors[l.color]||'var(--tx2)';
+                          return(
+                            <button key={l.n} onClick={()=>toggleLesson(active,l.n)}
+                              style={{fontSize:9,padding:'3px 7px',borderRadius:6,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:sel?700:400,
+                                border:sel?`1px solid ${cl}`:' 1px solid var(--glass-border)',
+                                background:sel?'rgba(255,255,255,0.08)':'var(--glass-bg)',
+                                color:sel?cl:'var(--tx3)'}}>
+                              {l.n}. {l.title.length>16?l.title.slice(0,16)+'…':l.title}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {/* Assessment — artwork only */}
+                    {(current.type||'artwork')==='artwork'&&(
+                      <div>
+                        <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <span>Assessment</span>
+                          <button onClick={()=>setShowAddArtTag(v=>!v)} style={{fontSize:9,padding:'1px 7px',borderRadius:5,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>+ Tag</button>
+                        </div>
+                        {showAddArtTag&&(
+                          <div style={{marginBottom:8,display:'flex',flexDirection:'column',gap:5}}>
+                            <input value={newArtTagLabel} onChange={e=>setNewArtTagLabel(e.target.value)} placeholder="Tag name"
+                              style={{fontSize:10,padding:'4px 8px',borderRadius:6,border:'1px solid var(--glass-border)',background:'var(--glass-bg2)',color:'var(--tx)',outline:'none',fontFamily:"'DM Sans',sans-serif"}}/>
+                            <div style={{display:'flex',gap:4}}>
+                              {['green','yellow','red'].map(c=>(
+                                <button key={c} onClick={()=>setNewArtTagColor(c)}
+                                  style={{flex:1,fontSize:9,padding:'3px 0',borderRadius:5,cursor:'pointer',border:newArtTagColor===c?`1px solid ${tagColors[c].cl}`:' 1px solid var(--glass-border)',background:newArtTagColor===c?tagColors[c].bg:'var(--glass-bg)',color:tagColors[c].cl,fontFamily:"'DM Sans',sans-serif"}}>
+                                  {c}
+                                </button>
+                              ))}
+                            </div>
+                            <button onClick={addArtworkTag} style={{fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:6,border:'1px solid #22c55e',background:'rgba(34,197,94,0.1)',color:'#16a34a',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Add</button>
+                          </div>
+                        )}
+                        <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                          {artworkTags.map(t=>{
+                            const sel=(current.artTags||[]).includes(t.label);
+                            const tc=tagColors[t.color]||tagColors.yellow;
+                            return(
+                              <div key={t.label} style={{display:'flex',alignItems:'center',gap:1}}>
+                                <button onClick={()=>toggleArtTag(active,t.label)}
+                                  style={{fontSize:9,padding:'3px 7px',borderRadius:6,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:sel?700:400,
+                                    border:sel?`1px solid ${tc.cl}`:' 1px solid var(--glass-border)',
+                                    background:sel?tc.bg:'var(--glass-bg)',
+                                    color:sel?tc.cl:'var(--tx3)'}}>
+                                  {t.label}
+                                </button>
+                                <button onClick={()=>deleteArtworkTag(t.label)} style={{fontSize:8,color:'var(--tx3)',background:'none',border:'none',cursor:'pointer',padding:'0 2px',lineHeight:1,opacity:0.5}}>&#x2715;</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-
-            {/* Caption row */}
-            <div style={{padding:'8px 16px',borderTop:'1px solid var(--glass-border)',borderBottom:'1px solid var(--glass-border)',background:'var(--glass-bg)',flexShrink:0,minHeight:38,display:'flex',alignItems:'center',gap:10}}>
-              {editCaption===active?(
-                <div style={{display:'flex',gap:8,width:'100%',alignItems:'center'}}>
-                  <input autoFocus value={captionVal} onChange={e=>setCaptionVal(e.target.value)}
-                    onKeyDown={e=>{if(e.key==='Enter')saveCaption(active);if(e.key==='Escape')setEditCaption(null);}}
-                    placeholder="Add a caption…"
-                    style={{flex:1,background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',borderRadius:8,color:'var(--tx)',fontSize:12,padding:'5px 10px',outline:'none',fontFamily:"'DM Sans',sans-serif"}}/>
-                  <button onClick={()=>saveCaption(active)} style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:8,border:'1px solid #22c55e',background:'rgba(34,197,94,0.1)',color:'#16a34a',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Save</button>
-                  <button onClick={()=>setEditCaption(null)} style={{fontSize:10,padding:'4px 10px',borderRadius:8,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
-                </div>
-              ):(
-                <div style={{display:'flex',gap:8,width:'100%',alignItems:'center'}}>
-                  <span style={{flex:1,fontSize:12,color:current&&current.caption?'var(--tx2)':'var(--tx3)',fontStyle:current&&current.caption?'normal':'italic'}}>
-                    {current&&current.caption?current.caption:'No caption — click to add'}
-                  </span>
-                  <button onClick={()=>{setEditCaption(active);setCaptionVal(current&&current.caption?current.caption:'');}}
-                    style={{fontSize:10,padding:'3px 10px',borderRadius:7,border:'1px solid var(--glass-border)',background:'var(--glass-bg2)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>✏ Edit</button>
-                </div>
-              )}
-            </div>
-
             {/* Thumbnail strip */}
-            <div style={{display:'flex',gap:6,padding:'10px 14px',overflowX:'auto',flexShrink:0,background:'var(--glass-bg)'}}>
+            <div style={{display:'flex',gap:6,padding:'10px 14px',overflowX:'auto',flexShrink:0,background:'var(--glass-bg)',borderTop:'1px solid var(--glass-border)'}}>
               {portfolio.map((item,i)=>(
                 <div key={i} onClick={()=>setActive(i)}
-                  style={{flexShrink:0,width:60,height:60,borderRadius:8,overflow:'hidden',cursor:'pointer',
+                  style={{flexShrink:0,width:56,height:56,borderRadius:8,overflow:'hidden',cursor:'pointer',
                     border:`2px solid ${i===active?'var(--teal)':'var(--glass-border)'}`,
-                    opacity:i===active?1:0.6,transition:'all .15s',position:'relative'}}>
+                    opacity:i===active?1:0.55,transition:'all .15s',position:'relative'}}>
                   <img src={item.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                  {item.type==='documentation'&&<div style={{position:'absolute',bottom:0,left:0,right:0,background:'rgba(155,127,232,0.75)',fontSize:7,color:'#fff',textAlign:'center',padding:'1px 0',fontWeight:700}}>DOCS</div>}
                 </div>
               ))}
-              {/* Add more thumbnail */}
-              <label style={{flexShrink:0,width:60,height:60,borderRadius:8,border:'2px dashed var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'var(--tx3)',fontSize:20,background:'var(--glass-bg)'}}>
+              <label style={{flexShrink:0,width:56,height:56,borderRadius:8,border:'2px dashed var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'var(--tx3)',fontSize:20,background:'var(--glass-bg)'}}>
                 +
                 <input type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleUpload} disabled={uploading}/>
               </label>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>,
@@ -8505,7 +8641,6 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
           totalStudents={data.students.length}
           updateData={updateData}
           onOpenPortfolio={()=>{setPortfolioPopup(namePopup);}}
-          disableKeyNav={portfolioPopup!==null}
           onClose={()=>setNamePopup(null)}/>
       )}
       {portfolioPopup!==null&&teacherMode&&data.students[portfolioPopup]&&(
@@ -8546,6 +8681,237 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
           <button onClick={handleUndoDeleteObs} style={{fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:13,color:'var(--teal)',background:'none',border:'none',cursor:'pointer',padding:0}}>Undo</button>
           <button onClick={()=>{clearTimeout(undoObs.timer);setUndoObs(null);}} style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:'var(--tx3)',background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:1}}>✕</button>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── GALLERY VIEW — all sections portfolio feed ──
+function GalleryView(){
+  const SECTION_IDS=G4_SECTIONS.map(s=>s.id);
+  const [allData,setAllData]=React.useState({}); // {sectionId: firestoreData}
+  const [loading,setLoading]=React.useState(true);
+  const [filterType,setFilterType]=React.useState('all'); // all|artwork|documentation
+  const [filterSection,setFilterSection]=React.useState('all');
+  const [filterLesson,setFilterLesson]=React.useState(null);
+  const [filterTag,setFilterTag]=React.useState(null);
+  const [lightbox,setLightbox]=React.useState(null); // {url,caption,date,type,lessons,artTags,review,studentName,sectionName}
+  const allLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color})));
+  const artworkTags=getArtworkTags();
+  const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
+
+  React.useEffect(()=>{
+    let unsubs=[];
+    setLoading(true);
+    let loaded=0;
+    SECTION_IDS.forEach(sid=>{
+      const unsub=window._db.collection('sections').doc('shared-'+sid).onSnapshot(snap=>{
+        if(snap.exists){
+          setAllData(prev=>({...prev,[sid]:snap.data()}));
+        }
+        loaded++;
+        if(loaded>=SECTION_IDS.length) setLoading(false);
+      },()=>{loaded++;if(loaded>=SECTION_IDS.length)setLoading(false);});
+      unsubs.push(unsub);
+    });
+    return()=>unsubs.forEach(u=>u());
+  },[]);
+
+  // Build flat list of all portfolio photos across all sections
+  const allPhotos=React.useMemo(()=>{
+    const photos=[];
+    SECTION_IDS.forEach(sid=>{
+      const sec=G4_SECTIONS.find(s=>s.id===sid);
+      const data=allData[sid];
+      if(!data||!data.students) return;
+      data.students.forEach((st,idx)=>{
+        (st.portfolio||[]).forEach(p=>{
+          photos.push({...p,studentName:st.name,studentIdx:idx,sectionId:sid,sectionName:sec?sec.name:sid});
+        });
+      });
+    });
+    // Sort by date descending (most recent first)
+    return photos.reverse();
+  },[allData]);
+
+  // Apply filters
+  const filtered=React.useMemo(()=>{
+    return allPhotos.filter(p=>{
+      if(filterType!=='all'&&(p.type||'artwork')!==filterType) return false;
+      if(filterSection!=='all'&&p.sectionId!==filterSection) return false;
+      if(filterLesson!==null&&!(p.lessons||[]).includes(filterLesson)) return false;
+      if(filterTag!==null&&!(p.artTags||[]).includes(filterTag)) return false;
+      return true;
+    });
+  },[allPhotos,filterType,filterSection,filterLesson,filterTag]);
+
+  // Lightbox keyboard nav
+  React.useEffect(()=>{
+    if(!lightbox) return;
+    function onKey(e){
+      if(e.key==='Escape') setLightbox(null);
+      if(e.key==='ArrowLeft'){
+        const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);
+        if(idx>0) setLightbox(filtered[idx-1]);
+      }
+      if(e.key==='ArrowRight'){
+        const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);
+        if(idx<filtered.length-1) setLightbox(filtered[idx+1]);
+      }
+    }
+    window.addEventListener('keydown',onKey);
+    return()=>window.removeEventListener('keydown',onKey);
+  },[lightbox,filtered]);
+
+  const phaseColors={coral:'var(--coral)',yellow:'var(--yellow)',teal:'var(--teal)',violet:'var(--violet)'};
+
+  return(
+    <div style={{padding:'24px 28px',height:'100%',overflowY:'auto',display:'flex',flexDirection:'column',gap:16}}>
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+        <div>
+          <div style={{fontSize:22,fontWeight:800,fontFamily:"'Bricolage Grotesque',sans-serif",color:'var(--tx)'}}>Gallery</div>
+          <div style={{fontSize:12,color:'var(--tx3)',marginTop:2}}>{filtered.length} photo{filtered.length!==1?'s':''} across all sections</div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div style={{display:'flex',flexWrap:'wrap',gap:8,flexShrink:0}}>
+        {/* Type filter */}
+        <div style={{display:'flex',gap:4}}>
+          {[['all','All'],['artwork','Artwork'],['documentation','Docs']].map(([v,l])=>(
+            <button key={v} onClick={()=>setFilterType(v)}
+              style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                border:filterType===v?'1px solid var(--teal)':'1px solid var(--glass-border)',
+                background:filterType===v?'rgba(59,191,160,0.15)':'var(--glass-bg)',
+                color:filterType===v?'var(--teal)':'var(--tx3)'}}>
+              {l}
+            </button>
+          ))}
+        </div>
+        {/* Section filter */}
+        <div style={{display:'flex',gap:4}}>
+          <button onClick={()=>setFilterSection('all')}
+            style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+              border:filterSection==='all'?'1px solid var(--violet)':'1px solid var(--glass-border)',
+              background:filterSection==='all'?'rgba(155,127,232,0.15)':'var(--glass-bg)',
+              color:filterSection==='all'?'var(--violet)':'var(--tx3)'}}>All Sections</button>
+          {G4_SECTIONS.map(s=>(
+            <button key={s.id} onClick={()=>setFilterSection(filterSection===s.id?'all':s.id)}
+              style={{fontSize:10,fontWeight:700,padding:'4px 10px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                border:filterSection===s.id?'1px solid var(--violet)':'1px solid var(--glass-border)',
+                background:filterSection===s.id?'rgba(155,127,232,0.15)':'var(--glass-bg)',
+                color:filterSection===s.id?'var(--violet)':'var(--tx3)'}}>
+              {s.icon} {s.name}
+            </button>
+          ))}
+        </div>
+        {/* Lesson filter */}
+        <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+          {allLessons.map(l=>(
+            <button key={l.n} onClick={()=>setFilterLesson(filterLesson===l.n?null:l.n)}
+              style={{fontSize:9,padding:'3px 9px',borderRadius:14,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:filterLesson===l.n?700:400,
+                border:filterLesson===l.n?`1px solid ${phaseColors[l.color]}`:'1px solid var(--glass-border)',
+                background:filterLesson===l.n?'rgba(255,255,255,0.08)':'var(--glass-bg)',
+                color:filterLesson===l.n?phaseColors[l.color]:'var(--tx3)'}}>
+              L{l.n}
+            </button>
+          ))}
+        </div>
+        {/* Assessment tag filter */}
+        {filterType!=='documentation'&&(
+          <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+            {artworkTags.map(t=>(
+              <button key={t.label} onClick={()=>setFilterTag(filterTag===t.label?null:t.label)}
+                style={{fontSize:9,padding:'3px 9px',borderRadius:14,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:filterTag===t.label?700:400,
+                  border:filterTag===t.label?`1px solid ${tagColors[t.color]}`:'1px solid var(--glass-border)',
+                  background:filterTag===t.label?'rgba(255,255,255,0.08)':'var(--glass-bg)',
+                  color:filterTag===t.label?tagColors[t.color]:'var(--tx3)'}}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* Clear filters */}
+        {(filterType!=='all'||filterSection!=='all'||filterLesson!==null||filterTag!==null)&&(
+          <button onClick={()=>{setFilterType('all');setFilterSection('all');setFilterLesson(null);setFilterTag(null);}}
+            style={{fontSize:10,padding:'4px 12px',borderRadius:20,border:'1px solid rgba(232,112,90,0.4)',background:'rgba(232,112,90,0.1)',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>
+            ✕ Clear filters
+          </button>
+        )}
+      </div>
+
+      {/* Grid */}
+      {loading?(
+        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx3)',fontSize:13}}>Loading gallery…</div>
+      ):filtered.length===0?(
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,color:'var(--tx3)'}}>
+          <div style={{fontSize:40,opacity:0.3}}>🖼</div>
+          <div style={{fontSize:13}}>No photos match these filters.</div>
+        </div>
+      ):(
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:12}}>
+          {filtered.map((p,i)=>(
+            <div key={i} onClick={()=>setLightbox(p)}
+              style={{borderRadius:12,overflow:'hidden',cursor:'pointer',background:'var(--glass-bg)',border:'1px solid var(--glass-border)',transition:'transform .15s,box-shadow .15s'}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.3)';}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='';}}>
+              <div style={{aspectRatio:'1',overflow:'hidden',position:'relative'}}>
+                <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                <div style={{position:'absolute',top:6,left:6,background:(p.type||'artwork')==='documentation'?'rgba(155,127,232,0.85)':'rgba(59,191,160,0.85)',color:'#fff',fontSize:8,fontWeight:700,padding:'2px 7px',borderRadius:8,letterSpacing:'.05em'}}>{(p.type||'artwork')==='documentation'?'DOCS':'ART'}</div>
+                {(p.lessons||[]).length>0&&<div style={{position:'absolute',top:6,right:6,background:'rgba(0,0,0,0.6)',color:'#fff',fontSize:8,padding:'2px 6px',borderRadius:8}}>L{p.lessons.join(',')}</div>}
+              </div>
+              <div style={{padding:'8px 10px'}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--tx)',marginBottom:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.studentName}</div>
+                <div style={{fontSize:10,color:'var(--tx3)',marginBottom:4}}>{p.sectionName} · {p.date}</div>
+                {(p.artTags||[]).length>0&&(
+                  <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
+                    {(p.artTags||[]).slice(0,3).map(t=>{
+                      const td=artworkTags.find(x=>x.label===t);
+                      return<span key={t} style={{fontSize:8,padding:'1px 6px',borderRadius:8,background:'rgba(255,255,255,0.07)',color:td?tagColors[td.color]:'var(--tx3)',border:`1px solid ${td?tagColors[td.color]:'var(--glass-border)'}`}}>{t}</span>;
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox&&ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:4000,background:'rgba(10,15,26,0.96)',backdropFilter:'blur(16px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
+          onClick={()=>setLightbox(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{display:'flex',gap:0,maxWidth:'90vw',maxHeight:'88vh',borderRadius:20,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.7)'}}>
+            <img src={lightbox.url} alt="" style={{maxWidth:'65vw',maxHeight:'88vh',objectFit:'contain',display:'block',background:'#000'}}/>
+            <div style={{width:240,flexShrink:0,background:'var(--popup-bg)',borderLeft:'1px solid var(--glass-border)',display:'flex',flexDirection:'column',padding:'20px 16px',gap:12,overflowY:'auto'}}>
+              <div style={{fontSize:14,fontWeight:700,fontFamily:"'Fraunces',serif",color:'var(--tx)'}}>{lightbox.studentName}</div>
+              <div style={{fontSize:11,color:'var(--tx3)'}}>{lightbox.sectionName} · {lightbox.date}</div>
+              <div style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:10,background:(lightbox.type||'artwork')==='documentation'?'rgba(155,127,232,0.15)':'rgba(59,191,160,0.15)',color:(lightbox.type||'artwork')==='documentation'?'var(--violet)':'var(--teal)',alignSelf:'flex-start'}}>{(lightbox.type||'artwork')==='documentation'?'📋 Documentation':'🎨 Artwork'}</div>
+              {lightbox.caption&&<div style={{fontSize:12,color:'var(--tx2)',fontStyle:'italic',lineHeight:1.5}}>"{lightbox.caption}"</div>}
+              {lightbox.review&&<div><div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:4,textTransform:'uppercase'}}>Review</div><div style={{fontSize:11,color:'var(--tx)',lineHeight:1.6}}>{lightbox.review}</div></div>}
+              {(lightbox.lessons||[]).length>0&&(
+                <div><div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Lessons</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                  {(lightbox.lessons||[]).map(ln=>{const l=allLessons.find(x=>x.n===ln);return<span key={ln} style={{fontSize:9,padding:'2px 8px',borderRadius:8,background:'var(--glass-bg)',border:'1px solid var(--glass-border)',color:l?phaseColors[l.color]:'var(--tx3)'}}>L{ln}{l?' · '+l.title.slice(0,12):''}</span>;})}
+                </div></div>
+              )}
+              {(lightbox.artTags||[]).length>0&&(
+                <div><div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Assessment</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                  {(lightbox.artTags||[]).map(t=>{const td=artworkTags.find(x=>x.label===t);return<span key={t} style={{fontSize:9,padding:'2px 8px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:`1px solid ${td?tagColors[td.color]:'var(--glass-border)'}`,color:td?tagColors[td.color]:'var(--tx3)'}}>{t}</span>;})}
+                </div></div>
+              )}
+              <button onClick={()=>setLightbox(null)} style={{marginTop:'auto',fontSize:11,fontWeight:700,padding:'7px 0',borderRadius:10,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Close</button>
+            </div>
+          </div>
+          {/* Arrow nav */}
+          {(()=>{const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);return(<>
+            {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);}} style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8249;</button>}
+            {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);}} style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
+          </>);})()}
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -8779,6 +9145,7 @@ function App(){
         <div className="main">
           {view==='annual'&&<AnnualPlan onPhase={handlePhase} getPhaseProgress={getPhaseProgress} totalDone={totalDone} totalSessions={totalSessions} isVisitor={isVisitor} onExportData={handleExportData} onImportData={handleImportData}/>}
           {view==='months'&&<MonthsView/>}
+          {view==='gallery'&&<GalleryView/>}
           {view==='phase'&&phase&&<PhaseDetail phase={phase} onBack={handleBack} progress={progress} toggle={toggle} classView={classView} isVisitor={isVisitor}/>}
           {view==='notes'&&(isVisitor?<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--tx3)',fontSize:13}}>Sign in to access Unit Notes.</div>:<GlobalNotes/>)}
           {view==='section'&&section&&<SectionView section={section} phases={PHASES} onOpenLinkedSession={handleOpenLinkedSession} teacherMode={teacherMode} subSectionId={subSectionId} setSubSectionId={setSubSectionId} userId={userId} onSignIn={()=>setShowSignIn(true)}/>}
