@@ -6208,7 +6208,7 @@ function EnterSubPINModal({section,onSuccess,onClose}){
 
 
 // ── STUDENT NAME POPUP — school ID card design ──
-function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio}){
+function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio,disableKeyNav}){
   const obs=observations||[];
   const [flipped,setFlipped]=React.useState(false);
   const [profile,setProfile]=React.useState('');
@@ -6245,14 +6245,15 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
   React.useEffect(()=>{
     function handleKey(e){
-      if(editMode) return; // don't nav while editing
+      if(editMode) return;
+      if(disableKeyNav) return;
       if(e.key==='ArrowLeft'&&onPrev){onPrev();}
       if(e.key==='ArrowRight'&&onNext){onNext();}
       if(e.key==='Escape'){onClose();}
     }
     window.addEventListener('keydown',handleKey);
     return()=>window.removeEventListener('keydown',handleKey);
-  },[onPrev,onNext,onClose,editMode]);
+  },[onPrev,onNext,onClose,editMode,disableKeyNav]);
 
   function saveEdits(){
     if(updateData){
@@ -8504,6 +8505,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
           totalStudents={data.students.length}
           updateData={updateData}
           onOpenPortfolio={()=>{setPortfolioPopup(namePopup);}}
+          disableKeyNav={portfolioPopup!==null}
           onClose={()=>setNamePopup(null)}/>
       )}
       {portfolioPopup!==null&&teacherMode&&data.students[portfolioPopup]&&(
