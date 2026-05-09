@@ -6724,7 +6724,7 @@ async function uploadPortfolioPhoto(file, sectionId, studentIdx){
           canvas.toBlob(async blob=>{
             try{
               const ts=Date.now();
-              const ref=window._storage.ref(`portfolio/${sectionId}/${studentIndex}/${ts}.jpg`);
+              const ref=window._storage.ref(`portfolio/${sectionId}/${studentIdx}/${ts}.jpg`);
               await ref.put(blob,{contentType:'image/jpeg'});
               const url=await ref.getDownloadURL();
               resolve(url);
@@ -6772,7 +6772,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
     setUploading(true);
     try{
       for(const file of files){
-        const url=await uploadPortfolioPhoto(file,sectionId,studentIndex);
+        const url=await uploadPortfolioPhoto(file,sectionId,studentIdx);
         const date=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
         updateData(d=>{
           if(!d.students[studentIdx].portfolio) d.students[studentIdx].portfolio=[];
