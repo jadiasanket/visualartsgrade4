@@ -6208,7 +6208,7 @@ function EnterSubPINModal({section,onSuccess,onClose}){
 
 
 // ── STUDENT NAME POPUP — school ID card design ──
-function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData}){
+function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio}){
   const obs=observations||[];
   const [flipped,setFlipped]=React.useState(false);
   const [profile,setProfile]=React.useState('');
@@ -6574,16 +6574,25 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                 <div style={{marginTop:4,fontSize:12,color:'#b5a899',fontFamily:"'DM Sans',sans-serif",height:16,textAlign:'right'}}>{barTooltip}</div>
               )}
 
-              {/* Student Profile button */}
-              <button onClick={()=>setFlipped(true)}
-                style={{marginTop:10,alignSelf:'flex-end',marginRight:-15,
-                  paddingInline:'14px 10px',height:26,
-                  fontSize:11.5,fontWeight:400,
-                  borderRadius:13,border:'1px solid rgba(211,204,195,0.6)',background:'rgba(238,236,232,0.5)',
-                  color:'#b5a899',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.04em',
-                  display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}>
-                STUDENT PROFILE <span style={{fontSize:8}}>&#9654;</span>
-              </button>
+              {/* Bottom button row */}
+              <div style={{marginTop:10,display:'flex',gap:6,alignSelf:'flex-end',marginRight:-15}}>
+                <button onClick={()=>setFlipped(true)}
+                  style={{paddingInline:'14px 10px',height:26,
+                    fontSize:11.5,fontWeight:400,
+                    borderRadius:13,border:'1px solid rgba(211,204,195,0.6)',background:'rgba(238,236,232,0.5)',
+                    color:'#b5a899',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.04em',
+                    display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}>
+                  STUDENT PROFILE <span style={{fontSize:8}}>&#9654;</span>
+                </button>
+                <button onClick={()=>{if(typeof onOpenPortfolio==='function')onOpenPortfolio();}}
+                  title="Portfolio"
+                  style={{paddingInline:'10px',height:26,
+                    fontSize:13,fontWeight:400,
+                    borderRadius:13,border:'1px solid rgba(211,204,195,0.6)',background:'rgba(238,236,232,0.5)',
+                    color:'#b5a899',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  🖼
+                </button>
+              </div>
             </div>
           </div>
 
@@ -6695,6 +6704,213 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
         </div>
       </div>
     </div>
+  );
+}
+
+// ── STUDENT PORTFOLIO LIGHTBOX ──
+async function uploadPortfolioPhoto(file, sectionId, studentIndex){
+  return new Promise(async(resolve,reject)=>{
+    try{
+      const img=new Image();
+      const reader=new FileReader();
+      reader.onload=e=>{
+        img.onload=()=>{
+          const MAX=800;
+          let w=img.width,h=img.height;
+          if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+          const canvas=document.createElement('canvas');
+          canvas.width=w;canvas.height=h;
+          canvas.getContext('2d').drawImage(img,0,0,w,h);
+          canvas.toBlob(async blob=>{
+            try{
+              const ts=Date.now();
+              const ref=window._storage.ref(`portfolio/${sectionId}/${studentIndex}/${ts}.jpg`);
+              await ref.put(blob,{contentType:'image/jpeg'});
+              const url=await ref.getDownloadURL();
+              resolve(url);
+            }catch(err){reject(err);}
+          },'image/jpeg',0.82);
+        };
+        img.src=e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }catch(err){reject(err);}
+  });
+}
+
+function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
+  const portfolio=student.portfolio||[];
+  const [active,setActive]=React.useState(portfolio.length>0?portfolio.length-1:0);
+  const [fullscreen,setFullscreen]=React.useState(false);
+  const [uploading,setUploading]=React.useState(false);
+  const [editCaption,setEditCaption]=React.useState(null); // index being edited
+  const [captionVal,setCaptionVal]=React.useState('');
+  const fileInputRef=React.useRef(null);
+  const overlayRef=React.useRef(null);
+
+  // Clamp active to valid range
+  React.useEffect(()=>{
+    if(portfolio.length>0&&active>=portfolio.length) setActive(portfolio.length-1);
+  },[portfolio.length]);
+
+  // Keyboard nav
+  React.useEffect(()=>{
+    function onKey(e){
+      if(editCaption!==null) return;
+      if(e.key==='ArrowLeft') setActive(p=>Math.max(0,p-1));
+      if(e.key==='ArrowRight') setActive(p=>Math.min((student.portfolio||[]).length-1,p+1));
+      if(e.key==='Escape'){if(fullscreen)setFullscreen(false);else onClose();}
+      if(e.key==='f'||e.key==='F') setFullscreen(v=>!v);
+    }
+    window.addEventListener('keydown',onKey);
+    return()=>window.removeEventListener('keydown',onKey);
+  },[fullscreen,onClose,editCaption,student.portfolio]);
+
+  async function handleUpload(e){
+    const files=Array.from(e.target.files||[]);
+    if(!files.length) return;
+    setUploading(true);
+    try{
+      for(const file of files){
+        const url=await uploadPortfolioPhoto(file,sectionId,studentIndex);
+        const date=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+        updateData(d=>{
+          if(!d.students[studentIdx].portfolio) d.students[studentIdx].portfolio=[];
+          d.students[studentIdx].portfolio.push({url,date,caption:''});
+        });
+        setActive((student.portfolio||[]).length); // will point to new last item
+      }
+    }catch(err){alert('Upload failed: '+err.message);}
+    setUploading(false);
+    e.target.value='';
+  }
+
+  function handleDelete(idx){
+    if(!window.confirm('Delete this photo from the portfolio?')) return;
+    updateData(d=>{d.students[studentIdx].portfolio.splice(idx,1);});
+    setActive(p=>Math.max(0,p-1));
+  }
+
+  function saveCaption(idx){
+    updateData(d=>{d.students[studentIdx].portfolio[idx].caption=captionVal;});
+    setEditCaption(null);
+  }
+
+  const current=portfolio[active]||null;
+
+  if(fullscreen){
+    return ReactDOM.createPortal(
+      <div style={{position:'fixed',inset:0,zIndex:9999,background:'#000',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}
+        onClick={()=>setFullscreen(false)}>
+        {current&&<img src={current.url} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}} onClick={e=>e.stopPropagation()}/>}
+        <button onClick={()=>setFullscreen(false)} style={{position:'absolute',top:16,right:20,background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',fontSize:13,padding:'5px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕ Exit Fullscreen</button>
+        {portfolio.length>1&&<>
+          <button onClick={e=>{e.stopPropagation();setActive(p=>Math.max(0,p-1));}} disabled={active===0}
+            style={{position:'absolute',left:24,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:active===0?'not-allowed':'pointer',opacity:active===0?0.3:1}}>‹</button>
+          <button onClick={e=>{e.stopPropagation();setActive(p=>Math.min(portfolio.length-1,p+1));}} disabled={active===portfolio.length-1}
+            style={{position:'absolute',right:24,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:active===portfolio.length-1?'not-allowed':'pointer',opacity:active===portfolio.length-1?0.3:1}}>›</button>
+        </>}
+        {current&&current.caption&&<div style={{position:'absolute',bottom:32,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,0.6)',color:'#fff',fontSize:13,padding:'6px 18px',borderRadius:20,maxWidth:'60%',textAlign:'center'}}>{current.caption}</div>}
+      </div>,
+      document.body
+    );
+  }
+
+  return ReactDOM.createPortal(
+    <div ref={overlayRef} style={{position:'fixed',inset:0,zIndex:3000,background:'rgba(10,15,26,0.92)',backdropFilter:'blur(12px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
+      onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'min(780px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:20,boxShadow:'var(--glass-shadow2)',overflow:'hidden'}}>
+
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',borderBottom:'1px solid var(--glass-border)',flexShrink:0,background:'var(--glass-bg)'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:16}}>🖼</span>
+            <span style={{fontFamily:"'Fraunces',serif",fontSize:14,fontWeight:700,color:'var(--tx)'}}>{student.name}</span>
+            <span style={{fontSize:10,color:'var(--tx3)'}}>· {portfolio.length} photo{portfolio.length!==1?'s':''}</span>
+          </div>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            {portfolio.length>0&&<button onClick={()=>setFullscreen(true)} title="Fullscreen (F)"
+              style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:8,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>⛶ Fullscreen</button>}
+            <label style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:8,border:'1px solid var(--teal)',background:'rgba(59,191,160,0.1)',color:'var(--teal)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:5}}>
+              {uploading?'Uploading…':'+ Add Photos'}
+              <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleUpload} disabled={uploading}/>
+            </label>
+            <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:18,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+          </div>
+        </div>
+
+        {portfolio.length===0?(
+          /* Empty state */
+          <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:48}}>
+            <div style={{fontSize:48,opacity:0.3}}>🖼</div>
+            <div style={{fontSize:14,color:'var(--tx3)',textAlign:'center'}}>No portfolio photos yet.</div>
+            <label style={{fontSize:12,fontWeight:700,padding:'8px 20px',borderRadius:10,border:'1px solid var(--teal)',background:'rgba(59,191,160,0.1)',color:'var(--teal)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+              + Upload First Photo
+              <input type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleUpload} disabled={uploading}/>
+            </label>
+          </div>
+        ):(
+          <>
+            {/* Main image */}
+            <div style={{flex:1,minHeight:0,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.3)',overflow:'hidden'}}>
+              {current&&<img src={current.url} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block'}}/>}
+              {/* Arrows */}
+              {portfolio.length>1&&<>
+                <button onClick={()=>setActive(p=>Math.max(0,p-1))} disabled={active===0}
+                  style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:26,padding:'4px 12px',cursor:active===0?'not-allowed':'pointer',opacity:active===0?0.25:0.8}}>‹</button>
+                <button onClick={()=>setActive(p=>Math.min(portfolio.length-1,p+1))} disabled={active===portfolio.length-1}
+                  style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:26,padding:'4px 12px',cursor:active===portfolio.length-1?'not-allowed':'pointer',opacity:active===portfolio.length-1?0.25:0.8}}>›</button>
+              </>}
+              {/* Date badge */}
+              {current&&<div style={{position:'absolute',top:10,left:12,background:'rgba(0,0,0,0.55)',color:'rgba(255,255,255,0.7)',fontSize:10,padding:'3px 10px',borderRadius:12,backdropFilter:'blur(4px)'}}>{current.date}</div>}
+              {/* Delete button */}
+              <button onClick={()=>handleDelete(active)}
+                style={{position:'absolute',top:10,right:12,background:'rgba(232,112,90,0.25)',border:'1px solid rgba(232,112,90,0.4)',borderRadius:8,color:'var(--coral)',fontSize:10,fontWeight:700,padding:'3px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕ Delete</button>
+            </div>
+
+            {/* Caption row */}
+            <div style={{padding:'8px 16px',borderTop:'1px solid var(--glass-border)',borderBottom:'1px solid var(--glass-border)',background:'var(--glass-bg)',flexShrink:0,minHeight:38,display:'flex',alignItems:'center',gap:10}}>
+              {editCaption===active?(
+                <div style={{display:'flex',gap:8,width:'100%',alignItems:'center'}}>
+                  <input autoFocus value={captionVal} onChange={e=>setCaptionVal(e.target.value)}
+                    onKeyDown={e=>{if(e.key==='Enter')saveCaption(active);if(e.key==='Escape')setEditCaption(null);}}
+                    placeholder="Add a caption…"
+                    style={{flex:1,background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',borderRadius:8,color:'var(--tx)',fontSize:12,padding:'5px 10px',outline:'none',fontFamily:"'DM Sans',sans-serif"}}/>
+                  <button onClick={()=>saveCaption(active)} style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:8,border:'1px solid #22c55e',background:'rgba(34,197,94,0.1)',color:'#16a34a',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Save</button>
+                  <button onClick={()=>setEditCaption(null)} style={{fontSize:10,padding:'4px 10px',borderRadius:8,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+                </div>
+              ):(
+                <div style={{display:'flex',gap:8,width:'100%',alignItems:'center'}}>
+                  <span style={{flex:1,fontSize:12,color:current&&current.caption?'var(--tx2)':'var(--tx3)',fontStyle:current&&current.caption?'normal':'italic'}}>
+                    {current&&current.caption?current.caption:'No caption — click to add'}
+                  </span>
+                  <button onClick={()=>{setEditCaption(active);setCaptionVal(current&&current.caption?current.caption:'');}}
+                    style={{fontSize:10,padding:'3px 10px',borderRadius:7,border:'1px solid var(--glass-border)',background:'var(--glass-bg2)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>✏ Edit</button>
+                </div>
+              )}
+            </div>
+
+            {/* Thumbnail strip */}
+            <div style={{display:'flex',gap:6,padding:'10px 14px',overflowX:'auto',flexShrink:0,background:'var(--glass-bg)'}}>
+              {portfolio.map((item,i)=>(
+                <div key={i} onClick={()=>setActive(i)}
+                  style={{flexShrink:0,width:60,height:60,borderRadius:8,overflow:'hidden',cursor:'pointer',
+                    border:`2px solid ${i===active?'var(--teal)':'var(--glass-border)'}`,
+                    opacity:i===active?1:0.6,transition:'all .15s',position:'relative'}}>
+                  <img src={item.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                </div>
+              ))}
+              {/* Add more thumbnail */}
+              <label style={{flexShrink:0,width:60,height:60,borderRadius:8,border:'2px dashed var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'var(--tx3)',fontSize:20,background:'var(--glass-bg)'}}>
+                +
+                <input type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleUpload} disabled={uploading}/>
+              </label>
+            </div>
+          </>
+        )}
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -7641,6 +7857,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const [editNameVal,setEditNameVal]=React.useState('');
   const [obsPopup,setObsPopup]=React.useState(null);
   const [namePopup,setNamePopup]=React.useState(null);
+  const [portfolioPopup,setPortfolioPopup]=React.useState(null); // studentIdx
   const [addSessionOpen,setAddSessionOpen]=React.useState(false);
   const [showPhotoView,setShowPhotoView]=React.useState(false);
   const [staffInfoOpen,setStaffInfoOpen]=React.useState(false);
@@ -8286,7 +8503,16 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
           onNext={namePopup<data.students.length-1?()=>setNamePopup(p=>Math.min(data.students.length-1,p+1)):null}
           totalStudents={data.students.length}
           updateData={updateData}
+          onOpenPortfolio={()=>{setPortfolioPopup(namePopup);}}
           onClose={()=>setNamePopup(null)}/>
+      )}
+      {portfolioPopup!==null&&teacherMode&&data.students[portfolioPopup]&&(
+        <StudentPortfolio
+          studentIdx={portfolioPopup}
+          student={data.students[portfolioPopup]}
+          sectionId={section.id}
+          updateData={updateData}
+          onClose={()=>setPortfolioPopup(null)}/>
       )}
       {showPhotoView&&<ClassPhotoView data={data} section={section} teacherMode={teacherMode} updateData={updateData} cycleAtt={cycleAtt} lastSessionIdx={data.sessions&&data.sessions.length>0?data.sessions.length-1:null} getObsColor={getObsColor} onObsPopup={(idx)=>{setShowPhotoView(false);setObsPopup({studentIdx:idx});}} onClose={()=>setShowPhotoView(false)}/>}
       {addSessionOpen&&<AddSessionModal phases={phases} onAdd={(sess)=>{
