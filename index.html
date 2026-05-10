@@ -6618,7 +6618,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           </div>
 
           {/* CHARACTER — absolute at bottom-left of card */}
-          {(characterVisible||editMode)&&(
+          {!flipped&&(characterVisible||editMode)&&(
           <div style={{position:'absolute',bottom:editMode?38:8,left:10,right:0,zIndex:14,
             pointerEvents:editMode?'auto':'none',
             opacity:characterVisible?1:0.3}}>
@@ -6639,7 +6639,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           )}
 
           {/* CHARACTER edit controls — size slider + hide toggle */}
-          {editMode&&(
+          {!flipped&&editMode&&(
           <div style={{position:'absolute',bottom:8,left:10,right:12,zIndex:15,
             display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:10,color:'rgba(255,255,255,0.7)',fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>SIZE</span>
@@ -8717,6 +8717,7 @@ function GalleryView(){
   const [lightbox,setLightbox]=React.useState(null);
   const [lbFullscreen,setLbFullscreen]=React.useState(false);
   const [metaVisible,setMetaVisible]=React.useState(true);
+  const [lbZoom,setLbZoom]=React.useState(1);
   const allLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color})));
   const artworkTags=getArtworkTags();
   const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
@@ -9007,30 +9008,30 @@ function GalleryView(){
               </div>
             </div>
 
-            {/* Fullscreen overlay — true black, scroll to zoom */}
-            {lbFullscreen&&ReactDOM.createPortal((()=>{
-              const [zoom,setZoom]=React.useState(1);
-              return(
-                <div style={{position:'fixed',inset:0,zIndex:9999,background:'#000',display:'flex',alignItems:'center',justifyContent:'center'}}
-                  onClick={()=>setLbFullscreen(false)}
-                  onWheel={e=>{e.preventDefault();setZoom(z=>Math.min(4,Math.max(1,z-(e.deltaY>0?0.15:-0.15))));}}
-                >
-                  <img src={lightbox.url} alt=""
-                    onClick={e=>e.stopPropagation()}
-                    style={{maxWidth:'100vw',maxHeight:'100vh',objectFit:'contain',transform:`scale(${zoom})`,transition:'transform .1s ease',cursor:zoom>1?'zoom-out':'zoom-in',userSelect:'none'}}/>
-                  {/* Controls */}
-                  <div style={{position:'absolute',top:16,right:16,display:'flex',gap:10,alignItems:'center'}} onClick={e=>e.stopPropagation()}>
-                    <button onClick={()=>setZoom(z=>Math.min(4,z+0.5))} style={{background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',fontSize:18,width:36,height:36,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
-                    <button onClick={()=>setZoom(z=>Math.max(1,z-0.5))} style={{background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',fontSize:18,width:36,height:36,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
-                    <button onClick={()=>{setZoom(1);setLbFullscreen(false);}} style={{background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',fontSize:13,padding:'5px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕ Exit</button>
-                  </div>
-                  {/* Zoom level hint */}
-                  {zoom>1&&<div style={{position:'absolute',bottom:20,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,0.6)',color:'rgba(255,255,255,0.7)',fontSize:11,padding:'4px 12px',borderRadius:12}}>{Math.round(zoom*100)}%</div>}
-                </div>
-              );
-            })(),document.body)}
           );
         })(),
+        document.body
+      )}
+
+      {/* Fullscreen zoom overlay — rendered at GalleryView level, zoom state lives here */}
+      {lbFullscreen&&lightbox&&ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:9999,background:'#000',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}
+          onClick={()=>{setLbFullscreen(false);setLbZoom(1);}}
+          onWheel={e=>{e.preventDefault();setLbZoom(z=>Math.min(4,Math.max(1,+(z-(e.deltaY>0?0.15:-0.15)).toFixed(2))));}}
+        >
+          <img src={lightbox.url} alt=""
+            onClick={e=>e.stopPropagation()}
+            style={{maxWidth:'100vw',maxHeight:'100vh',objectFit:'contain',transform:`scale(${lbZoom})`,transition:'transform .1s ease',userSelect:'none',cursor:lbZoom>1?'zoom-out':'default'}}/>
+          <div style={{position:'absolute',top:16,right:16,display:'flex',gap:8,alignItems:'center'}} onClick={e=>e.stopPropagation()}>
+            <button onClick={()=>setLbZoom(z=>Math.min(4,+(z+0.5).toFixed(2)))}
+              style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:8,color:'#fff',fontSize:20,width:36,height:36,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>+</button>
+            <button onClick={()=>setLbZoom(z=>Math.max(1,+(z-0.5).toFixed(2)))}
+              style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:8,color:'#fff',fontSize:20,width:36,height:36,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>−</button>
+            <button onClick={()=>{setLbZoom(1);setLbFullscreen(false);}}
+              style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:8,color:'#fff',fontSize:13,padding:'0 16px',height:36,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>✕ Exit</button>
+          </div>
+          {lbZoom>1&&<div style={{position:'absolute',bottom:20,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,0.6)',color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 12px',borderRadius:12,pointerEvents:'none'}}>{Math.round(lbZoom*100)}%</div>}
+        </div>,
         document.body
       )}
     </div>
