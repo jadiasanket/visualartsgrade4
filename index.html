@@ -6396,8 +6396,10 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
         body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:300}})
       });
       const data=await res.json();
-      setProfile(data.candidates?.[0]?.content?.parts?.[0]?.text||'Could not generate. Check your API key.');
-    }catch{setProfile('Error generating profile.');}
+      const text=data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if(text){setProfile(text);}
+      else{const reason=data.error?.message||data.promptFeedback?.blockReason||JSON.stringify(data);setProfile('API error: '+reason);}
+    }catch(err){setProfile('Error: '+err.message);}
     setLoading(false);
   }
 
