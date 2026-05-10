@@ -6267,6 +6267,11 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
     setPhotoOffsetY(student.photoOffsetY||0);
     setPhotoScale(student.photoScale||1.1);
     setPhotoColumnWidth(student.photoColumnWidth||290);
+    // Reset profile panel when navigating to a different student
+    setProfile('');
+    setFlipped(false);
+    setFlipping(false);
+    setShowBack(false);
   },[studentIdx]);
 
   React.useEffect(()=>{
@@ -6385,9 +6390,17 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   const thumbsUpPct=thumbsUp/totalThumbs*100;
   const thumbsDownPct=thumbsDown/totalThumbs*100;
 
+  // Pre-populate profile from the most recent saved ai-profile obs entry
+  const savedAiProfile=React.useMemo(()=>{
+    const entry=[...obs].reverse().find(o=>o.type==='ai-profile');
+    return entry?entry.note:'';
+  },[obs]);
+  // Show saved profile on first open; fresh generation overrides it
+  const displayProfile=profile||savedAiProfile;
+
   async function generateProfile(){
     setLoading(true);setProfile('');
-    const notes=obs.filter(o=>o.note).map(o=>o.note);
+    const notes=obs.filter(o=>o.note&&o.type!=='ai-profile').map(o=>o.note);
     const prompt=`You are a warm, encouraging art teacher writing a brief student profile for a Grade 4 student. Tone: supportive, positive, growth-focused. Mention concerns very gently as areas of growth, never harshly.\n\nStudent: ${student.name}\nAttendance: ${attendanceCount}/${totalSessions} sessions\nPositive signals: ${thumbsUp} thumbs up, ${thumbsDown} thumbs down\nTop observed traits: ${topTags.join(', ')||'Not enough data yet'}\nEscalation incidents: ${escalations}\nRecent teacher notes: ${notes.slice(-3).join(' | ')||'None recorded'}\n\nWrite 3-4 sentences. Start with a genuine strength. Mention attendance naturally. If concerns exist, frame as growth opportunities. End encouragingly.`;
     try{
       const gKey=getGeminiKey();
@@ -6402,6 +6415,18 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
       else{const reason=data.error?.message||data.promptFeedback?.blockReason||JSON.stringify(data);setProfile('API error: '+reason);}
     }catch(err){setProfile('Error: '+err.message);}
     setLoading(false);
+  }
+
+  function postProfileToHistory(){
+    if(!displayProfile||!updateData) return;
+    const today=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+    updateData(d=>{
+      if(!d.students[studentIdx].observations) d.students[studentIdx].observations=[];
+      // Replace any previous ai-profile entry — keep only the latest
+      d.students[studentIdx].observations=d.students[studentIdx].observations.filter(o=>o.type!=='ai-profile');
+      d.students[studentIdx].observations.push({type:'ai-profile',note:displayProfile,date:today,tags:[],thumb:null});
+    });
+    setProfile('');// clear local so displayProfile re-reads from saved obs
   }
 
   // Card is always light (ID card feel)
@@ -6678,23 +6703,31 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
               </button>
             </div>
             <div style={{flex:1,overflowY:'auto',padding:'10px 14px',display:'flex',flexDirection:'column',gap:8}}>
-              {profile&&(
-                <div style={{background:'rgba(255,255,255,0.4)',border:'1px solid rgba(0,0,0,0.1)',borderRadius:10,padding:'9px 12px',flexShrink:0}}>
+              {displayProfile&&(
+                <div style={{background:'rgba(59,191,160,0.08)',border:'1px solid rgba(59,191,160,0.25)',borderRadius:10,padding:'9px 12px',flexShrink:0}}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
-                    <span style={{fontSize:9,fontWeight:700,color:'#0d7a60',letterSpacing:'.06em',textTransform:'uppercase'}}>✨ AI Profile</span>
-                    <button onClick={()=>{try{navigator.clipboard.writeText(profile);}catch{}}}
-                      style={{fontSize:9,color:'#6b6560',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Copy</button>
+                    <span style={{fontSize:9,fontWeight:700,color:'#0d7a60',letterSpacing:'.06em',textTransform:'uppercase'}}>✨ AI Profile{savedAiProfile&&!profile?' · saved':''}</span>
+                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                      {profile&&(
+                        <button onClick={postProfileToHistory}
+                          style={{fontSize:9,fontWeight:700,padding:'2px 8px',borderRadius:6,border:'1px solid rgba(59,191,160,0.5)',background:'rgba(59,191,160,0.15)',color:'#0d7a60',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                          📌 Save
+                        </button>
+                      )}
+                      <button onClick={()=>{try{navigator.clipboard.writeText(displayProfile);}catch{}}}
+                        style={{fontSize:9,color:'#6b6560',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Copy</button>
+                    </div>
                   </div>
-                  <div style={{fontSize:11,color:'#1a1a2e',lineHeight:1.6}}>{profile}</div>
+                  <div style={{fontSize:11,color:'#1a1a2e',lineHeight:1.6}}>{displayProfile}</div>
                 </div>
               )}
               <button onClick={generateProfile} disabled={loading}
                 style={{flexShrink:0,padding:'6px 0',borderRadius:9,border:'1px solid rgba(0,0,0,0.12)',background:'rgba(255,255,255,0.4)',color:loading?'#9b9590':'#0d7a60',cursor:loading?'not-allowed':'pointer',fontSize:10,fontWeight:700,fontFamily:"'DM Sans',sans-serif",opacity:loading?0.6:1}}>
-                {loading?'Generating…':'✨ Generate AI Profile'}
+                {loading?'Generating…':displayProfile?'↻ Regenerate':'✨ Generate AI Profile'}
               </button>
-              {obs.length===0
+              {obs.filter(o=>o.type!=='ai-profile').length===0
                 ?<div style={{textAlign:'center',fontSize:11,color:'#9b9590',padding:'20px 0'}}>No observations yet.</div>
-                :[...obs].map((o,realIdx)=>({o,realIdx})).reverse().map(({o,realIdx})=>(
+                :[...obs].map((o,realIdx)=>({o,realIdx})).filter(({o})=>o.type!=='ai-profile').reverse().map(({o,realIdx})=>(
                   <div key={realIdx} className="obs-history-entry" style={{position:'relative',flexShrink:0,background:'rgba(255,255,255,0.3)',borderRadius:8,padding:'6px 10px',border:'1px solid rgba(0,0,0,0.07)'}}>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
                       <div style={{fontSize:9,color:'#6b6560',fontFamily:"'DM Sans',sans-serif"}}>{o.date}{o.thumb?' '+(o.thumb==='up'?'👍':'👎'):''}</div>
