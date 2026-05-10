@@ -9032,7 +9032,10 @@ function GalleryView(){
             style={{position:'absolute',top:16,right:16,background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:8,color:'#fff',fontSize:13,padding:'0 16px',height:36,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>✕ Exit</button>
           {/* Vertical zoom slider — right-middle edge */}
           <div style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',alignItems:'center',gap:8}}
-            onClick={e=>e.stopPropagation()}>
+            onClick={e=>e.stopPropagation()}
+            onMouseDown={e=>e.stopPropagation()}
+            onMouseMove={e=>e.stopPropagation()}
+            onMouseUp={e=>e.stopPropagation()}>
             <span style={{color:'rgba(255,255,255,0.5)',fontSize:10,fontFamily:"'DM Sans',sans-serif"}}>4×</span>
             <input type="range" min={100} max={400} step={5} value={Math.round(lbZoom*100)}
               onChange={e=>{const v=Number(e.target.value)/100;setLbZoom(v);if(v===1){setLbPanX(0);setLbPanY(0);}}}
