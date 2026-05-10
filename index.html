@@ -6900,13 +6900,15 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
   const [brightness,setBrightness]=React.useState(0);
   const [contrast,setContrast]=React.useState(0);
   const [saturation,setSaturation]=React.useState(0);
-  // Crop in normalised 0-1 coords — default = full image
-  const [crop,setCrop]=React.useState(initialCrop||{x:0,y:0,w:1,h:1});
-  const setCropAndNotify=React.useCallback(v=>{
-    const next=typeof v==='function'?v(crop):v;
-    setCrop(next);
-    if(onCropChange) onCropChange(next);
-  },[crop,onCropChange]);
+  // Crop in normalised 0-1 coords — init from parent so it persists on reopen
+  const [crop,setCrop]=React.useState(()=>initialCrop||{x:0,y:0,w:1,h:1});
+  function setCropAndNotify(v){
+    setCrop(prev=>{
+      const next=typeof v==='function'?v(prev):v;
+      if(onCropChange) onCropChange(next);
+      return next;
+    });
+  }
   const [cropMode,setCropMode]=React.useState(false);
   const [fineRotation,setFineRotation]=React.useState(0); // -45 to +45 degrees
   const [imgReady,setImgReady]=React.useState(false);
@@ -6926,7 +6928,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
       const prev=h[h.length-1];
       setRotation(prev.rotation);setFineRotation(prev.fineRotation||0);setFlipH(prev.flipH);
       setBrightness(prev.brightness);setContrast(prev.contrast);setSaturation(prev.saturation);
-      setCrop({...prev.crop});
+      setCropAndNotify({...prev.crop});
       return h.slice(0,-1);
     });
   }
@@ -7024,9 +7026,13 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
         else if(handle==='move'){
           x=Math.max(0,Math.min(1-w,prev._dx!==undefined?nx-prev._dx:x));
           y=Math.max(0,Math.min(1-h,prev._dy!==undefined?ny-prev._dy:y));
-          return{x,y,w,h,_dx:nx-x,_dy:ny-y};
+          const next={x,y,w,h,_dx:nx-x,_dy:ny-y};
+          if(onCropChange) onCropChange(next);
+          return next;
         }
-        setCropAndNotify({x,y,w,h});return prev;
+        const next={x,y,w,h};
+        if(onCropChange) onCropChange(next);
+        return next;
       });
     }
     function onUp(){window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);}
@@ -7036,7 +7042,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
 
   function rotate90(dir){snapshot();setRotation(r=>(r+dir*90+360)%360);}
   function doFlip(){snapshot();setFlipH(v=>!v);}
-  function reset(){setHistory([]);setRotation(0);setFineRotation(0);setFlipH(false);setBrightness(0);setContrast(0);setSaturation(0);setCrop({x:0,y:0,w:1,h:1});setCropMode(false);}
+  function reset(){setHistory([]);setRotation(0);setFineRotation(0);setFlipH(false);setBrightness(0);setContrast(0);setSaturation(0);setCropAndNotify({x:0,y:0,w:1,h:1});setCropMode(false);}
 
   function onPanelDragStart(e){
     e.preventDefault();
@@ -7266,8 +7272,8 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
                 color:cropMode?AMBER:'rgba(255,255,255,0.5)'}}>
               <CropIcon/>{cropMode?'Crop active':'Crop'}
             </button>
-            {cropMode&&<button onClick={()=>{setCrop({x:0,y:0,w:1,h:1});}}
-              style={{fontSize:9,padding:'6px 10px',borderRadius:8,border:'1px solid rgba(245,158,11,0.25)',background:'transparent',color:'rgba(245,158,11,0.7)',cursor:'pointer'}} onClick={()=>setCropAndNotify({x:0,y:0,w:1,h:1})}>
+            {cropMode&&<button onClick={()=>{setCropAndNotify({x:0,y:0,w:1,h:1});}}  
+              style={{fontSize:9,padding:'6px 10px',borderRadius:8,border:'1px solid rgba(245,158,11,0.25)',background:'transparent',color:'rgba(245,158,11,0.7)',cursor:'pointer'}}>
               Reset
             </button>}
           </div>
