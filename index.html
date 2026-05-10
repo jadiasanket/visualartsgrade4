@@ -5719,7 +5719,7 @@ function generateUnitPlanPDF(){
 
 // ── SUB PIN SYSTEM ──
 // ── GEMINI API KEY ──
-function getGeminiKey(){return 'AIzaSyBi0MO9YFYNrONhcux4AmlJ_Lg8FAozl7o';}
+function getGeminiKey(){return 'AIzaSyD3Xa8UBaRVN9zSgJeJurl_1UpPZN7Ycfo';}
 function getDefaultModel(){return 'gemini-2.5-flash';}
 function saveGeminiKey(k){try{localStorage.setItem('g4-gemini-key',k);}catch{}}
 // Legacy compat — profile generator still uses this
@@ -6897,43 +6897,66 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
   const [brightness,setBrightness]=React.useState(0);
   const [contrast,setContrast]=React.useState(0);
   const [saturation,setSaturation]=React.useState(0);
-  const [crop,setCrop]=React.useState(null);
+  // Crop in normalised 0-1 coords — default = full image
+  const [crop,setCrop]=React.useState({x:0,y:0,w:1,h:1});
   const [cropMode,setCropMode]=React.useState(false);
   const [imgReady,setImgReady]=React.useState(false);
-  // Draggable panel state
-  const [panelPos,setPanelPos]=React.useState({x:24,y:80});
-  const dragRef=React.useRef(null);
+  const [canvasRect,setCanvasRect]=React.useState(null);
+  // Undo stack — each entry is a full state snapshot
+  const [history,setHistory]=React.useState([]);
+  // Draggable panel
+  const [panelPos,setPanelPos]=React.useState({x:24,y:72});
   const AMBER='#f59e0b';
 
-  // Load image — no crossOrigin to avoid CORS issues with Firebase cached URLs
+  function snapshot(){
+    setHistory(h=>[...h,{rotation,flipH,brightness,contrast,saturation,crop:{...crop}}]);
+  }
+  function undo(){
+    setHistory(h=>{
+      if(!h.length) return h;
+      const prev=h[h.length-1];
+      setRotation(prev.rotation);setFlipH(prev.flipH);
+      setBrightness(prev.brightness);setContrast(prev.contrast);setSaturation(prev.saturation);
+      setCrop({...prev.crop});
+      return h.slice(0,-1);
+    });
+  }
+
+  // Load image — no crossOrigin (avoids CORS taint on Firebase URLs)
   React.useEffect(()=>{
     setImgReady(false);
     const img=new Image();
     img.onload=()=>{baseImg.current=img;setImgReady(true);};
     img.onerror=()=>{
-      // Retry without crossOrigin if first load fails
       const img2=new Image();
       img2.onload=()=>{baseImg.current=img2;setImgReady(true);};
-      img2.src=srcUrl+'&t='+Date.now();
+      img2.src=srcUrl+'?t='+Date.now();
     };
     img.src=srcUrl;
   },[srcUrl]);
 
-  React.useEffect(()=>{if(imgReady) redraw();},[imgReady,rotation,flipH,brightness,contrast,saturation,crop]);
+  // Redraw canvas when params change
+  React.useEffect(()=>{if(imgReady) redraw();},[imgReady,rotation,flipH]);
+
+  // Update canvas rect when ready
+  React.useEffect(()=>{
+    if(imgReady){
+      setTimeout(()=>{
+        const c=canvasRef.current;
+        if(c) setCanvasRect(c.getBoundingClientRect());
+      },50);
+    }
+  },[imgReady,rotation]);
 
   function redraw(){
     const canvas=canvasRef.current;
     const img=baseImg.current;
     if(!canvas||!img) return;
-    const maxW=window.innerWidth;
-    const maxH=window.innerHeight-60;
-    const srcX=crop?Math.round(crop.x*img.width):0;
-    const srcY=crop?Math.round(crop.y*img.height):0;
-    const srcW=crop?(Math.round(crop.w*img.width)||img.width):img.width;
-    const srcH=crop?(Math.round(crop.h*img.height)||img.height):img.height;
+    const maxW=window.innerWidth-20;
+    const maxH=window.innerHeight-80;
     const rot90=rotation===90||rotation===270;
-    const outNatW=rot90?srcH:srcW;
-    const outNatH=rot90?srcW:srcH;
+    const outNatW=rot90?img.height:img.width;
+    const outNatH=rot90?img.width:img.height;
     const scale=Math.min(maxW/outNatW,maxH/outNatH,1);
     canvas.width=Math.round(outNatW*scale);
     canvas.height=Math.round(outNatH*scale);
@@ -6942,57 +6965,61 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
     ctx.translate(canvas.width/2,canvas.height/2);
     if(flipH) ctx.scale(-1,1);
     ctx.rotate(rotation*Math.PI/180);
-    ctx.drawImage(img,srcX,srcY,srcW,srcH,-Math.round(srcW*scale)/2,-Math.round(srcH*scale)/2,Math.round(srcW*scale),Math.round(srcH*scale));
+    ctx.drawImage(img,-Math.round(img.width*scale)/2,-Math.round(img.height*scale)/2,Math.round(img.width*scale),Math.round(img.height*scale));
     ctx.restore();
-    if(brightness!==0||contrast!==0||saturation!==0){
-      const id=ctx.getImageData(0,0,canvas.width,canvas.height);
-      const d=id.data;
-      const bF=1+brightness/100;
-      const cF=(259*(contrast*2.55+255))/(255*(259-contrast*2.55));
-      const sF=1+saturation/100;
-      for(let i=0;i<d.length;i+=4){
-        let r=d[i],g=d[i+1],b=d[i+2];
-        r*=bF;g*=bF;b*=bF;
-        r=cF*(r-128)+128;g=cF*(g-128)+128;b=cF*(b-128)+128;
-        const gr=0.299*r+0.587*g+0.114*b;
-        r=gr+(r-gr)*sF;g=gr+(g-gr)*sF;b=gr+(b-gr)*sF;
-        d[i]=Math.max(0,Math.min(255,r));d[i+1]=Math.max(0,Math.min(255,g));d[i+2]=Math.max(0,Math.min(255,b));
-      }
-      ctx.putImageData(id,0,0);
-    }
+    // Update rect after draw
+    setTimeout(()=>{if(canvasRef.current) setCanvasRect(canvasRef.current.getBoundingClientRect());},20);
   }
 
-  function rotate90(dir){setRotation(r=>(r+dir*90+360)%360);}
-  function reset(){setRotation(0);setFlipH(false);setBrightness(0);setContrast(0);setSaturation(0);setCrop(null);setCropMode(false);}
+  // CSS filter string for live preview — avoids canvas taint entirely
+  function getCSSFilter(){
+    const b=brightness!==0?`brightness(${1+brightness/100})`:'';
+    const c=contrast!==0?`contrast(${1+contrast/100})`:'';
+    const s=saturation!==0?`saturate(${1+saturation/100})`:'';
+    return [b,c,s].filter(Boolean).join(' ')||'none';
+  }
 
-  // Panel drag
-  function onPanelDragStart(e){
+  // Crop overlay — positioned over the canvas element
+  function cropHandleMouseDown(e,handle){
+    if(!cropMode) return;
     e.preventDefault();
-    const startX=e.clientX-panelPos.x, startY=e.clientY-panelPos.y;
-    function onMove(ev){setPanelPos({x:ev.clientX-startX,y:ev.clientY-startY});}
+    e.stopPropagation();
+    snapshot();
+    const rect=canvasRect||canvasRef.current.getBoundingClientRect();
+    function onMove(ev){
+      const nx=Math.max(0,Math.min(1,(ev.clientX-rect.left)/rect.width));
+      const ny=Math.max(0,Math.min(1,(ev.clientY-rect.top)/rect.height));
+      setCrop(prev=>{
+        let {x,y,w,h}=prev;
+        if(handle==='tl'){const nx2=Math.min(nx,x+w-0.05),ny2=Math.min(ny,y+h-0.05);w=x+w-nx2;h=y+h-ny2;x=nx2;y=ny2;}
+        else if(handle==='tr'){w=Math.max(0.05,nx-x);const ny2=Math.min(ny,y+h-0.05);h=y+h-ny2;y=ny2;}
+        else if(handle==='bl'){const nx2=Math.min(nx,x+w-0.05);w=x+w-nx2;x=nx2;h=Math.max(0.05,ny-y);}
+        else if(handle==='br'){w=Math.max(0.05,nx-x);h=Math.max(0.05,ny-y);}
+        else if(handle==='t'){const ny2=Math.min(ny,y+h-0.05);h=y+h-ny2;y=ny2;}
+        else if(handle==='b'){h=Math.max(0.05,ny-y);}
+        else if(handle==='l'){const nx2=Math.min(nx,x+w-0.05);w=x+w-nx2;x=nx2;}
+        else if(handle==='r'){w=Math.max(0.05,nx-x);}
+        else if(handle==='move'){
+          x=Math.max(0,Math.min(1-w,prev._dx!==undefined?nx-prev._dx:x));
+          y=Math.max(0,Math.min(1-h,prev._dy!==undefined?ny-prev._dy:y));
+          return{x,y,w,h,_dx:nx-x,_dy:ny-y};
+        }
+        return{x,y,w,h};
+      });
+    }
     function onUp(){window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);}
     window.addEventListener('mousemove',onMove);
     window.addEventListener('mouseup',onUp);
   }
 
-  // Crop draw on canvas overlay
-  const cropOverlayRef=React.useRef(null);
-  function onCropStart(e){
-    if(!cropMode) return;
+  function rotate90(dir){snapshot();setRotation(r=>(r+dir*90+360)%360);}
+  function doFlip(){snapshot();setFlipH(v=>!v);}
+  function reset(){setHistory([]);setRotation(0);setFlipH(false);setBrightness(0);setContrast(0);setSaturation(0);setCrop({x:0,y:0,w:1,h:1});setCropMode(false);}
+
+  function onPanelDragStart(e){
     e.preventDefault();
-    const el=cropOverlayRef.current;
-    if(!el) return;
-    const rect=el.getBoundingClientRect();
-    const sx=(e.clientX-rect.left)/rect.width;
-    const sy=(e.clientY-rect.top)/rect.height;
-    setCrop({x:sx,y:sy,w:0,h:0});
-    function onMove(ev){
-      const cx=(ev.clientX-rect.left)/rect.width;
-      const cy=(ev.clientY-rect.top)/rect.height;
-      const x=Math.max(0,Math.min(sx,cx));
-      const y=Math.max(0,Math.min(sy,cy));
-      setCrop({x,y,w:Math.min(1-x,Math.abs(cx-sx)),h:Math.min(1-y,Math.abs(cy-sy))});
-    }
+    const sx=e.clientX-panelPos.x, sy=e.clientY-panelPos.y;
+    function onMove(ev){setPanelPos({x:ev.clientX-sx,y:ev.clientY-sy});}
     function onUp(){window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);}
     window.addEventListener('mousemove',onMove);
     window.addEventListener('mouseup',onUp);
@@ -7001,110 +7028,140 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
   function handleSave(){
     const img=baseImg.current;
     if(!img) return;
-    const srcX=crop?Math.round(crop.x*img.width):0;
-    const srcY=crop?Math.round(crop.y*img.height):0;
-    const srcW=crop?(Math.round(crop.w*img.width)||img.width):img.width;
-    const srcH=crop?(Math.round(crop.h*img.height)||img.height):img.height;
+    const srcX=Math.round(crop.x*img.width);
+    const srcY=Math.round(crop.y*img.height);
+    const srcW=Math.round(crop.w*img.width)||img.width;
+    const srcH=Math.round(crop.h*img.height)||img.height;
     const rot90=rotation===90||rotation===270;
     const outW=rot90?srcH:srcW, outH=rot90?srcW:srcH;
-    const MAX=1200;
+    const MAX=1400;
     const scale=Math.min(MAX/outW,MAX/outH,1);
     const fc=document.createElement('canvas');
     fc.width=Math.round(outW*scale);fc.height=Math.round(outH*scale);
     const ctx=fc.getContext('2d');
+    ctx.filter=getCSSFilter();
     ctx.save();ctx.translate(fc.width/2,fc.height/2);
     if(flipH) ctx.scale(-1,1);
     ctx.rotate(rotation*Math.PI/180);
     ctx.drawImage(img,srcX,srcY,srcW,srcH,-Math.round(srcW*scale)/2,-Math.round(srcH*scale)/2,Math.round(srcW*scale),Math.round(srcH*scale));
     ctx.restore();
-    if(brightness!==0||contrast!==0||saturation!==0){
-      const id=ctx.getImageData(0,0,fc.width,fc.height);const d=id.data;
-      const bF=1+brightness/100,cF=(259*(contrast*2.55+255))/(255*(259-contrast*2.55)),sF=1+saturation/100;
-      for(let i=0;i<d.length;i+=4){
-        let r=d[i],g=d[i+1],b=d[i+2];
-        r*=bF;g*=bF;b*=bF;r=cF*(r-128)+128;g=cF*(g-128)+128;b=cF*(b-128)+128;
-        const gr=0.299*r+0.587*g+0.114*b;r=gr+(r-gr)*sF;g=gr+(g-gr)*sF;b=gr+(b-gr)*sF;
-        d[i]=Math.max(0,Math.min(255,r));d[i+1]=Math.max(0,Math.min(255,g));d[i+2]=Math.max(0,Math.min(255,b));
-      }
-      ctx.putImageData(id,0,0);
-    }
     fc.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.88);
   }
 
   const sliders=[
-    {label:'Brightness',val:brightness,set:setBrightness,icon:'☀'},
-    {label:'Contrast',val:contrast,set:setContrast,icon:'◑'},
-    {label:'Saturation',val:saturation,set:setSaturation,icon:'❋'},
+    {label:'Brightness',val:brightness,set:(v)=>{snapshot();setBrightness(v);},icon:'☀'},
+    {label:'Contrast',val:contrast,set:(v)=>{snapshot();setContrast(v);},icon:'◑'},
+    {label:'Saturation',val:saturation,set:(v)=>{snapshot();setSaturation(v);},icon:'❋'},
   ];
 
+  // Crop handle positions: corners + edge midpoints
+  const cropHandles=[
+    {id:'tl',x:crop.x,y:crop.y,cursor:'nw-resize'},
+    {id:'tr',x:crop.x+crop.w,y:crop.y,cursor:'ne-resize'},
+    {id:'bl',x:crop.x,y:crop.y+crop.h,cursor:'sw-resize'},
+    {id:'br',x:crop.x+crop.w,y:crop.y+crop.h,cursor:'se-resize'},
+    {id:'t',x:crop.x+crop.w/2,y:crop.y,cursor:'n-resize'},
+    {id:'b',x:crop.x+crop.w/2,y:crop.y+crop.h,cursor:'s-resize'},
+    {id:'l',x:crop.x,y:crop.y+crop.h/2,cursor:'w-resize'},
+    {id:'r',x:crop.x+crop.w,y:crop.y+crop.h/2,cursor:'e-resize'},
+  ];
+
+  const CropIcon=()=>(
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M6 2v14a2 2 0 002 2h14"/><path d="M18 22V8a2 2 0 00-2-2H2"/>
+    </svg>
+  );
+
   return ReactDOM.createPortal(
-    <div style={{position:'fixed',inset:0,zIndex:9000,background:'#080808',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'DM Sans',sans-serif"}}
+    <div style={{position:'fixed',inset:0,zIndex:9000,background:'#060606',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'DM Sans',sans-serif"}}
       onClick={e=>e.stopPropagation()}>
 
-      {/* Canvas */}
-      <canvas ref={canvasRef} style={{maxWidth:'100%',maxHeight:'100%',display:'block',borderRadius:4}}/>
-      {!imgReady&&<div style={{position:'absolute',color:'rgba(245,158,11,0.7)',fontSize:13,fontWeight:700,letterSpacing:'.08em'}}>Loading image…</div>}
+      {/* Canvas with CSS filter for live preview */}
+      <div style={{position:'relative',display:'inline-block'}}>
+        <canvas ref={canvasRef}
+          style={{display:'block',borderRadius:3,filter:getCSSFilter(),maxWidth:'100%',maxHeight:'100%'}}/>
 
-      {/* Crop overlay on canvas */}
-      {cropMode&&(
-        <div ref={cropOverlayRef} onMouseDown={onCropStart}
-          style={{position:'absolute',inset:0,cursor:'crosshair',zIndex:2}}>
-          {crop&&crop.w>0.01&&crop.h>0.01&&(
-            <div style={{position:'absolute',
-              left:(crop.x*100)+'%',top:(crop.y*100)+'%',
-              width:(crop.w*100)+'%',height:(crop.h*100)+'%',
-              border:'2px solid '+AMBER,boxShadow:'0 0 0 9999px rgba(0,0,0,0.5)',pointerEvents:'none'}}>
-              {[1/3,2/3].map(p=>(
-                <React.Fragment key={p}>
-                  <div style={{position:'absolute',left:(p*100)+'%',top:0,bottom:0,width:1,background:'rgba(245,158,11,0.3)'}}/>
-                  <div style={{position:'absolute',top:(p*100)+'%',left:0,right:0,height:1,background:'rgba(245,158,11,0.3)'}}/>
-                </React.Fragment>
-              ))}
-              {[[0,0],[100,0],[0,100],[100,100]].map(([x,y])=>(
-                <div key={x+y} style={{position:'absolute',left:x+'%',top:y+'%',width:12,height:12,borderRadius:2,background:AMBER,transform:'translate(-50%,-50%)'}}/>
+        {/* Crop overlay — only shown in crop mode */}
+        {cropMode&&canvasRect&&(()=>{
+          const cw=canvasRect.width, ch=canvasRect.height;
+          const ol=canvasRef.current?canvasRef.current.offsetLeft:0;
+          const ot=canvasRef.current?canvasRef.current.offsetTop:0;
+          return(
+            <div style={{position:'absolute',inset:0,zIndex:3,overflow:'visible'}}>
+              {/* Dark overlay outside crop box */}
+              <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}>
+                <defs>
+                  <mask id="cmask">
+                    <rect width="100%" height="100%" fill="white"/>
+                    <rect x={(crop.x*100)+'%'} y={(crop.y*100)+'%'} width={(crop.w*100)+'%'} height={(crop.h*100)+'%'} fill="black"/>
+                  </mask>
+                </defs>
+                <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#cmask)"/>
+                {/* Rule of thirds */}
+                {[1/3,2/3].map(p=>(
+                  <React.Fragment key={p}>
+                    <line x1={(crop.x+crop.w*p)*100+'%'} y1={(crop.y*100)+'%'} x2={(crop.x+crop.w*p)*100+'%'} y2={((crop.y+crop.h)*100)+'%'} stroke="rgba(245,158,11,0.3)" strokeWidth="1"/>
+                    <line x1={(crop.x*100)+'%'} y1={(crop.y+crop.h*p)*100+'%'} x2={((crop.x+crop.w)*100)+'%'} y2={(crop.y+crop.h*p)*100+'%'} stroke="rgba(245,158,11,0.3)" strokeWidth="1"/>
+                  </React.Fragment>
+                ))}
+                {/* Crop border */}
+                <rect x={(crop.x*100)+'%'} y={(crop.y*100)+'%'} width={(crop.w*100)+'%'} height={(crop.h*100)+'%'} fill="none" stroke={AMBER} strokeWidth="1.5"/>
+              </svg>
+              {/* Move handle (drag inside box) */}
+              <div onMouseDown={e=>cropHandleMouseDown(e,'move')}
+                style={{position:'absolute',left:(crop.x*100)+'%',top:(crop.y*100)+'%',width:(crop.w*100)+'%',height:(crop.h*100)+'%',cursor:'move',zIndex:4}}/>
+              {/* Edge/corner handles */}
+              {cropHandles.map(h=>(
+                <div key={h.id} onMouseDown={e=>cropHandleMouseDown(e,h.id)}
+                  style={{position:'absolute',left:(h.x*100)+'%',top:(h.y*100)+'%',
+                    width:14,height:14,borderRadius:h.id.length===2?3:'50%',
+                    background:AMBER,border:'2px solid #060606',
+                    transform:'translate(-50%,-50%)',cursor:h.cursor,zIndex:5,
+                    boxShadow:'0 1px 4px rgba(0,0,0,0.6)'}}/>
               ))}
             </div>
-          )}
-          {(!crop||crop.w<0.01)&&<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
-            <span style={{fontSize:12,color:'rgba(245,158,11,0.55)',fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase'}}>Drag to select crop area</span>
-          </div>}
-        </div>
-      )}
+          );
+        })()}
+      </div>
 
-      {/* Floating draggable control panel */}
-      <div style={{position:'absolute',left:panelPos.x,top:panelPos.y,zIndex:10,
-        width:300,background:'rgba(12,12,12,0.96)',border:'1px solid rgba(245,158,11,0.25)',
-        borderRadius:14,boxShadow:'0 8px 40px rgba(0,0,0,0.8)',overflow:'hidden',userSelect:'none'}}>
+      {!imgReady&&<div style={{position:'absolute',color:'rgba(245,158,11,0.7)',fontSize:13,fontWeight:700,letterSpacing:'.06em'}}>Loading…</div>}
 
-        {/* Panel drag handle */}
+      {/* Floating draggable panel */}
+      <div style={{position:'absolute',left:panelPos.x,top:panelPos.y,zIndex:10,width:288,
+        background:'rgba(10,10,10,0.97)',border:'1px solid rgba(245,158,11,0.22)',
+        borderRadius:14,boxShadow:'0 12px 48px rgba(0,0,0,0.9)',overflow:'hidden',userSelect:'none'}}>
+
+        {/* Drag handle / header */}
         <div onMouseDown={onPanelDragStart}
           style={{display:'flex',alignItems:'center',justifyContent:'space-between',
-            padding:'9px 14px',background:'rgba(245,158,11,0.08)',
-            borderBottom:'1px solid rgba(245,158,11,0.15)',cursor:'grab'}}>
-          <span style={{fontSize:10,fontWeight:800,letterSpacing:'.1em',textTransform:'uppercase',color:AMBER}}>✦ Photo Editor</span>
-          <div style={{display:'flex',gap:6}}>
-            <button onClick={onClose} disabled={uploading}
-              style={{fontSize:9,padding:'2px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,0.15)',background:'transparent',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}>
-              ✕ Cancel
+            padding:'9px 12px',borderBottom:'1px solid rgba(245,158,11,0.12)',
+            background:'rgba(245,158,11,0.06)',cursor:'grab'}}>
+          <span style={{fontSize:10,fontWeight:800,letterSpacing:'.1em',color:AMBER}}>✦ PHOTO EDITOR</span>
+          <div style={{display:'flex',gap:5}}>
+            <button onClick={undo} disabled={!history.length}
+              style={{fontSize:9,padding:'2px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,0.12)',background:'transparent',color:history.length?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.15)',cursor:history.length?'pointer':'default'}}>
+              ↩ Undo
             </button>
+            <button onClick={onClose} disabled={uploading}
+              style={{fontSize:9,padding:'2px 7px',borderRadius:6,border:'1px solid rgba(255,255,255,0.12)',background:'transparent',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}>✕</button>
             <button onClick={handleSave} disabled={uploading}
-              style={{fontSize:9,fontWeight:800,padding:'2px 10px',borderRadius:6,border:'none',background:uploading?'rgba(245,158,11,0.4)':AMBER,color:'#080808',cursor:uploading?'wait':'pointer'}}>
-              {uploading?'Saving…':'Save'}
+              style={{fontSize:9,fontWeight:800,padding:'2px 10px',borderRadius:6,border:'none',background:uploading?'rgba(245,158,11,0.35)':AMBER,color:'#060606',cursor:uploading?'wait':'pointer'}}>
+              {uploading?'…':'Save'}
             </button>
           </div>
         </div>
 
-        <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{padding:'11px 13px',display:'flex',flexDirection:'column',gap:11}}>
 
-          {/* Transform row */}
+          {/* Transform */}
           <div>
-            <div style={{fontSize:8,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:7}}>Transform</div>
-            <div style={{display:'flex',gap:6}}>
-              {[{label:'↺ 90°',fn:()=>rotate90(-1)},{label:'↻ 90°',fn:()=>rotate90(1)},{label:'⇄ Flip',fn:()=>setFlipH(v=>!v)}].map(b=>(
+            <div style={{fontSize:8,fontWeight:700,color:'rgba(255,255,255,0.25)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:6}}>Transform</div>
+            <div style={{display:'flex',gap:5}}>
+              {[{label:'↺ 90°',fn:()=>rotate90(-1)},{label:'↻ 90°',fn:()=>rotate90(1)},{label:'⇄ Flip',fn:doFlip}].map(b=>(
                 <button key={b.label} onClick={b.fn}
-                  style={{flex:1,fontSize:10,fontWeight:700,padding:'6px 0',borderRadius:8,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.65)',cursor:'pointer',transition:'all .12s'}}
+                  style={{flex:1,fontSize:10,fontWeight:700,padding:'7px 0',borderRadius:8,border:'1px solid rgba(255,255,255,0.09)',background:'rgba(255,255,255,0.03)',color:'rgba(255,255,255,0.6)',cursor:'pointer',transition:'all .12s'}}
                   onMouseEnter={e=>{e.currentTarget.style.borderColor=AMBER;e.currentTarget.style.color=AMBER;}}
-                  onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';e.currentTarget.style.color='rgba(255,255,255,0.65)';}}>
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,0.09)';e.currentTarget.style.color='rgba(255,255,255,0.6)';}}>
                   {b.label}
                 </button>
               ))}
@@ -7112,44 +7169,58 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
           </div>
 
           {/* Sliders */}
-          <div style={{display:'flex',flexDirection:'column',gap:10}}>
-            <div style={{fontSize:8,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.08em',textTransform:'uppercase'}}>Adjust</div>
-            {sliders.map(s=>(
-              <div key={s.label}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
-                  <span style={{fontSize:9,color:'rgba(255,255,255,0.45)'}}>{s.icon} {s.label}</span>
-                  <span style={{fontSize:9,fontWeight:700,color:s.val!==0?AMBER:'rgba(255,255,255,0.2)'}}>{s.val>0?'+':''}{s.val}</span>
+          <div>
+            <div style={{fontSize:8,fontWeight:700,color:'rgba(255,255,255,0.25)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:8}}>Adjust</div>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {sliders.map(s=>(
+                <div key={s.label}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
+                    <span style={{fontSize:10,color:'rgba(255,255,255,0.5)'}}>{s.icon} {s.label}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:s.val!==0?AMBER:'rgba(255,255,255,0.2)',minWidth:28,textAlign:'right'}}>{s.val>0?'+':''}{s.val}</span>
+                  </div>
+                  {/* Custom slider track */}
+                  <div style={{position:'relative',height:6,borderRadius:6,background:'rgba(255,255,255,0.08)',marginBottom:2}}>
+                    <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.15)'}}/>
+                    <div style={{position:'absolute',borderRadius:6,background:AMBER,
+                      left:s.val<0?(50+s.val)+'%':'50%',
+                      width:Math.abs(s.val)+'%',top:0,bottom:0,opacity:0.85}}/>
+                    {/* Thumb */}
+                    <div style={{position:'absolute',top:'50%',
+                      left:'calc('+((s.val+50)/100*100)+'% - 8px)',
+                      width:16,height:16,borderRadius:'50%',
+                      background:AMBER,border:'2px solid #060606',
+                      transform:'translateY(-50%)',
+                      boxShadow:'0 1px 6px rgba(0,0,0,0.6)',
+                      pointerEvents:'none'}}/>
+                  </div>
+                  <input type="range" min={-50} max={50} value={s.val}
+                    onChange={e=>s.set(Number(e.target.value))}
+                    style={{width:'100%',opacity:0,height:20,cursor:'pointer',position:'relative',zIndex:1,marginTop:-18,display:'block'}}/>
                 </div>
-                <div style={{position:'relative',height:3,borderRadius:3,background:'rgba(255,255,255,0.08)'}}>
-                  <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.12)'}}/>
-                  <div style={{position:'absolute',borderRadius:3,background:AMBER,
-                    left:s.val<0?(50+s.val)+'%':'50%',width:Math.abs(s.val)+'%',top:0,bottom:0}}/>
-                </div>
-                <input type="range" min={-50} max={50} value={s.val} onChange={e=>s.set(Number(e.target.value))}
-                  style={{width:'100%',margin:'4px 0 0',accentColor:AMBER,cursor:'pointer',height:14,opacity:0,position:'relative',zIndex:1,marginTop:-8}}/>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* Crop toggle */}
-          <div style={{borderTop:'1px solid rgba(255,255,255,0.06)',paddingTop:10,display:'flex',alignItems:'center',gap:8}}>
-            <button onClick={()=>{setCropMode(v=>!v);if(cropMode) setCrop(null);}}
-              style={{flex:1,fontSize:10,fontWeight:700,padding:'6px 0',borderRadius:8,cursor:'pointer',transition:'all .15s',
+          <div style={{borderTop:'1px solid rgba(255,255,255,0.05)',paddingTop:10,display:'flex',gap:5}}>
+            <button onClick={()=>{if(!cropMode){snapshot();setCrop({x:0,y:0,w:1,h:1});}setCropMode(v=>!v);}}
+              style={{flex:1,fontSize:10,fontWeight:700,padding:'7px 0',borderRadius:8,cursor:'pointer',transition:'all .15s',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:5,
                 border:'1px solid',
-                borderColor:cropMode?AMBER:'rgba(255,255,255,0.1)',
-                background:cropMode?'rgba(245,158,11,0.12)':'rgba(255,255,255,0.04)',
+                borderColor:cropMode?AMBER:'rgba(255,255,255,0.09)',
+                background:cropMode?'rgba(245,158,11,0.1)':'rgba(255,255,255,0.03)',
                 color:cropMode?AMBER:'rgba(255,255,255,0.5)'}}>
-              ⬚ {cropMode?'Cropping — drag on image':'Crop'}
+              <CropIcon/>{cropMode?'Crop active':'Crop'}
             </button>
-            {cropMode&&crop&&crop.w>0.01&&<button onClick={()=>setCrop(null)}
-              style={{fontSize:9,padding:'5px 10px',borderRadius:8,border:'1px solid rgba(245,158,11,0.3)',background:'transparent',color:AMBER,cursor:'pointer'}}>
-              Clear
+            {cropMode&&<button onClick={()=>{setCrop({x:0,y:0,w:1,h:1});}}
+              style={{fontSize:9,padding:'6px 10px',borderRadius:8,border:'1px solid rgba(245,158,11,0.25)',background:'transparent',color:'rgba(245,158,11,0.7)',cursor:'pointer'}}>
+              Reset
             </button>}
           </div>
 
-          {/* Reset */}
+          {/* Reset all */}
           <button onClick={reset}
-            style={{fontSize:9,fontWeight:700,padding:'5px 0',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'transparent',color:'rgba(255,255,255,0.25)',cursor:'pointer',letterSpacing:'.05em',textTransform:'uppercase'}}>
+            style={{fontSize:9,fontWeight:700,padding:'5px 0',borderRadius:8,border:'1px solid rgba(255,255,255,0.07)',background:'transparent',color:'rgba(255,255,255,0.2)',cursor:'pointer',letterSpacing:'.05em',textTransform:'uppercase'}}>
             ↺ Reset all
           </button>
 
