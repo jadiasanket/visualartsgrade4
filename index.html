@@ -9013,7 +9013,7 @@ function GalleryView(){
         document.body
       )}
 
-      {/* Fullscreen zoom overlay — rendered at GalleryView level, zoom state lives here */}
+      {/* Fullscreen zoom overlay */}
       {lbFullscreen&&lightbox&&ReactDOM.createPortal(
         <div style={{position:'fixed',inset:0,zIndex:9999,background:'#000',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}
           onClick={()=>{setLbFullscreen(false);setLbZoom(1);}}
