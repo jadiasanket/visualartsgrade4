@@ -7368,7 +7368,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   async function handlePhotoEdit(blob){
     const activeAtSave=active;
     const localUrl=URL.createObjectURL(blob);
-    updateData(d=>{const p=d.students[studentIdx].portfolio;if(p&&p[activeAtSave]) p[activeAtSave].url=localUrl;});
+    updateData(d=>{const p=d.students[studentIdx].portfolio;if(p&&p[activeAtSave]){if(!p[activeAtSave].originalUrl) p[activeAtSave].originalUrl=p[activeAtSave].url;p[activeAtSave].url=localUrl;}});
     setPhotoEditorOpen(false);
     setPhotoEditorUploading(true);
     try{
@@ -7376,7 +7376,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
       const ref=window._storage.ref('portfolio/'+sectionId+'/'+studentIdx+'/edited_'+ts+'.jpg');
       await ref.put(blob,{contentType:'image/jpeg'});
       const url=await ref.getDownloadURL();
-      updateData(d=>{const p=d.students[studentIdx].portfolio;if(p&&p[activeAtSave]) p[activeAtSave].url=url;});
+      updateData(d=>{const p=d.students[studentIdx].portfolio;if(p&&p[activeAtSave]){if(!p[activeAtSave].originalUrl) p[activeAtSave].originalUrl=p[activeAtSave].url;p[activeAtSave].url=url;}});
     }catch(err){alert('Save failed: '+err.message);}
     setPhotoEditorUploading(false);
   }
@@ -7391,7 +7391,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
         const date=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
         updateData(d=>{
           if(!d.students[studentIdx].portfolio) d.students[studentIdx].portfolio=[];
-          d.students[studentIdx].portfolio.push({url,date,caption:'',type:'artwork',lessons:[],artTags:[],review:''});
+          d.students[studentIdx].portfolio.push({url,originalUrl:url,date,caption:'',type:'artwork',lessons:[],artTags:[],review:''});
         });
         setActive((student.portfolio||[]).length);
       }
@@ -7466,7 +7466,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   return ReactDOM.createPortal(
     <div ref={overlayRef} style={{position:'fixed',inset:0,zIndex:3000,background:'rgba(10,15,26,0.92)',backdropFilter:'blur(12px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
       onClick={photoEditorOpen?undefined:onClose}>
-      {photoEditorOpen&&current&&<PhotoEditor srcUrl={current.url} onSave={handlePhotoEdit} onClose={()=>setPhotoEditorOpen(false)} uploading={photoEditorUploading} initialCrop={savedCrop} onCropChange={setSavedCrop}/>}
+      {photoEditorOpen&&current&&<PhotoEditor srcUrl={current.originalUrl||current.url} onSave={handlePhotoEdit} onClose={()=>setPhotoEditorOpen(false)} uploading={photoEditorUploading} initialCrop={savedCrop} onCropChange={setSavedCrop}/>}
       <div onClick={e=>e.stopPropagation()} style={{width:'min(960px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:20,boxShadow:'var(--glass-shadow2)',overflow:'hidden'}}>
         {/* Header — name + close only, no add/fullscreen buttons here */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',borderBottom:'1px solid var(--glass-border)',flexShrink:0,background:'var(--glass-bg)'}}>
