@@ -6428,14 +6428,17 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
         <div style={{position:'relative',width:'100%',height:'100%',transformStyle:'preserve-3d',transition:'transform .55s cubic-bezier(.4,0,.2,1)',transform:flipped?'rotateY(180deg)':'rotateY(0deg)'}}>
 
           {/* ══ FRONT — ID Card ══ */}
+          {/* IMPORTANT: overflow:hidden and borderRadius are on the INNER wrapper, NOT the face div.
+              Having overflow:hidden on the same div as backfaceVisibility:hidden cancels it in all browsers. */}
           <div style={{
             position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
-            borderRadius:20,overflow:'hidden',
             background:cardBg,
             border:'none',
             boxShadow:`0 0 0 1px rgba(${glowColor},0.7), 0 0 24px rgba(${glowColor},0.75), 0 0 60px rgba(${glowColor},0.45), 0 0 120px rgba(${glowColor},0.20), 0 8px 32px rgba(0,0,0,0.5)`,
-            display:'flex',flexDirection:'column',
+            borderRadius:20,
           }}>
+          {/* Inner clip wrapper — handles overflow+borderRadius without touching backfaceVisibility */}
+          <div style={{position:'absolute',inset:0,borderRadius:20,overflow:'hidden',display:'flex',flexDirection:'column'}}>
 
             {/* Top row: photo (absolute, overlaps) + info panel (fixed right) */}
             <div style={{position:'relative',flex:1,minHeight:0}}>
@@ -6653,18 +6656,20 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           </div>
           )}
 
-          </div>{/* end front card */}
+          </div>{/* end inner clip wrapper */}
+          </div>{/* end front face — backfaceVisibility:hidden lives here, NOT on inner wrapper */}
 
           {/* ══ BACK — Notes history + AI profile ══ */}
+          {/* Same pattern: overflow:hidden on inner wrapper only, NOT on face div */}
           <div style={{
             position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
             transform:'rotateY(180deg)',
-            borderRadius:20,overflow:'hidden',
             background:cardBg,
             border:'none',
             boxShadow:`0 0 0 1px rgba(${glowColor},0.7), 0 0 24px rgba(${glowColor},0.75), 0 0 60px rgba(${glowColor},0.45), 0 8px 32px rgba(0,0,0,0.5)`,
-            display:'flex',flexDirection:'column',
+            borderRadius:20,
           }}>
+          <div style={{position:'absolute',inset:0,borderRadius:20,overflow:'hidden',display:'flex',flexDirection:'column'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderBottom:'1px solid rgba(0,0,0,0.1)',flexShrink:0,background:'rgba(255,255,255,0.25)'}}>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
                 <span style={{fontFamily:"'Fraunces',serif",fontSize:13,fontWeight:700,color:'#1a1a2e'}}>{student.name}</span>
@@ -6715,7 +6720,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                 ))
               }
             </div>
-          </div>{/* end back card */}
+          </div>{/* end back inner clip wrapper */}
+          </div>{/* end back face */}
 
         </div>{/* end preserve-3d container */}
         </div>{/* end perspective wrapper */}
@@ -8712,6 +8718,10 @@ function GalleryView(){
   const [lbFullscreen,setLbFullscreen]=React.useState(false);
   const [metaVisible,setMetaVisible]=React.useState(true);
   const [lbZoom,setLbZoom]=React.useState(1);
+  const [lbPanX,setLbPanX]=React.useState(0);
+  const [lbPanY,setLbPanY]=React.useState(0);
+  const [lbDragging,setLbDragging]=React.useState(false);
+  const lbDragStart=React.useRef(null);
   const allLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color})));
   const artworkTags=getArtworkTags();
   const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
@@ -9009,28 +9019,35 @@ function GalleryView(){
 
       {/* Fullscreen zoom overlay */}
       {lbFullscreen&&lightbox&&ReactDOM.createPortal(
-        <div style={{position:'fixed',inset:0,zIndex:9999,background:'#000',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}
-          onClick={()=>{setLbFullscreen(false);setLbZoom(1);}}
-          onWheel={e=>{e.preventDefault();setLbZoom(z=>Math.min(4,Math.max(1,+(z-(e.deltaY>0?0.15:-0.15)).toFixed(2))));}}
+        <div style={{position:'fixed',inset:0,zIndex:9999,background:'#000',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'default'}}
+          onClick={()=>{if(!lbDragging){setLbFullscreen(false);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}}
+          onWheel={e=>{e.preventDefault();setLbZoom(z=>{const next=Math.min(4,Math.max(1,+(z-(e.deltaY>0?0.05:-0.05)).toFixed(2)));if(next===1){setLbPanX(0);setLbPanY(0);}return next;});}}
+          onMouseDown={e=>{if(lbZoom>1){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY};}}}
+          onMouseMove={e=>{if(!lbDragging||!lbDragStart.current) return;setLbPanX(e.clientX-lbDragStart.current.x);setLbPanY(e.clientY-lbDragStart.current.y);}}
+          onMouseUp={()=>setLbDragging(false)}
+          onMouseLeave={()=>setLbDragging(false)}
         >
           <img src={lightbox.url} alt=""
-            onClick={e=>e.stopPropagation()}
-            style={{maxWidth:'100vw',maxHeight:'100vh',objectFit:'contain',transform:`scale(${lbZoom})`,transition:'transform .1s ease',userSelect:'none',cursor:lbZoom>1?'zoom-out':'default'}}/>
-          {/* Exit button — top right */}
-          <button onClick={()=>{setLbZoom(1);setLbFullscreen(false);}}
-            style={{position:'absolute',top:16,right:16,background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:8,color:'#fff',fontSize:13,padding:'0 16px',height:36,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}
-            onClick={e=>{e.stopPropagation();setLbZoom(1);setLbFullscreen(false);}}>✕ Exit</button>
+            draggable={false}
+            style={{maxWidth:'100vw',maxHeight:'100vh',objectFit:'contain',
+              transform:`scale(${lbZoom}) translate(${lbPanX/lbZoom}px,${lbPanY/lbZoom}px)`,
+              transition:lbDragging?'none':'transform .12s ease',
+              userSelect:'none',pointerEvents:'none',
+              imageRendering:'high-quality',
+              willChange:'transform'}}/>
+          {/* Exit button */}
+          <button onClick={e=>{e.stopPropagation();setLbZoom(1);setLbPanX(0);setLbPanY(0);setLbFullscreen(false);}}
+            style={{position:'absolute',top:16,right:16,background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:8,color:'#fff',fontSize:13,padding:'0 16px',height:36,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>✕ Exit</button>
           {/* Vertical zoom slider — right-middle edge */}
           <div style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',alignItems:'center',gap:8}}
             onClick={e=>e.stopPropagation()}>
             <span style={{color:'rgba(255,255,255,0.5)',fontSize:10,fontFamily:"'DM Sans',sans-serif"}}>4×</span>
             <input type="range" min={100} max={400} step={5} value={Math.round(lbZoom*100)}
-              onChange={e=>setLbZoom(+(Number(e.target.value)/100).toFixed(2))}
+              onChange={e=>{const v=Number(e.target.value)/100;setLbZoom(v);if(v===1){setLbPanX(0);setLbPanY(0);}}}
               style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',height:160,accentColor:'rgba(255,255,255,0.8)',cursor:'pointer'}}/>
             <span style={{color:'rgba(255,255,255,0.5)',fontSize:10,fontFamily:"'DM Sans',sans-serif"}}>1×</span>
           </div>
-          {/* Zoom % hint */}
-          {lbZoom>1&&<div style={{position:'absolute',bottom:20,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,0.6)',color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 12px',borderRadius:12,pointerEvents:'none'}}>{Math.round(lbZoom*100)}%</div>}
+          {lbZoom>1&&<div style={{position:'absolute',bottom:20,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,0.6)',color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 14px',borderRadius:12,pointerEvents:'none',whiteSpace:'nowrap'}}>{Math.round(lbZoom*100)}% · drag to pan</div>}
         </div>,
         document.body
       )}
