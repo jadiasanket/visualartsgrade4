@@ -6619,7 +6619,6 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           {(characterVisible||editMode)&&(
           <div style={{position:'absolute',bottom:editMode?38:8,left:10,right:0,zIndex:14,
             pointerEvents:editMode?'auto':'none',
-            backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
             opacity:characterVisible?1:0.3}}>
             {editMode
               ?<input value={editCharacter} onChange={e=>setEditCharacter(e.target.value.toUpperCase())}
@@ -6640,7 +6639,6 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           {/* CHARACTER edit controls — size slider + hide toggle */}
           {editMode&&(
           <div style={{position:'absolute',bottom:8,left:10,right:12,zIndex:15,
-            backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
             display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:10,color:'rgba(255,255,255,0.7)',fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>SIZE</span>
             <input type="range" min={36} max={100} value={characterSize}
@@ -6663,12 +6661,13 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           <div style={{
             position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
             transform:'rotateY(180deg)',
-            borderRadius:20,overflow:'hidden',
+            borderRadius:20,
             background:'var(--popup-bg)',
             border:'1px solid var(--glass-border2)',
             boxShadow:'var(--glass-shadow2)',
             display:'flex',flexDirection:'column',
           }}>
+          <div style={{position:'absolute',inset:0,borderRadius:20,overflow:'hidden',display:'flex',flexDirection:'column'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderBottom:'1px solid var(--glass-border)',flexShrink:0,background:'var(--glass-bg)'}}>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
                 <span style={{fontFamily:"'Fraunces',serif",fontSize:13,fontWeight:700,color:'var(--tx)'}}>{student.name}</span>
@@ -6720,6 +6719,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
               }
             </div>
           </div>
+          </div>{/* end back inner clip wrapper */}
 
         </div>
         </div>{/* end perspective wrapper */}
@@ -6912,6 +6912,9 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
                     opacity:i===active?1:0.5,transition:'all .15s',position:'relative'}}>
                   <img src={item.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                   {item.type==='documentation'&&<div style={{position:'absolute',bottom:0,left:0,right:0,background:'rgba(155,127,232,0.75)',fontSize:7,color:'#fff',textAlign:'center',padding:'1px 0',fontWeight:700}}>DOCS</div>}
+                  {/* Delete X on thumbnail */}
+                  <button onClick={e=>{e.stopPropagation();handleDelete(i);}}
+                    style={{position:'absolute',top:3,right:3,width:16,height:16,borderRadius:'50%',background:'rgba(232,112,90,0.85)',border:'none',color:'#fff',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1,fontWeight:700}}>✕</button>
                 </div>
               ))}
               {/* Add photo button in strip */}
@@ -6932,9 +6935,6 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
               </>}
               {/* Type badge — top centre */}
               {current&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:current.type==='documentation'?'rgba(155,127,232,0.75)':'rgba(59,191,160,0.75)',color:'#fff',fontSize:9,fontWeight:700,padding:'2px 10px',borderRadius:12,letterSpacing:'.05em',whiteSpace:'nowrap',pointerEvents:'none'}}>{current.type==='documentation'?'DOCS':'ARTWORK'}</div>}
-              {/* Delete — top left */}
-              <button onClick={()=>handleDelete(active)}
-                style={{position:'absolute',top:10,left:12,background:'rgba(232,112,90,0.25)',border:'1px solid rgba(232,112,90,0.4)',borderRadius:8,color:'var(--coral)',fontSize:10,fontWeight:700,padding:'3px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>&#x2715; Delete</button>
               {/* Fullscreen icon — top right on image */}
               {portfolio.length>0&&<button onClick={()=>setFullscreen(true)} title="Fullscreen (F)"
                 style={{position:'absolute',top:10,right:12,background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'rgba(255,255,255,0.85)',fontSize:14,padding:'3px 8px',cursor:'pointer',lineHeight:1}}>&#x26F6;</button>}
@@ -7042,7 +7042,10 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
                                   color:sel?tc.cl:'var(--tx3)',
                                   opacity:editTagMode?0.5:1,
                                   boxShadow:sel&&!editTagMode?`0 0 8px ${tc.bg}`:'none',
-                                  transition:'all .15s'}}>
+                                  transition:'all .15s'}}
+                                onMouseEnter={e=>{if(!sel&&!editTagMode){e.currentTarget.style.color=tc.cl;e.currentTarget.style.background=tc.bg.replace('0.15','0.08');e.currentTarget.style.border=`1px solid ${tc.cl}`;} }}
+                                onMouseLeave={e=>{if(!sel&&!editTagMode){e.currentTarget.style.color='var(--tx3)';e.currentTarget.style.background='transparent';e.currentTarget.style.border='1px solid rgba(255,255,255,0.1)';} }}
+                              >
                                 {t.label}
                               </button>
                               {editTagMode&&<button onClick={()=>deleteArtworkTag(t.label)} style={{fontSize:8,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',padding:'0 2px',lineHeight:1}}>✕</button>}
@@ -8792,8 +8795,12 @@ function GalleryView(){
     return()=>window.removeEventListener('keydown',onKey);
   },[]);
 
-  // Reset meta visible when opening new lightbox
-  React.useEffect(()=>{if(lightbox) setMetaVisible(true);},[lightbox&&lightbox.url]);
+  // Reset meta visible only when lightbox opens fresh (null → item), not when navigating between items
+  const prevLightboxRef=React.useRef(null);
+  React.useEffect(()=>{
+    if(lightbox&&!prevLightboxRef.current) setMetaVisible(true);
+    prevLightboxRef.current=lightbox;
+  },[lightbox]);
 
   return(
     <div style={{padding:'24px 28px',height:'100%',overflowY:'auto',display:'flex',flexDirection:'column',gap:16}}>
@@ -8942,29 +8949,34 @@ function GalleryView(){
                   style={{display:'block',maxWidth:'100%',maxHeight:'88vh',objectFit:'contain',cursor:'pointer',userSelect:'none'}}
                   onClick={()=>setMetaVisible(v=>!v)}/>
 
-                {/* Top-right controls — always visible */}
-                <div style={{position:'absolute',top:12,right:12,display:'flex',gap:6,alignItems:'center'}}>
-                  {/* ⓘ info icon */}
-                  <button onClick={()=>setMetaVisible(v=>!v)} title="Toggle info"
-                    style={{width:30,height:30,borderRadius:'50%',background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:metaVisible?'rgba(255,255,255,0.95)':'rgba(255,255,255,0.45)',cursor:'pointer',backdropFilter:'blur(8px)',fontSize:14,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'DM Sans',sans-serif",transition:'color .15s'}}>
-                    ⓘ
-                  </button>
-                  {/* Fullscreen */}
+                {/* Top-right controls — ⛶ and ✕ — visible only when meta visible */}
+                <div style={{position:'absolute',top:12,right:12,display:'flex',gap:8,alignItems:'center',
+                  opacity:metaVisible?1:0,transition:'opacity .25s',pointerEvents:metaVisible?'auto':'none'}}>
                   <button onClick={()=>{
                     if(!lbFullscreen){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}
                     else{document.exitFullscreen&&document.exitFullscreen();}
                     setLbFullscreen(v=>!v);
                   }}
-                    style={{width:30,height:30,borderRadius:'50%',background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.85)',cursor:'pointer',backdropFilter:'blur(8px)',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>&#x26F6;</button>
-                  {/* Close */}
+                    style={{background:'none',border:'none',color:'rgba(255,255,255,0.9)',cursor:'pointer',fontSize:18,lineHeight:1,padding:'4px',textShadow:'0 1px 6px rgba(0,0,0,0.8)',display:'flex',alignItems:'center'}}>&#x26F6;</button>
                   <button onClick={()=>setLightbox(null)}
-                    style={{width:30,height:30,borderRadius:'50%',background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.85)',cursor:'pointer',backdropFilter:'blur(8px)',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>&#x2715;</button>
+                    style={{background:'none',border:'none',color:'rgba(255,255,255,0.9)',cursor:'pointer',fontSize:18,lineHeight:1,padding:'4px',textShadow:'0 1px 6px rgba(0,0,0,0.8)',display:'flex',alignItems:'center'}}>&#x2715;</button>
                 </div>
+
+                {/* ⓘ icon — bottom right, always present but dims when meta hidden */}
+                <button onClick={()=>setMetaVisible(v=>!v)} title="Toggle info"
+                  style={{position:'absolute',bottom:14,right:14,background:'none',border:'none',cursor:'pointer',padding:'4px',
+                    opacity:metaVisible?0.9:0.35,transition:'opacity .25s',
+                    textShadow:'0 1px 6px rgba(0,0,0,0.9)'}}>
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="white">
+                    <circle cx="10" cy="10" r="9" fill="rgba(0,0,0,0.4)" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/>
+                    <text x="10" y="14.5" textAnchor="middle" fontSize="11" fontWeight="700" fontFamily="serif" fill="white">i</text>
+                  </svg>
+                </button>
 
                 {/* Meta bar — overlaid on image, slides in from bottom */}
                 <div style={{position:'absolute',bottom:0,left:0,right:0,
                   background:'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 60%, transparent 100%)',
-                  padding:'36px 18px 16px',
+                  padding:'36px 18px 40px',
                   transform:metaVisible?'translateY(0)':'translateY(100%)',
                   transition:'transform .32s cubic-bezier(.4,0,.2,1)',
                   pointerEvents:'none'}}>
@@ -8990,9 +9002,11 @@ function GalleryView(){
                 </div>
               </div>
 
-              {/* Arrow nav — outside popup box */}
-              {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);}} style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8249;</button>}
-              {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);}} style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
+              {/* Arrow nav — outside popup, visible only when meta visible */}
+              <div style={{opacity:metaVisible?1:0,transition:'opacity .25s',pointerEvents:metaVisible?'auto':'none'}}>
+                {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);}} style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8249;</button>}
+                {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);}} style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
+              </div>
             </div>
           );
         })(),
