@@ -6984,8 +6984,8 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
     ctx.rotate(rad);
     ctx.drawImage(img,-Math.round(img.width*scale)/2,-Math.round(img.height*scale)/2,Math.round(img.width*scale),Math.round(img.height*scale));
     ctx.restore();
-    // Update rect after draw
-    setTimeout(()=>{if(canvasRef.current) setCanvasRect(canvasRef.current.getBoundingClientRect());},20);
+    // Update rect after draw — always fresh
+    requestAnimationFrame(()=>{if(canvasRef.current) setCanvasRect(canvasRef.current.getBoundingClientRect());});
   }
 
   // CSS filter string for live preview — avoids canvas taint entirely
@@ -7002,7 +7002,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
     e.preventDefault();
     e.stopPropagation();
     snapshot();
-    const rect=canvasRect||canvasRef.current.getBoundingClientRect();
+    const rect=canvasRef.current.getBoundingClientRect();
     function onMove(ev){
       const nx=Math.max(0,Math.min(1,(ev.clientX-rect.left)/rect.width));
       const ny=Math.max(0,Math.min(1,(ev.clientY-rect.top)/rect.height));
