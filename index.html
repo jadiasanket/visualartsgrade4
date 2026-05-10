@@ -5799,9 +5799,10 @@ function renderMarkdown(text, onJump){
         <div key={'src'+i} style={{marginTop:10,padding:'7px 10px',borderRadius:8,background:'rgba(255,255,255,0.05)',border:'1px solid var(--glass-border)',fontSize:10,color:'var(--tx3)'}}>
           <div style={{fontWeight:700,marginBottom:4,color:'var(--tx2)',letterSpacing:'.04em',fontSize:9,textTransform:'uppercase'}}>🌐 Sources</div>
           {srcs.map((s,j)=>{
-            const m=s.match(/^\[(\d+)\] (.+?) — (.+)$/);
+            const m=s.match(/^\[(\d+)\] (.+?)\|\|\|(.+)$/);
             if(!m) return <div key={j}>{s}</div>;
-            return<div key={j} style={{marginBottom:3}}><span style={{color:'var(--violet)',fontWeight:700,marginRight:4}}>[{m[1]}]</span><a href={m[3]} target="_blank" rel="noreferrer" style={{color:'var(--teal)',textDecoration:'none',wordBreak:'break-all'}}>{m[2]}</a></div>;
+            const[,num,domain,url]=m;
+            return<div key={j} style={{marginBottom:3}}><span style={{color:'var(--violet)',fontWeight:700,marginRight:4}}>[{num}]</span><a href={url} target="_blank" rel="noreferrer" onClick={e=>{e.preventDefault();window.open(url,'_blank');}} style={{color:'var(--teal)',textDecoration:'none',cursor:'pointer'}}>{domain}</a></div>;
           })}
         </div>
       );
@@ -5828,7 +5829,7 @@ function inlineFormat(text){
     else parts.push(<code key={idx++} style={{fontFamily:"'DM Mono',monospace",fontSize:'0.9em',background:'rgba(155,127,232,0.15)',borderRadius:3,padding:'1px 4px'}}>{raw.slice(1,-1)}</code>);
     last=m.index+raw.length;
   }
-  if(last<text.length) parts.push(<span key={idx++}>{text.slice(last)}</span>);
+  if(last<text.length) parts.push(<span key={idx++}>{inlineFormat(text.slice(last))}</span>);
   return parts.length>0?parts:text;
 }
 
@@ -5840,7 +5841,7 @@ function inlineWithJumps(text, onJump){
   const parts=[];
   let last=0, m, idx=0;
   while((m=regex.exec(text))!==null){
-    if(m.index>last) parts.push(<span key={idx++}>{text.slice(last,m.index)}</span>);
+    if(m.index>last) parts.push(<span key={idx++}>{inlineFormat(text.slice(last,m.index))}</span>);
     const label=m[0];
     const isLesson=!!m[2];
     const num=isLesson?parseInt(m[2]):parseInt(m[3]);
@@ -6073,7 +6074,11 @@ RESPONSE STYLE — VERY IMPORTANT:
           .filter((s,i,arr)=>arr.findIndex(x=>x.uri===s.uri)===i)// dedupe
           .slice(0,4);
         const sourceSuffix=sources.length>0
-          ?'\n\n__sources__'+sources.map((s,i)=>'['+(i+1)+'] '+(s.title||s.uri)+' - '+s.uri).join('\n')
+          ?'\n\n__sources__'+sources.map((s,i)=>{
+            let domain=s.uri;
+            try{domain=new URL(s.uri).hostname.replace('www.','');}catch(e){}
+            return '['+(i+1)+'] '+domain+'|||'+s.uri;
+          }).join('\n')
           :'';
         setMessages(m=>[...m,{role:'assistant',content:reply+sourceSuffix}]);
         if(!open) setUnread(true);
