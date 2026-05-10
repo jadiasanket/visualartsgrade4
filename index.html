@@ -6618,7 +6618,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           </div>
 
           {/* CHARACTER — absolute at bottom-left of card */}
-          {(characterVisible||editMode)&&(
+          {!flipped&&(characterVisible||editMode)&&(
           <div style={{position:'absolute',bottom:editMode?38:8,left:10,right:0,zIndex:14,
             pointerEvents:editMode?'auto':'none',
             opacity:characterVisible?1:0.3}}>
@@ -6639,7 +6639,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           )}
 
           {/* CHARACTER edit controls — size slider + hide toggle */}
-          {editMode&&(
+          {!flipped&&editMode&&(
           <div style={{position:'absolute',bottom:8,left:10,right:12,zIndex:15,
             display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:10,color:'rgba(255,255,255,0.7)',fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>SIZE</span>
@@ -8717,6 +8717,7 @@ function GalleryView(){
   const [lightbox,setLightbox]=React.useState(null);
   const [lbFullscreen,setLbFullscreen]=React.useState(false);
   const [metaVisible,setMetaVisible]=React.useState(true);
+  const [lbZoom,setLbZoom]=React.useState(1);
   const allLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color})));
   const artworkTags=getArtworkTags();
   const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
