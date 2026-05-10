@@ -6224,7 +6224,7 @@ function EnterSubPINModal({section,onSuccess,onClose}){
 
 
 // ── STUDENT NAME POPUP — school ID card design ──
-function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio}){
+function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio,isPortfolioOpen}){
   const obs=observations||[];
   const [flipped,setFlipped]=React.useState(false);
   const [profile,setProfile]=React.useState('');
@@ -6262,13 +6262,14 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   React.useEffect(()=>{
     function handleKey(e){
       if(editMode) return; // don't nav while editing
+      if(isPortfolioOpen) return; // portfolio handles its own arrow keys
       if(e.key==='ArrowLeft'&&onPrev){onPrev();}
       if(e.key==='ArrowRight'&&onNext){onNext();}
       if(e.key==='Escape'){onClose();}
     }
     window.addEventListener('keydown',handleKey);
     return()=>window.removeEventListener('keydown',handleKey);
-  },[onPrev,onNext,onClose,editMode]);
+  },[onPrev,onNext,onClose,editMode,isPortfolioOpen]);
 
   function saveEdits(){
     if(updateData){
@@ -6429,12 +6430,13 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           {/* ══ FRONT — ID Card ══ */}
           <div style={{
             position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
-            borderRadius:20,overflow:'hidden',
+            borderRadius:20,
             background:cardBg,
             border:'none',
             boxShadow:`0 0 0 1px rgba(${glowColor},0.7), 0 0 24px rgba(${glowColor},0.75), 0 0 60px rgba(${glowColor},0.45), 0 0 120px rgba(${glowColor},0.20), 0 8px 32px rgba(0,0,0,0.5)`,
             display:'flex',flexDirection:'column',
           }}>
+          <div style={{position:'absolute',inset:0,borderRadius:20,overflow:'hidden',display:'flex',flexDirection:'column'}}>
 
             {/* Top row: photo (absolute, overlaps) + info panel (fixed right) */}
             <div style={{position:'relative',flex:1,minHeight:0}}>
@@ -6654,6 +6656,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           </div>
           )}
 
+          </div>{/* end inner clip wrapper */}
           </div>{/* end front card */}
 
           {/* ══ BACK — Notes history + AI profile ══ */}
@@ -6900,11 +6903,11 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
           </div>
         ):(
           <div style={{flex:1,minHeight:0,display:'flex',overflow:'hidden'}}>
-            {/* LEFT — vertical thumbnail strip (67px wide items) */}
-            <div style={{width:87,flexShrink:0,display:'flex',flexDirection:'column',gap:5,padding:'8px 6px',overflowY:'auto',background:'var(--glass-bg)',borderRight:'1px solid var(--glass-border)'}}>
+            {/* LEFT — vertical thumbnail strip (82px wide items) */}
+            <div style={{width:100,flexShrink:0,display:'flex',flexDirection:'column',gap:5,padding:'8px 6px',overflowY:'auto',background:'var(--glass-bg)',borderRight:'1px solid var(--glass-border)'}}>
               {portfolio.map((item,i)=>(
                 <div key={i} onClick={()=>setActive(i)}
-                  style={{flexShrink:0,width:67,height:67,borderRadius:8,overflow:'hidden',cursor:'pointer',
+                  style={{flexShrink:0,width:82,height:82,borderRadius:8,overflow:'hidden',cursor:'pointer',
                     border:`2px solid ${i===active?'var(--teal)':'var(--glass-border)'}`,
                     opacity:i===active?1:0.5,transition:'all .15s',position:'relative'}}>
                   <img src={item.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
@@ -6912,7 +6915,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
                 </div>
               ))}
               {/* Add photo button in strip */}
-              <label style={{flexShrink:0,width:67,height:67,borderRadius:8,border:'2px dashed var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'var(--tx3)',fontSize:24,background:'var(--glass-bg)'}}>
+              <label style={{flexShrink:0,width:82,height:82,borderRadius:8,border:'2px dashed var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'var(--tx3)',fontSize:24,background:'var(--glass-bg)'}}>
                 +
                 <input type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleUpload} disabled={uploading}/>
               </label>
@@ -6957,9 +6960,8 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
                           background:(current.type||'artwork')==='documentation'?'rgba(155,127,232,0.18)':'var(--glass-bg)',
                           color:(current.type||'artwork')==='documentation'?'var(--violet)':'var(--tx3)',
                           transition:'color .15s,background .15s,border .15s'}}
-                        onMouseEnter={e=>{if((current.type||'artwork')!=='documentation'){e.currentTarget.style.color='rgba(155,127,232,0.6)';e.currentTarget.style.background='rgba(155,127,232,0.06)';}}}
-                        onMouseLeave={e=>{if((current.type||'artwork')!=='documentation'){e.currentTarget.style.color='var(--tx3)';e.currentTarget.style.background='var(--glass-bg)';}}}
-                      >
+                        onMouseEnter={e=>{if((current.type||'artwork')!=='documentation'){e.currentTarget.style.color='rgba(155,127,232,0.9)';e.currentTarget.style.background='rgba(155,127,232,0.13)';}}}
+                        onMouseLeave={e=>{if((current.type||'artwork')!=='documentation'){e.currentTarget.style.color='var(--tx3)';e.currentTarget.style.background='var(--glass-bg)';}}}                      >
                         Docs
                       </button>
                     </div>
@@ -6973,25 +6975,34 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
                       rows={3}
                       style={{width:'100%',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:8,color:'var(--tx)',fontSize:11,padding:'6px 8px',outline:'none',fontFamily:"'DM Sans',sans-serif",resize:'none',lineHeight:1.5}}/>
                   </div>
-                  {/* Lesson — dropdown (was Caption) */}
+                  {/* Lesson — dropdown */}
                   <div>
                     <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Lesson</div>
-                    <select value={(current.lessons&&current.lessons[0])||''} onChange={e=>{const v=e.target.value;updateField(active,'lessons',v?[Number(v)]:[]);}}
+                    <select
+                      value={(current.lessons&&current.lessons[0])?String(current.lessons[0]):(current.caption?'__caption__':'')}
+                      onChange={e=>{
+                        const v=e.target.value;
+                        if(v==='__add__'){
+                          const name=window.prompt('Enter manual lesson name:');
+                          if(name&&name.trim()){updateField(active,'caption',name.trim());updateField(active,'lessons',[]);}
+                        } else if(v==='__caption__'){
+                          // already selected, no-op
+                        } else if(v){
+                          updateField(active,'lessons',[Number(v)]);
+                          updateField(active,'caption','');
+                        } else {
+                          updateField(active,'lessons',[]);
+                          updateField(active,'caption','');
+                        }
+                      }}
                       style={{width:'100%',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:8,color:'var(--tx)',fontSize:11,padding:'5px 8px',outline:'none',fontFamily:"'DM Sans',sans-serif",cursor:'pointer'}}>
                       <option value="">— Select lesson —</option>
                       {allLessons.map(l=>(
-                        <option key={l.n} value={l.n}>L{l.n} · {l.title}</option>
+                        <option key={l.n} value={String(l.n)}>L{l.n} · {l.title}</option>
                       ))}
-                      {current.caption&&<option value="__manual__" disabled>* {current.caption}</option>}
+                      {current.caption&&<option value="__caption__">* {current.caption}</option>}
+                      <option value="__add__">+ Add manually…</option>
                     </select>
-                    {/* Manual lesson entry */}
-                    <div style={{marginTop:6}}>
-                      <input value={captionVal} onChange={e=>setCaptionVal(e.target.value)}
-                        onKeyDown={e=>{if(e.key==='Enter'&&captionVal.trim()){updateField(active,'caption',captionVal.trim());setCaptionVal('');}}}
-                        placeholder="+ Add manual lesson name…"
-                        style={{width:'100%',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:8,color:'var(--tx)',fontSize:10,padding:'4px 8px',outline:'none',fontFamily:"'DM Sans',sans-serif"}}/>
-                      {current.caption&&<div style={{marginTop:4,fontSize:9,color:'var(--tx3)',fontStyle:'italic'}}>* {current.caption}</div>}
-                    </div>
                   </div>
                   {/* Assessment — artwork only */}
                   {(current.type||'artwork')==='artwork'&&(
@@ -8642,6 +8653,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
           totalStudents={data.students.length}
           updateData={updateData}
           onOpenPortfolio={()=>{setPortfolioPopup(namePopup);}}
+          isPortfolioOpen={portfolioPopup!==null}
           onClose={()=>setNamePopup(null)}/>
       )}
       {portfolioPopup!==null&&teacherMode&&data.students[portfolioPopup]&&(
@@ -8794,11 +8806,14 @@ function GalleryView(){
         {/* ⚙ Filter button */}
         <div style={{position:'relative'}}>
           <button onClick={()=>setShowFilter(v=>!v)}
-            style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,padding:'6px 14px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+            style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,padding:'7px 16px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
               border:showFilter||activeFilterCount>0?'1px solid var(--violet)':'1px solid var(--glass-border)',
               background:showFilter||activeFilterCount>0?'rgba(155,127,232,0.15)':'var(--glass-bg)',
               color:activeFilterCount>0?'var(--violet)':'var(--tx2)'}}>
-            ⚙ Filter
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{flexShrink:0}}>
+              <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h11A1.5 1.5 0 0 1 15 2.5v1.5a1 1 0 0 1-.293.707L10 9.414V14a1 1 0 0 1-1.447.894l-2-1A1 1 0 0 1 6 13V9.414L1.293 4.707A1 1 0 0 1 1 4V2.5z"/>
+            </svg>
+            Filter
             {activeFilterCount>0&&<span style={{background:'var(--violet)',color:'#fff',borderRadius:'50%',fontSize:9,fontWeight:700,width:16,height:16,display:'inline-flex',alignItems:'center',justifyContent:'center'}}>{activeFilterCount}</span>}
           </button>
           {/* Filter popup */}
@@ -8913,71 +8928,71 @@ function GalleryView(){
         </div>
       )}
 
-      {/* iPhone-style Lightbox */}
+      {/* Lightbox — popup box, meta overlaid on image */}
       {lightbox&&ReactDOM.createPortal(
         (()=>{
           const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);
           return(
-            <div style={{position:'fixed',inset:0,zIndex:4000,background:'#000',display:'flex',alignItems:'center',justifyContent:'center'}}
-              onClick={()=>setMetaVisible(v=>!v)}>
-              {/* Full image */}
-              <img src={lightbox.url} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',userSelect:'none'}}
-                onClick={e=>e.stopPropagation()}/>
+            <div style={{position:'fixed',inset:0,zIndex:4000,background:'rgba(10,15,26,0.88)',backdropFilter:'blur(16px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
+              onClick={()=>setLightbox(null)}>
+              {/* Popup box */}
+              <div onClick={e=>e.stopPropagation()} style={{position:'relative',maxWidth:'min(820px,90vw)',maxHeight:'88vh',borderRadius:16,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.7)',background:'#000',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                {/* Image — click toggles meta */}
+                <img src={lightbox.url} alt=""
+                  style={{display:'block',maxWidth:'100%',maxHeight:'88vh',objectFit:'contain',cursor:'pointer',userSelect:'none'}}
+                  onClick={()=>setMetaVisible(v=>!v)}/>
 
-              {/* Top-right controls — always visible */}
-              <div style={{position:'absolute',top:16,right:16,display:'flex',gap:8,alignItems:'center'}} onClick={e=>e.stopPropagation()}>
-                <button onClick={()=>setMetaVisible(v=>!v)}
-                  style={{fontSize:10,fontWeight:700,padding:'5px 12px',borderRadius:8,background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.85)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",backdropFilter:'blur(8px)'}}>
-                  {metaVisible?'Hide Info':'Show Info'}
-                </button>
-                <button onClick={()=>{
-                  if(!lbFullscreen){
-                    document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();
-                  } else {
-                    document.exitFullscreen&&document.exitFullscreen();
-                  }
-                  setLbFullscreen(v=>!v);
-                }}
-                  style={{fontSize:16,padding:'4px 8px',borderRadius:8,background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.85)',cursor:'pointer',backdropFilter:'blur(8px)',lineHeight:1}}>&#x26F6;</button>
-                <button onClick={()=>setLightbox(null)}
-                  style={{fontSize:16,padding:'4px 8px',borderRadius:8,background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.85)',cursor:'pointer',backdropFilter:'blur(8px)',lineHeight:1}}>&#x2715;</button>
-              </div>
+                {/* Top-right controls — always visible */}
+                <div style={{position:'absolute',top:12,right:12,display:'flex',gap:6,alignItems:'center'}}>
+                  {/* ⓘ info icon */}
+                  <button onClick={()=>setMetaVisible(v=>!v)} title="Toggle info"
+                    style={{width:30,height:30,borderRadius:'50%',background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:metaVisible?'rgba(255,255,255,0.95)':'rgba(255,255,255,0.45)',cursor:'pointer',backdropFilter:'blur(8px)',fontSize:14,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'DM Sans',sans-serif",transition:'color .15s'}}>
+                    ⓘ
+                  </button>
+                  {/* Fullscreen */}
+                  <button onClick={()=>{
+                    if(!lbFullscreen){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}
+                    else{document.exitFullscreen&&document.exitFullscreen();}
+                    setLbFullscreen(v=>!v);
+                  }}
+                    style={{width:30,height:30,borderRadius:'50%',background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.85)',cursor:'pointer',backdropFilter:'blur(8px)',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>&#x26F6;</button>
+                  {/* Close */}
+                  <button onClick={()=>setLightbox(null)}
+                    style={{width:30,height:30,borderRadius:'50%',background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.85)',cursor:'pointer',backdropFilter:'blur(8px)',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>&#x2715;</button>
+                </div>
 
-              {/* Arrow nav — always visible */}
-              <div onClick={e=>e.stopPropagation()}>
-                {idx>0&&<button onClick={()=>setLightbox(filtered[idx-1])} style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8249;</button>}
-                {idx<filtered.length-1&&<button onClick={()=>setLightbox(filtered[idx+1])} style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
-              </div>
-
-              {/* Meta bar — slides in from bottom */}
-              <div onClick={e=>e.stopPropagation()} style={{position:'absolute',bottom:0,left:0,right:0,
-                background:'linear-gradient(to top, rgba(10,15,26,0.97) 0%, rgba(10,15,26,0.88) 80%, transparent 100%)',
-                backdropFilter:'blur(12px)',
-                padding:'32px 24px 24px',
-                transform:metaVisible?'translateY(0)':'translateY(100%)',
-                transition:'transform .35s cubic-bezier(.4,0,.2,1)',
-                pointerEvents:metaVisible?'auto':'none'}}>
-                <div style={{maxWidth:600,margin:'0 auto',display:'flex',flexDirection:'column',gap:8}}>
-                  <div style={{display:'flex',alignItems:'baseline',gap:10,flexWrap:'wrap'}}>
-                    <span style={{fontSize:16,fontWeight:700,fontFamily:"'Fraunces',serif",color:'#fff'}}>{lightbox.studentName}</span>
-                    <span style={{fontSize:11,color:'rgba(255,255,255,0.55)'}}>{lightbox.sectionName} · {lightbox.date}</span>
-                    <span style={{fontSize:9,fontWeight:700,padding:'2px 8px',borderRadius:8,background:(lightbox.type||'artwork')==='documentation'?'rgba(155,127,232,0.3)':'rgba(59,191,160,0.3)',color:(lightbox.type||'artwork')==='documentation'?'#c4a8f8':'#7ee8cb'}}>{(lightbox.type||'artwork')==='documentation'?'DOCS':'ARTWORK'}</span>
+                {/* Meta bar — overlaid on image, slides in from bottom */}
+                <div style={{position:'absolute',bottom:0,left:0,right:0,
+                  background:'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 60%, transparent 100%)',
+                  padding:'36px 18px 16px',
+                  transform:metaVisible?'translateY(0)':'translateY(100%)',
+                  transition:'transform .32s cubic-bezier(.4,0,.2,1)',
+                  pointerEvents:'none'}}>
+                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                      <span style={{fontSize:14,fontWeight:700,fontFamily:"'Fraunces',serif",color:'#fff'}}>{lightbox.studentName}</span>
+                      <span style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>{lightbox.sectionName} · {lightbox.date}</span>
+                      <span style={{fontSize:8,fontWeight:700,padding:'2px 7px',borderRadius:7,background:(lightbox.type||'artwork')==='documentation'?'rgba(155,127,232,0.35)':'rgba(59,191,160,0.35)',color:(lightbox.type||'artwork')==='documentation'?'#c4a8f8':'#7ee8cb'}}>{(lightbox.type||'artwork')==='documentation'?'DOCS':'ARTWORK'}</span>
+                    </div>
+                    {(lightbox.lessons||[]).length>0&&(
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                        {(lightbox.lessons||[]).map(ln=>{const l=allLessons.find(x=>x.n===ln);return<span key={ln} style={{fontSize:9,padding:'2px 7px',borderRadius:7,background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.18)',color:l?phaseColors[l.color]:'rgba(255,255,255,0.6)'}}>L{ln}{l?' · '+l.title.slice(0,14):''}</span>;})}
+                      </div>
+                    )}
+                    {(lightbox.artTags||[]).length>0&&(
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                        {(lightbox.artTags||[]).map(t=>{const td=artworkTags.find(x=>x.label===t);return<span key={t} style={{fontSize:9,padding:'2px 7px',borderRadius:7,background:'rgba(255,255,255,0.08)',border:`1px solid ${td?tagColors[td.color]:'rgba(255,255,255,0.18)'}`,color:td?tagColors[td.color]:'rgba(255,255,255,0.6)'}}>{t}</span>;})}
+                      </div>
+                    )}
+                    {lightbox.caption&&<div style={{fontSize:11,color:'rgba(255,255,255,0.65)',fontStyle:'italic'}}>"{lightbox.caption}"</div>}
+                    {lightbox.review&&<div style={{fontSize:10,color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>{lightbox.review}</div>}
                   </div>
-                  {(lightbox.lessons||[]).length>0&&(
-                    <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                      {(lightbox.lessons||[]).map(ln=>{const l=allLessons.find(x=>x.n===ln);return<span key={ln} style={{fontSize:9,padding:'2px 8px',borderRadius:8,background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',color:l?phaseColors[l.color]:'rgba(255,255,255,0.6)'}}>L{ln}{l?' · '+l.title.slice(0,12):''}</span>;})}
-                    </div>
-                  )}
-                  {(lightbox.artTags||[]).length>0&&(
-                    <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                      {(lightbox.artTags||[]).map(t=>{const td=artworkTags.find(x=>x.label===t);return<span key={t} style={{fontSize:9,padding:'2px 8px',borderRadius:8,background:'rgba(255,255,255,0.08)',border:`1px solid ${td?tagColors[td.color]:'rgba(255,255,255,0.2)'}`,color:td?tagColors[td.color]:'rgba(255,255,255,0.6)'}}>{t}</span>;})}
-                    </div>
-                  )}
-                  {lightbox.caption&&<div style={{fontSize:12,color:'rgba(255,255,255,0.7)',fontStyle:'italic'}}>"{lightbox.caption}"</div>}
-                  {lightbox.review&&<div style={{fontSize:11,color:'rgba(255,255,255,0.6)',lineHeight:1.6}}>{lightbox.review}</div>}
-                  <div style={{fontSize:9,color:'rgba(255,255,255,0.3)',marginTop:4}}>Tap photo to toggle info · Space bar · ← → navigate · Esc close</div>
                 </div>
               </div>
+
+              {/* Arrow nav — outside popup box */}
+              {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);}} style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8249;</button>}
+              {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);}} style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
             </div>
           );
         })(),
