@@ -4433,7 +4433,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
           {[{id:'annual',icon:IC.home,name:'Unit Overview'},
             {id:'months',icon:IC.calendar,name:'Monthly Summaries'},
             ...(!isVisitor?[{id:'notes',icon:IC.notes,name:'Unit Notes'}]:[]),
-            ...(!isVisitor?[{id:'gallery',icon:'🖼',name:'Gallery'}]:[])].map(item=>(
+            ...(!isVisitor?[{id:'gallery',icon:'🎨',name:'Gallery'}]:[])].map(item=>(
             <button key={item.id} className={`nb ${view===item.id?'active':''}`}
               title={collapsed?item.name:''}
               onClick={()=>onNav(item.id)}>
@@ -6592,6 +6592,14 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
               {/* Bottom button row */}
               <div style={{marginTop:10,display:'flex',gap:6,alignSelf:'flex-end',marginRight:-15}}>
+                <button onClick={()=>{if(typeof onOpenPortfolio==='function')onOpenPortfolio();}}
+                  title="Portfolio"
+                  style={{paddingInline:'10px',height:26,
+                    fontSize:13,fontWeight:400,
+                    borderRadius:13,border:'1px solid rgba(211,204,195,0.6)',background:'rgba(238,236,232,0.5)',
+                    color:'#b5a899',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  🎨
+                </button>
                 <button onClick={()=>setFlipped(true)}
                   style={{paddingInline:'14px 10px',height:26,
                     fontSize:11.5,fontWeight:400,
@@ -6599,14 +6607,6 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                     color:'#b5a899',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.04em',
                     display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}>
                   STUDENT PROFILE <span style={{fontSize:8}}>&#9654;</span>
-                </button>
-                <button onClick={()=>{if(typeof onOpenPortfolio==='function')onOpenPortfolio();}}
-                  title="Portfolio"
-                  style={{paddingInline:'10px',height:26,
-                    fontSize:13,fontWeight:400,
-                    borderRadius:13,border:'1px solid rgba(211,204,195,0.6)',background:'rgba(238,236,232,0.5)',
-                    color:'#b5a899',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                  🖼
                 </button>
               </div>
             </div>
@@ -6763,6 +6763,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   const [captionVal,setCaptionVal]=React.useState('');
   const [artworkTags,setArtworkTagsState]=React.useState(getArtworkTags);
   const [showAddArtTag,setShowAddArtTag]=React.useState(false);
+  const [editTagMode,setEditTagMode]=React.useState(false);
   const [newArtTagLabel,setNewArtTagLabel]=React.useState('');
   const [newArtTagColor,setNewArtTagColor]=React.useState('green');
   const fileInputRef=React.useRef(null);
@@ -6986,21 +6987,24 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
                       <div>
                         <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                           <span>Assessment</span>
-                          <button onClick={()=>setShowAddArtTag(v=>!v)} style={{fontSize:9,padding:'1px 7px',borderRadius:5,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>+ Tag</button>
+                          <button onClick={()=>{setEditTagMode(v=>!v);setShowAddArtTag(false);}}
+                            style={{fontSize:9,padding:'1px 7px',borderRadius:5,border:`1px solid ${editTagMode?'var(--coral)':'var(--glass-border)'}`,background:editTagMode?'rgba(232,112,90,0.1)':'var(--glass-bg)',color:editTagMode?'var(--coral)':'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                            {editTagMode?'Done':'± Edit'}
+                          </button>
                         </div>
-                        {showAddArtTag&&(
+                        {editTagMode&&(
                           <div style={{marginBottom:8,display:'flex',flexDirection:'column',gap:5}}>
-                            <input value={newArtTagLabel} onChange={e=>setNewArtTagLabel(e.target.value)} placeholder="Tag name"
+                            <input value={newArtTagLabel} onChange={e=>setNewArtTagLabel(e.target.value)} placeholder="New tag name"
                               style={{fontSize:10,padding:'4px 8px',borderRadius:6,border:'1px solid var(--glass-border)',background:'var(--glass-bg2)',color:'var(--tx)',outline:'none',fontFamily:"'DM Sans',sans-serif"}}/>
                             <div style={{display:'flex',gap:4}}>
                               {['green','yellow','red'].map(c=>(
                                 <button key={c} onClick={()=>setNewArtTagColor(c)}
-                                  style={{flex:1,fontSize:9,padding:'3px 0',borderRadius:5,cursor:'pointer',border:newArtTagColor===c?`1px solid ${tagColors[c].cl}`:' 1px solid var(--glass-border)',background:newArtTagColor===c?tagColors[c].bg:'var(--glass-bg)',color:tagColors[c].cl,fontFamily:"'DM Sans',sans-serif"}}>
+                                  style={{flex:1,fontSize:9,padding:'3px 0',borderRadius:5,cursor:'pointer',border:newArtTagColor===c?`1px solid ${tagColors[c].cl}`:'1px solid var(--glass-border)',background:newArtTagColor===c?tagColors[c].bg:'var(--glass-bg)',color:tagColors[c].cl,fontFamily:"'DM Sans',sans-serif",fontWeight:newArtTagColor===c?700:400}}>
                                   {c}
                                 </button>
                               ))}
                             </div>
-                            <button onClick={addArtworkTag} style={{fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:6,border:'1px solid #22c55e',background:'rgba(34,197,94,0.1)',color:'#16a34a',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Add</button>
+                            <button onClick={addArtworkTag} style={{fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:6,border:'1px solid #22c55e',background:'rgba(34,197,94,0.1)',color:'#16a34a',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>+ Add Tag</button>
                           </div>
                         )}
                         <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
@@ -7008,15 +7012,18 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
                             const sel=(current.artTags||[]).includes(t.label);
                             const tc=tagColors[t.color]||tagColors.yellow;
                             return(
-                              <div key={t.label} style={{display:'flex',alignItems:'center',gap:1}}>
-                                <button onClick={()=>toggleArtTag(active,t.label)}
-                                  style={{fontSize:9,padding:'3px 7px',borderRadius:6,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:sel?700:400,
-                                    border:sel?`1px solid ${tc.cl}`:' 1px solid var(--glass-border)',
-                                    background:sel?tc.bg:'var(--glass-bg)',
-                                    color:sel?tc.cl:'var(--tx3)'}}>
+                              <div key={t.label} style={{display:'flex',alignItems:'center',gap:2}}>
+                                <button onClick={()=>!editTagMode&&toggleArtTag(active,t.label)}
+                                  style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:editTagMode?'default':'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,
+                                    border:`1px solid ${tc.cl}`,
+                                    background:sel?tc.bg:'transparent',
+                                    color:tc.cl,
+                                    opacity:editTagMode?0.6:1,
+                                    boxShadow:sel&&!editTagMode?`0 0 8px ${tc.bg}`:'none',
+                                    transition:'all .15s'}}>
                                   {t.label}
                                 </button>
-                                <button onClick={()=>deleteArtworkTag(t.label)} style={{fontSize:8,color:'var(--tx3)',background:'none',border:'none',cursor:'pointer',padding:'0 2px',lineHeight:1,opacity:0.5}}>&#x2715;</button>
+                                {editTagMode&&<button onClick={()=>deleteArtworkTag(t.label)} style={{fontSize:8,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',padding:'0 2px',lineHeight:1}}>✕</button>}
                               </div>
                             );
                           })}
