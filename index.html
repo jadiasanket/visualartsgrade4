@@ -6227,6 +6227,15 @@ function EnterSubPINModal({section,onSuccess,onClose}){
 function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio,isPortfolioOpen}){
   const obs=observations||[];
   const [flipped,setFlipped]=React.useState(false);
+  const [flipping,setFlipping]=React.useState(false);
+  const [showBack,setShowBack]=React.useState(false);
+  const profile_flip_timer=React.useRef(null);
+  function doFlip(toBack){
+    setFlipping(true);
+    clearTimeout(profile_flip_timer.current);
+    profile_flip_timer.current=setTimeout(()=>{setShowBack(toBack);setFlipping(false);},200);
+    setFlipped(toBack);
+  }
   const [profile,setProfile]=React.useState('');
   const [loading,setLoading]=React.useState(false);
   const [editMode,setEditMode]=React.useState(false);
@@ -6423,22 +6432,17 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           </div>
         </div>
 
-        {/* Flip container — 3D flip animation */}
-        <div style={{perspective:'1200px',width:'100%',height:375}}>
-        <div style={{position:'relative',width:'100%',height:'100%',transformStyle:'preserve-3d',transition:'transform .55s cubic-bezier(.4,0,.2,1)',transform:flipped?'rotateY(180deg)':'rotateY(0deg)'}}>
+        {/* Flip container — scaleX squeeze animation, one face at a time */}
+        <div style={{width:'100%',height:375,position:'relative',
+          transform:flipping?'scaleX(0)':'scaleX(1)',
+          transition:'transform 0.2s ease-in-out',
+          borderRadius:20,overflow:'hidden',
+          background:showBack?cardBg:cardBg,
+          boxShadow:`0 0 0 1px rgba(${glowColor},0.7), 0 0 24px rgba(${glowColor},0.75), 0 0 60px rgba(${glowColor},0.45), 0 0 120px rgba(${glowColor},0.20), 0 8px 32px rgba(0,0,0,0.5)`,
+        }}>
 
           {/* ══ FRONT — ID Card ══ */}
-          {/* IMPORTANT: overflow:hidden and borderRadius are on the INNER wrapper, NOT the face div.
-              Having overflow:hidden on the same div as backfaceVisibility:hidden cancels it in all browsers. */}
-          <div style={{
-            position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
-            background:cardBg,
-            border:'none',
-            boxShadow:`0 0 0 1px rgba(${glowColor},0.7), 0 0 24px rgba(${glowColor},0.75), 0 0 60px rgba(${glowColor},0.45), 0 0 120px rgba(${glowColor},0.20), 0 8px 32px rgba(0,0,0,0.5)`,
-            borderRadius:20,
-          }}>
-          {/* Inner clip wrapper — handles overflow+borderRadius without touching backfaceVisibility */}
-          <div style={{position:'absolute',inset:0,borderRadius:20,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+          {!showBack&&<div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column'}}>
 
             {/* Top row: photo (absolute, overlaps) + info panel (fixed right) */}
             <div style={{position:'relative',flex:1,minHeight:0}}>
@@ -6605,7 +6609,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                     color:'#b5a899',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
                   🎨
                 </button>
-                <button onClick={()=>setFlipped(true)}
+                <button onClick={()=>doFlip(true)}
                   style={{paddingInline:'14px 10px',height:26,
                     fontSize:11.5,fontWeight:400,
                     borderRadius:13,border:'1px solid rgba(211,204,195,0.6)',background:'rgba(238,236,232,0.5)',
@@ -6656,26 +6660,16 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           </div>
           )}
 
-          </div>{/* end inner clip wrapper */}
-          </div>{/* end front face — backfaceVisibility:hidden lives here, NOT on inner wrapper */}
+          </div>}{/* end front face */}
 
           {/* ══ BACK — Notes history + AI profile ══ */}
-          {/* Same pattern: overflow:hidden on inner wrapper only, NOT on face div */}
-          <div style={{
-            position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
-            transform:'rotateY(180deg)',
-            background:cardBg,
-            border:'none',
-            boxShadow:`0 0 0 1px rgba(${glowColor},0.7), 0 0 24px rgba(${glowColor},0.75), 0 0 60px rgba(${glowColor},0.45), 0 8px 32px rgba(0,0,0,0.5)`,
-            borderRadius:20,
-          }}>
-          <div style={{position:'absolute',inset:0,borderRadius:20,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+          {showBack&&<div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderBottom:'1px solid rgba(0,0,0,0.1)',flexShrink:0,background:'rgba(255,255,255,0.25)'}}>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
                 <span style={{fontFamily:"'Fraunces',serif",fontSize:13,fontWeight:700,color:'#1a1a2e'}}>{student.name}</span>
                 <span style={{fontSize:9,color:'#6b6560'}}>· {obs.length} obs</span>
               </div>
-              <button onClick={()=>setFlipped(false)}
+              <button onClick={()=>doFlip(false)}
                 style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:8,border:'1px solid rgba(0,0,0,0.15)',background:'rgba(255,255,255,0.4)',color:'#4a4540',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
                 &#8249; ID Card
               </button>
@@ -6720,11 +6714,9 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                 ))
               }
             </div>
-          </div>{/* end back inner clip wrapper */}
-          </div>{/* end back face */}
+          </div>}{/* end back face */}
 
-        </div>{/* end preserve-3d container */}
-        </div>{/* end perspective wrapper */}
+        </div>{/* end flip container */}
       </div>
     </div>
   );
@@ -9020,12 +9012,12 @@ function GalleryView(){
       {/* Fullscreen zoom overlay */}
       {lbFullscreen&&lightbox&&ReactDOM.createPortal(
         <div style={{position:'fixed',inset:0,zIndex:9999,background:'#000',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'default'}}
-          onClick={()=>{if(!lbDragging){setLbFullscreen(false);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}}
-          onWheel={e=>{e.preventDefault();setLbZoom(z=>{const next=Math.min(4,Math.max(1,+(z-(e.deltaY>0?0.05:-0.05)).toFixed(2)));if(next===1){setLbPanX(0);setLbPanY(0);}return next;});}}
-          onMouseDown={e=>{if(lbZoom>1){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY};}}}
-          onMouseMove={e=>{if(!lbDragging||!lbDragStart.current) return;setLbPanX(e.clientX-lbDragStart.current.x);setLbPanY(e.clientY-lbDragStart.current.y);}}
-          onMouseUp={()=>setLbDragging(false)}
-          onMouseLeave={()=>setLbDragging(false)}
+          onClick={e=>{if(lbDragStart.current&&lbDragStart.current.moved) return;setLbFullscreen(false);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+          onWheel={e=>{e.preventDefault();setLbZoom(z=>{const next=+(Math.min(4,Math.max(1,z-(e.deltaY>0?0.05:-0.05))).toFixed(2));if(next===1){setLbPanX(0);setLbPanY(0);}return next;});}}
+          onMouseDown={e=>{if(lbZoom>1){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY,moved:false};}else{lbDragStart.current=null;}}}
+          onMouseMove={e=>{if(!lbDragging||!lbDragStart.current) return;const dx=e.clientX-lbDragStart.current.x-lbPanX,dy=e.clientY-lbDragStart.current.y-lbPanY;if(Math.abs(dx)>3||Math.abs(dy)>3) lbDragStart.current.moved=true;setLbPanX(e.clientX-lbDragStart.current.x);setLbPanY(e.clientY-lbDragStart.current.y);}}
+          onMouseUp={()=>{setLbDragging(false);setTimeout(()=>{if(lbDragStart.current) lbDragStart.current.moved=false;},50);}}
+          onMouseLeave={()=>{setLbDragging(false);}}
         >
           <img src={lightbox.url} alt=""
             draggable={false}
