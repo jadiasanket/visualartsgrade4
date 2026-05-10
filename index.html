@@ -5720,6 +5720,7 @@ function generateUnitPlanPDF(){
 // ── SUB PIN SYSTEM ──
 // ── GEMINI API KEY ──
 function getGeminiKey(){return 'AIzaSyBJzXjg5ITWpyg1quT29M2OWDhtYpCPyp4';}
+function getDefaultModel(){return 'gemini-2.5-flash';}
 function saveGeminiKey(k){try{localStorage.setItem('g4-gemini-key',k);}catch{}}
 // Legacy compat — profile generator still uses this
 function getAnthropicKey(){return getGeminiKey();}
@@ -5823,7 +5824,7 @@ function AIChatbot({phases,sections,teacherMode,currentView,currentPhase,current
   const [unread,setUnread]=React.useState(false);
   const [pos,setPos]=React.useState({x:null,y:null});
   const [size,setSize]=React.useState({w:380,h:500});
-  const [model,setModel]=React.useState('gemini-2.5-pro');
+  const [model,setModel]=React.useState('gemini-2.5-flash');
   const [liveData,setLiveData]=React.useState(null);
   const [dataLoading,setDataLoading]=React.useState(false);
   const popupRef=React.useRef(null);
@@ -6048,7 +6049,7 @@ RESPONSE STYLE — VERY IMPORTANT:
             </div>
             {/* Model switcher */}
             <div className="ai-no-drag" style={{display:'flex',gap:3,marginRight:6}}>
-              {[{id:'gemini-2.0-flash-lite',label:'⚡ Flash'},{id:'gemini-2.5-pro',label:'🧠 Pro'}].map(m=>(
+              {[{id:'gemini-2.5-flash',label:'⚡ Flash'},{id:'gemini-2.5-pro',label:'🧠 Pro'}].map(m=>(
                 <button key={m.id} onClick={()=>setModel(m.id)}
                   className="ai-no-drag"
                   style={{fontSize:9,fontWeight:700,padding:'3px 7px',borderRadius:6,cursor:'pointer',
@@ -6390,10 +6391,10 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
     const prompt=`You are a warm, encouraging art teacher writing a brief student profile for a Grade 4 student. Tone: supportive, positive, growth-focused. Mention concerns very gently as areas of growth, never harshly.\n\nStudent: ${student.name}\nAttendance: ${attendanceCount}/${totalSessions} sessions\nPositive signals: ${thumbsUp} thumbs up, ${thumbsDown} thumbs down\nTop observed traits: ${topTags.join(', ')||'Not enough data yet'}\nEscalation incidents: ${escalations}\nRecent teacher notes: ${notes.slice(-3).join(' | ')||'None recorded'}\n\nWrite 3-4 sentences. Start with a genuine strength. Mention attendance naturally. If concerns exist, frame as growth opportunities. End encouragingly.`;
     try{
       const gKey=getGeminiKey();
-      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${gKey}`,{
+      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${gKey}`,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:500,thinkingConfig:{thinkingBudget:0}}})
+        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:2000}})
       });
       const data=await res.json();
       const text=data.candidates?.[0]?.content?.parts?.[0]?.text;
