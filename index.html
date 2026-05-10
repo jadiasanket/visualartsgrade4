@@ -5719,7 +5719,7 @@ function generateUnitPlanPDF(){
 
 // ── SUB PIN SYSTEM ──
 // ── GEMINI API KEY ──
-function getGeminiKey(){return 'AIzaSyAoe0Q8GfDk2oCcaA67CLvqpJ4Qmf8aoR0';}
+function getGeminiKey(){return 'AIzaSyA2dUPCoISKp0fufHKmwexmal_Injtxy4I';}
 function getDefaultModel(){return 'gemini-2.5-flash';}
 function saveGeminiKey(k){try{localStorage.setItem('g4-gemini-key',k);}catch{}}
 // Legacy compat — profile generator still uses this
@@ -5801,8 +5801,8 @@ function renderMarkdown(text, onJump){
           {srcs.map((s,j)=>{
             const m=s.match(/^\[(\d+)\] (.+?)\|\|\|(.+)$/);
             if(!m) return <div key={j}>{s}</div>;
-            const[,num,domain,url]=m;
-            return<div key={j} style={{marginBottom:3}}><span style={{color:'var(--violet)',fontWeight:700,marginRight:4}}>[{num}]</span><a href={url} target="_blank" rel="noreferrer" onClick={e=>{e.preventDefault();window.open(url,'_blank');}} style={{color:'var(--teal)',textDecoration:'none',cursor:'pointer'}}>{domain}</a></div>;
+            const[,num,label,url]=m;
+            return<div key={j} style={{marginBottom:3}}><span style={{color:'var(--violet)',fontWeight:700,marginRight:4}}>[{num}]</span><a href={url} target="_blank" rel="noreferrer" onClick={e=>{e.preventDefault();window.open(url,'_blank');}} style={{color:'var(--teal)',textDecoration:'none',cursor:'pointer'}}>{label}</a></div>;
           })}
         </div>
       );
@@ -5817,19 +5817,24 @@ function renderMarkdown(text, onJump){
 
 // Inline formatting — bold, italic, code
 function inlineFormat(text){
-  // Split on **bold**, *italic*, `code`
+  if(!text||typeof text!=='string') return text;
+  // Split on [text](url), **bold**, *italic*, `code`
   const parts=[];
-  const regex=/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+  const regex=/(\[[^\]]+\]\(https?:\/\/[^)]+\)|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
   let last=0,m,idx=0;
   while((m=regex.exec(text))!==null){
     if(m.index>last) parts.push(<span key={idx++}>{text.slice(last,m.index)}</span>);
     const raw=m[0];
-    if(raw.startsWith('**')) parts.push(<strong key={idx++} style={{fontWeight:700,color:'var(--tx)'}}>{raw.slice(2,-2)}</strong>);
+    if(raw.startsWith('[')){ // markdown link [label](url)
+      const lm=raw.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/);
+      if(lm) parts.push(<a key={idx++} href={lm[2]} target="_blank" rel="noreferrer" onClick={e=>{e.preventDefault();window.open(lm[2],'_blank');}} style={{color:'var(--teal)',textDecoration:'underline',cursor:'pointer'}}>{lm[1]}</a>);
+      else parts.push(<span key={idx++}>{raw}</span>);
+    } else if(raw.startsWith('**')) parts.push(<strong key={idx++} style={{fontWeight:700,color:'var(--tx)'}}>{raw.slice(2,-2)}</strong>);
     else if(raw.startsWith('*')) parts.push(<em key={idx++} style={{fontStyle:'italic'}}>{raw.slice(1,-1)}</em>);
     else parts.push(<code key={idx++} style={{fontFamily:"'DM Mono',monospace",fontSize:'0.9em',background:'rgba(155,127,232,0.15)',borderRadius:3,padding:'1px 4px'}}>{raw.slice(1,-1)}</code>);
     last=m.index+raw.length;
   }
-  if(last<text.length) parts.push(<span key={idx++}>{inlineFormat(text.slice(last))}</span>);
+  if(last<text.length) parts.push(<span key={idx++}>{text.slice(last)}</span>);
   return parts.length>0?parts:text;
 }
 
@@ -5859,7 +5864,7 @@ function inlineWithJumps(text, onJump){
     );
     last=m.index+label.length;
   }
-  if(last<text.length) parts.push(<span key={idx++}>{text.slice(last)}</span>);
+  if(last<text.length) parts.push(<span key={idx++}>{inlineFormat(text.slice(last))}</span>);
   return parts.length>0?parts:text;
 }
 
@@ -6076,8 +6081,9 @@ RESPONSE STYLE — VERY IMPORTANT:
         const sourceSuffix=sources.length>0
           ?'\n\n__sources__'+sources.map((s,i)=>{
             let domain=s.uri;
-            try{domain=new URL(s.uri).hostname.replace('www.','');}catch(e){}
-            return '['+(i+1)+'] '+domain+'|||'+s.uri;
+            try{const u=new URL(s.uri);domain=u.hostname.replace(/^www\./,'');}catch(e){}
+            const label=s.title&&s.title.length<40?s.title:domain;
+            return '['+(i+1)+'] '+label+'|||'+s.uri;
           }).join('\n')
           :'';
         setMessages(m=>[...m,{role:'assistant',content:reply+sourceSuffix}]);
