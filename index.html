@@ -6423,22 +6423,20 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           </div>
         </div>
 
-        {/* Card container — crossfade instead of 3D flip (more reliable cross-browser) */}
-        <div style={{position:'relative',width:'100%',height:375}}>
+        {/* Flip container */}
+        <div style={{perspective:'1200px',width:'100%',height:375}}>
+        <div style={{position:'relative',width:'100%',height:'100%',transformStyle:'preserve-3d',transition:'transform .6s cubic-bezier(.4,0,.2,1)',transform:flipped?'rotateY(180deg)':'rotateY(0deg)'}}>
 
           {/* ══ FRONT — ID Card ══ */}
           <div style={{
-            position:'absolute',inset:0,
-            borderRadius:20,overflow:'hidden',
+            position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
+            borderRadius:20,
             background:cardBg,
             border:'none',
             boxShadow:`0 0 0 1px rgba(${glowColor},0.7), 0 0 24px rgba(${glowColor},0.75), 0 0 60px rgba(${glowColor},0.45), 0 0 120px rgba(${glowColor},0.20), 0 8px 32px rgba(0,0,0,0.5)`,
             display:'flex',flexDirection:'column',
-            opacity:flipped?0:1,
-            pointerEvents:flipped?'none':'auto',
-            transition:'opacity .35s ease',
-            zIndex:flipped?0:2,
           }}>
+          <div style={{position:'absolute',inset:0,borderRadius:20,overflow:'hidden',display:'flex',flexDirection:'column'}}>
 
             {/* Top row: photo (absolute, overlaps) + info panel (fixed right) */}
             <div style={{position:'relative',flex:1,minHeight:0}}>
@@ -6656,20 +6654,18 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           </div>
           )}
 
+          </div>{/* end inner clip wrapper */}
           </div>{/* end front card */}
 
           {/* ══ BACK — Notes history + AI profile ══ */}
           <div style={{
-            position:'absolute',inset:0,
-            borderRadius:20,overflow:'hidden',
+            position:'absolute',inset:0,backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',
+            transform:'rotateY(180deg)',
+            borderRadius:20,
             background:'var(--popup-bg)',
             border:'1px solid var(--glass-border2)',
             boxShadow:'var(--glass-shadow2)',
             display:'flex',flexDirection:'column',
-            opacity:flipped?1:0,
-            pointerEvents:flipped?'auto':'none',
-            transition:'opacity .35s ease',
-            zIndex:flipped?2:0,
           }}>
           <div style={{position:'absolute',inset:0,borderRadius:20,overflow:'hidden',display:'flex',flexDirection:'column'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderBottom:'1px solid var(--glass-border)',flexShrink:0,background:'var(--glass-bg)'}}>
@@ -6724,9 +6720,9 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
             </div>
           </div>
           </div>{/* end back inner clip wrapper */}
-          </div>{/* end back card */}
 
-        </div>{/* end card container */}
+        </div>
+        </div>{/* end perspective wrapper */}
       </div>
     </div>
   );
