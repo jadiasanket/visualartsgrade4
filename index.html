@@ -5719,7 +5719,7 @@ function generateUnitPlanPDF(){
 
 // ── SUB PIN SYSTEM ──
 // ── GEMINI API KEY ──
-function getGeminiKey(){return 'XYZ123';}
+function getGeminiKey(){return 'AIzaSyD3Xa8UBaRVN9zSgJeJurl_1UpPZN7Ycfo';}
 function getDefaultModel(){return 'gemini-2.5-flash';}
 function saveGeminiKey(k){try{localStorage.setItem('g4-gemini-key',k);}catch{}}
 // Legacy compat — profile generator still uses this
@@ -7285,6 +7285,19 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   const [editCaption,setEditCaption]=React.useState(null);
   const [photoEditorOpen,setPhotoEditorOpen]=React.useState(false);
   const [photoEditorUploading,setPhotoEditorUploading]=React.useState(false);
+
+  async function handlePhotoEdit(blob){
+    setPhotoEditorUploading(true);
+    try{
+      const ts=Date.now();
+      const ref=window._storage.ref('portfolio/'+sectionId+'/'+studentIdx+'/edited_'+ts+'.jpg');
+      await ref.put(blob,{contentType:'image/jpeg'});
+      const url=await ref.getDownloadURL();
+      updateData(d=>{if(d.students[studentIdx].portfolio[active]) d.students[studentIdx].portfolio[active].url=url;});
+      setPhotoEditorOpen(false);
+    }catch(err){alert('Save failed: '+err.message);}
+    setPhotoEditorUploading(false);
+  }
   const [captionVal,setCaptionVal]=React.useState('');
   const [artworkTags,setArtworkTagsState]=React.useState(getArtworkTags);
   const [showAddArtTag,setShowAddArtTag]=React.useState(false);
