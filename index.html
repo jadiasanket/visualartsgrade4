@@ -5719,14 +5719,14 @@ function generateUnitPlanPDF(){
 
 // ── SUB PIN SYSTEM ──
 // ── GEMINI API KEY ──
-function getGeminiKey(){return 'AIzaSyA2dUPCoISKp0fufHKmwexmal_Injtxy4I';}
+function getGeminiKey(){return 'AIzaSyAoe0Q8GfDk2oCcaA67CLvqpJ4Qmf8aoR0';}
 function getDefaultModel(){return 'gemini-2.5-flash';}
 function saveGeminiKey(k){try{localStorage.setItem('g4-gemini-key',k);}catch{}}
 // Legacy compat — profile generator still uses this
 function getAnthropicKey(){return getGeminiKey();}
 
 // ── RENDER MARKDOWN — converts AI markdown to clean styled HTML ──
-function renderMarkdown(text){
+function renderMarkdown(text, onJump){
   if(!text) return null;
   const lines=text.split('\n');
   const elements=[];
@@ -5756,7 +5756,7 @@ function renderMarkdown(text){
       while(i<lines.length&&lines[i].match(/^[\-\*] /)){
         bullets.push(<div key={i} style={{display:'flex',gap:7,marginBottom:3}}>
           <span style={{color:'var(--violet)',flexShrink:0,marginTop:1}}>◆</span>
-          <span>{inlineFormat(lines[i].slice(2))}</span>
+          <span>{onJump?inlineWithJumps(lines[i].slice(2),onJump):inlineFormat(lines[i].slice(2))}</span>
         </div>);
         i++;
       }
@@ -5790,8 +5790,25 @@ function renderMarkdown(text){
       elements.push(<hr key={i} style={{border:'none',borderTop:'1px solid var(--glass-border)',margin:'8px 0'}}/>);
       i++;continue;
     }
+    // Grounding sources block
+    if(line.startsWith('__sources__')){
+      i++;
+      const srcs=[];
+      while(i<lines.length&&lines[i].match(/^\[\d+\]/)){srcs.push(lines[i]);i++;}
+      elements.push(
+        <div key={'src'+i} style={{marginTop:10,padding:'7px 10px',borderRadius:8,background:'rgba(255,255,255,0.05)',border:'1px solid var(--glass-border)',fontSize:10,color:'var(--tx3)'}}>
+          <div style={{fontWeight:700,marginBottom:4,color:'var(--tx2)',letterSpacing:'.04em',fontSize:9,textTransform:'uppercase'}}>🌐 Sources</div>
+          {srcs.map((s,j)=>{
+            const m=s.match(/^\[(\d+)\] (.+?) — (.+)$/);
+            if(!m) return <div key={j}>{s}</div>;
+            return<div key={j} style={{marginBottom:3}}><span style={{color:'var(--violet)',fontWeight:700,marginRight:4}}>[{m[1]}]</span><a href={m[3]} target="_blank" rel="noreferrer" style={{color:'var(--teal)',textDecoration:'none',wordBreak:'break-all'}}>{m[2]}</a></div>;
+          })}
+        </div>
+      );
+      continue;
+    }
     // Normal paragraph
-    elements.push(<div key={i} style={{marginBottom:4,lineHeight:1.6}}>{inlineFormat(line)}</div>);
+    elements.push(<div key={i} style={{marginBottom:4,lineHeight:1.6}}>{onJump?inlineWithJumps(line,onJump):inlineFormat(line)}</div>);
     i++;
   }
   return elements;
@@ -5815,6 +5832,36 @@ function inlineFormat(text){
   return parts.length>0?parts:text;
 }
 
+// ── JUMP LINK RENDERER — wraps Lesson N / Wave N in tappable chips ──
+function inlineWithJumps(text, onJump){
+  if(!text) return text;
+  // Match "Lesson 1-14" or "Wave 1/2/3" (case-insensitive)
+  const regex=/(Lesson\s+(\d+)|Wave\s+([123]))/gi;
+  const parts=[];
+  let last=0, m, idx=0;
+  while((m=regex.exec(text))!==null){
+    if(m.index>last) parts.push(<span key={idx++}>{text.slice(last,m.index)}</span>);
+    const label=m[0];
+    const isLesson=!!m[2];
+    const num=isLesson?parseInt(m[2]):parseInt(m[3]);
+    parts.push(
+      <span key={idx++}
+        onClick={()=>onJump&&onJump(isLesson?'lesson':'wave',num)}
+        style={{display:'inline-block',padding:'0 5px',borderRadius:5,fontSize:'0.9em',fontWeight:700,
+          background:isLesson?'rgba(59,191,160,0.15)':'rgba(155,127,232,0.15)',
+          border:isLesson?'1px solid rgba(59,191,160,0.35)':'1px solid rgba(155,127,232,0.35)',
+          color:isLesson?'var(--teal)':'var(--violet)',cursor:'pointer',lineHeight:1.6,
+          textDecoration:'none',userSelect:'none',margin:'0 1px'}}
+        title={isLesson?`Go to Lesson ${num}`:`Go to Wave ${num}`}>
+        {label}
+      </span>
+    );
+    last=m.index+label.length;
+  }
+  if(last<text.length) parts.push(<span key={idx++}>{text.slice(last)}</span>);
+  return parts.length>0?parts:text;
+}
+
 // ── AI CHATBOT COMPONENT ──
 function AIChatbot({phases,sections,teacherMode,currentView,currentPhase,currentSection}){
   const [open,setOpen]=React.useState(false);
@@ -5825,6 +5872,18 @@ function AIChatbot({phases,sections,teacherMode,currentView,currentPhase,current
   const [pos,setPos]=React.useState({x:null,y:null});
   const [size,setSize]=React.useState({w:380,h:500});
   const [model,setModel]=React.useState('gemini-2.5-flash');
+
+  function handleJump(type,num){
+    // Build a navigation message as if the user typed it
+    if(type==='lesson'){
+      const allLessons=phases.flatMap(p=>p.sessions);
+      const sess=allLessons.find(s=>s.n===num);
+      if(sess&&window.sendPrompt) window.sendPrompt('Go to Lesson '+num+': '+sess.title);
+    } else {
+      const wave=phases.find((p,i)=>i+1===num);
+      if(wave&&window.sendPrompt) window.sendPrompt('Show me Wave '+num+': '+wave.name);
+    }
+  }
   const [liveData,setLiveData]=React.useState(null);
   const [dataLoading,setDataLoading]=React.useState(false);
   const popupRef=React.useRef(null);
@@ -5997,6 +6056,7 @@ RESPONSE STYLE — VERY IMPORTANT:
         body:JSON.stringify({
           systemInstruction:{parts:[{text:buildSystemPrompt()}]},
           contents,
+          tools:[{google_search:{}}],
           generationConfig:{maxOutputTokens:1500,temperature:0.7}
         })
       });
@@ -6004,8 +6064,18 @@ RESPONSE STYLE — VERY IMPORTANT:
       if(data.error){
         setMessages(m=>[...m,{role:'assistant',content:`Error: ${data.error.message||'API call failed.'}`}]);
       } else {
-        const reply=data.candidates?.[0]?.content?.parts?.[0]?.text||'No response.';
-        setMessages(m=>[...m,{role:'assistant',content:reply}]);
+        const parts=data.candidates?.[0]?.content?.parts||[];
+        const reply=parts.map(p=>p.text||'').join('')||'No response.';
+        // Extract grounding sources if present
+        const groundingMeta=data.candidates?.[0]?.groundingMetadata;
+        const sources=(groundingMeta?.groundingChunks||[])
+          .map(c=>c.web).filter(Boolean)
+          .filter((s,i,arr)=>arr.findIndex(x=>x.uri===s.uri)===i)// dedupe
+          .slice(0,4);
+        const sourceSuffix=sources.length>0
+          ?'\n\n__sources__'+sources.map((s,i)=>'['+(i+1)+'] '+(s.title||s.uri)+' - '+s.uri).join('\n')
+          :'';
+        setMessages(m=>[...m,{role:'assistant',content:reply+sourceSuffix}]);
         if(!open) setUnread(true);
       }
     }catch(err){
@@ -6094,7 +6164,7 @@ RESPONSE STYLE — VERY IMPORTANT:
             )}
             {messages.map((m,i)=>(
               <div key={i} className={`ai-msg ${m.role==='user'?'user':'assistant'}`}>
-                {m.role==='assistant'?renderMarkdown(m.content):m.content}
+                {m.role==='assistant'?renderMarkdown(m.content,handleJump):m.content}
               </div>
             ))}
             {loading&&(
@@ -6744,7 +6814,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                       <div style={{display:'flex',flexDirection:'column',gap:4}}>
                         {dateMap[date].map(({o,realIdx})=>(
                           o.type==='ai-profile'?(
-                            <div key={realIdx} style={{position:'relative',flexShrink:0,background:'rgba(59,191,160,0.07)',borderRadius:8,padding:'6px 10px',border:'1px solid rgba(59,191,160,0.2)'}}>
+                            <div key={realIdx} style={{position:'relative',flexShrink:0,background:'rgba(59,191,160,0.14)',borderRadius:8,padding:'6px 10px',border:'1px solid rgba(59,191,160,0.35)'}}>
                               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
                                 <span style={{fontSize:9,fontWeight:700,color:'#0d7a60',letterSpacing:'.05em'}}>✨ AI Profile</span>
                                 <button onClick={()=>onDeleteObs(realIdx)}
@@ -8396,8 +8466,8 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                             }}
                             title={teacherMode&&editMode&&!sess.linkedSession&&sess.sessType!=='manual'?'Click to edit date':undefined}>
                             {sess.date}
-                            {sess.sessType==='sub'&&<span style={{fontSize:8,display:'block',color:'var(--violet)',fontWeight:700,letterSpacing:'.05em'}}>SUB</span>}
-                            {sess.sessType==='cancelled'&&<span style={{fontSize:8,display:'block',color:'var(--coral)',fontWeight:700,letterSpacing:'.05em'}}>✕</span>}
+                            
+                            
                             {sess.sessType==='manual'&&<sup title={[sess.manualTitle,sess.manualActivity].filter(Boolean).join(' · ')||'Extra session — click to add details'} style={{fontSize:7,color:'var(--teal)',fontWeight:700,verticalAlign:'super',lineHeight:0,marginLeft:1,cursor:'pointer'}}>●</sup>}
                           </span>
                         )}
@@ -8413,7 +8483,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                             {sess.sessType!=='cancelled'&&(
                               linkPickerFor===si?(
                                 <select autoFocus
-                                  style={{fontSize:7,width:'100%',marginTop:2,borderRadius:4,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",cursor:'pointer'}}
+                                  style={{fontSize:10,width:'100%',marginTop:2,borderRadius:4,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",cursor:'pointer'}}
                                   defaultValue={sess.linkedSession?(sess.linkedSession.phaseId+':'+sess.linkedSession.sessionN):''}
                                   onChange={e=>{
                                     e.stopPropagation();
@@ -8431,7 +8501,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                                 </select>
                               ):(
                                 <span title={sess.linkedSession?'Linked: S'+sess.linkedSession.sessionN+' — click to change':'Link to a lesson'}
-                                  style={{fontSize:7,color:sess.linkedSession?'var(--teal)':'var(--tx3)',cursor:'pointer',display:'block',textAlign:'center',marginTop:1,fontWeight:700,letterSpacing:'.03em'}}
+                                  style={{fontSize:10,color:sess.linkedSession?'var(--teal)':'var(--tx3)',cursor:'pointer',display:'block',textAlign:'center',marginTop:1,fontWeight:700,letterSpacing:'.03em'}}
                                   onClick={e=>{e.stopPropagation();setLinkPickerFor(si);}}>
                                   {sess.linkedSession?'🔗 S'+sess.linkedSession.sessionN:'🔗 LINK'}
                                 </span>
