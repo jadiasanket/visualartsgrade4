@@ -6900,6 +6900,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
   // Crop in normalised 0-1 coords — default = full image
   const [crop,setCrop]=React.useState({x:0,y:0,w:1,h:1});
   const [cropMode,setCropMode]=React.useState(false);
+  const [fineRotation,setFineRotation]=React.useState(0); // -45 to +45 degrees
   const [imgReady,setImgReady]=React.useState(false);
   const [canvasRect,setCanvasRect]=React.useState(null);
   // Undo stack — each entry is a full state snapshot
@@ -6909,13 +6910,13 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
   const AMBER='#f59e0b';
 
   function snapshot(){
-    setHistory(h=>[...h,{rotation,flipH,brightness,contrast,saturation,crop:{...crop}}]);
+    setHistory(h=>[...h,{rotation,fineRotation,flipH,brightness,contrast,saturation,crop:{...crop}}]);
   }
   function undo(){
     setHistory(h=>{
       if(!h.length) return h;
       const prev=h[h.length-1];
-      setRotation(prev.rotation);setFlipH(prev.flipH);
+      setRotation(prev.rotation);setFineRotation(prev.fineRotation||0);setFlipH(prev.flipH);
       setBrightness(prev.brightness);setContrast(prev.contrast);setSaturation(prev.saturation);
       setCrop({...prev.crop});
       return h.slice(0,-1);
@@ -6936,7 +6937,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
   },[srcUrl]);
 
   // Redraw canvas when params change
-  React.useEffect(()=>{if(imgReady) redraw();},[imgReady,rotation,flipH]);
+  React.useEffect(()=>{if(imgReady) redraw();},[imgReady,rotation,fineRotation,flipH]);
 
   // Update canvas rect when ready
   React.useEffect(()=>{
@@ -6954,9 +6955,12 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
     if(!canvas||!img) return;
     const maxW=window.innerWidth-20;
     const maxH=window.innerHeight-80;
-    const rot90=rotation===90||rotation===270;
-    const outNatW=rot90?img.height:img.width;
-    const outNatH=rot90?img.width:img.height;
+    const totalRot=rotation+fineRotation;
+    const rad=totalRot*Math.PI/180;
+    // Compute bounding box for arbitrary rotation
+    const cosA=Math.abs(Math.cos(rad)), sinA=Math.abs(Math.sin(rad));
+    const outNatW=img.width*cosA+img.height*sinA;
+    const outNatH=img.width*sinA+img.height*cosA;
     const scale=Math.min(maxW/outNatW,maxH/outNatH,1);
     canvas.width=Math.round(outNatW*scale);
     canvas.height=Math.round(outNatH*scale);
@@ -6964,7 +6968,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
     ctx.save();
     ctx.translate(canvas.width/2,canvas.height/2);
     if(flipH) ctx.scale(-1,1);
-    ctx.rotate(rotation*Math.PI/180);
+    ctx.rotate(rad);
     ctx.drawImage(img,-Math.round(img.width*scale)/2,-Math.round(img.height*scale)/2,Math.round(img.width*scale),Math.round(img.height*scale));
     ctx.restore();
     // Update rect after draw
@@ -7014,7 +7018,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
 
   function rotate90(dir){snapshot();setRotation(r=>(r+dir*90+360)%360);}
   function doFlip(){snapshot();setFlipH(v=>!v);}
-  function reset(){setHistory([]);setRotation(0);setFlipH(false);setBrightness(0);setContrast(0);setSaturation(0);setCrop({x:0,y:0,w:1,h:1});setCropMode(false);}
+  function reset(){setHistory([]);setRotation(0);setFineRotation(0);setFlipH(false);setBrightness(0);setContrast(0);setSaturation(0);setCrop({x:0,y:0,w:1,h:1});setCropMode(false);}
 
   function onPanelDragStart(e){
     e.preventDefault();
@@ -7028,37 +7032,34 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
   function handleSave(){
     const img=baseImg.current;
     if(!img) return;
-    const srcX=Math.round(crop.x*img.width);
-    const srcY=Math.round(crop.y*img.height);
-    const srcW=Math.round(crop.w*img.width)||img.width;
-    const srcH=Math.round(crop.h*img.height)||img.height;
-    const rot90=rotation===90||rotation===270;
-    const outW=rot90?srcH:srcW, outH=rot90?srcW:srcH;
+    const totalRot=(rotation+fineRotation)*Math.PI/180;
+    const cosA=Math.abs(Math.cos(totalRot)), sinA=Math.abs(Math.sin(totalRot));
     const MAX=1400;
-    const scale=Math.min(MAX/outW,MAX/outH,1);
+    // Step 1: render full rotated image
+    const fullW=img.width*cosA+img.height*sinA;
+    const fullH=img.width*sinA+img.height*cosA;
+    const scaleF=Math.min(MAX/fullW,MAX/fullH,1);
     const fc=document.createElement('canvas');
-    fc.width=Math.round(outW*scale);fc.height=Math.round(outH*scale);
+    fc.width=Math.round(fullW*scaleF);fc.height=Math.round(fullH*scaleF);
     const ctx=fc.getContext('2d');
     ctx.save();ctx.translate(fc.width/2,fc.height/2);
     if(flipH) ctx.scale(-1,1);
-    ctx.rotate(rotation*Math.PI/180);
-    ctx.drawImage(img,srcX,srcY,srcW,srcH,-Math.round(srcW*scale)/2,-Math.round(srcH*scale)/2,Math.round(srcW*scale),Math.round(srcH*scale));
+    ctx.rotate(totalRot);
+    ctx.drawImage(img,-Math.round(img.width*scaleF)/2,-Math.round(img.height*scaleF)/2,Math.round(img.width*scaleF),Math.round(img.height*scaleF));
     ctx.restore();
+    // Step 2: apply crop from the rendered canvas
+    const cx=Math.round(crop.x*fc.width);
+    const cy=Math.round(crop.y*fc.height);
+    const cw=Math.round(crop.w*fc.width)||fc.width;
+    const ch=Math.round(crop.h*fc.height)||fc.height;
+    const fc2=document.createElement('canvas');
+    fc2.width=cw;fc2.height=ch;
+    const ctx2=fc2.getContext('2d');
+    // Step 3: apply colour filter
     const filterStr=getCSSFilter();
-    if(filterStr==='none'){
-      fc.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.88);
-    } else {
-      const fc2=document.createElement('canvas');
-      fc2.width=fc.width;fc2.height=fc.height;
-      const ctx2=fc2.getContext('2d');
-      ctx2.filter=filterStr;
-      try{
-        ctx2.drawImage(fc,0,0);
-        fc2.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.88);
-      }catch(err){
-        fc.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.88);
-      }
-    }
+    if(filterStr!=='none') ctx2.filter=filterStr;
+    ctx2.drawImage(fc,cx,cy,cw,ch,0,0,cw,ch);
+    fc2.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.88);
   }
 
   const sliders=[
@@ -7178,6 +7179,28 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
                   {b.label}
                 </button>
               ))}
+            </div>
+            {/* Fine rotation slider */}
+            <div style={{marginTop:8}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
+                <span style={{fontSize:9,color:'rgba(255,255,255,0.45)'}}>↻ Fine Rotate</span>
+                <span style={{fontSize:9,fontWeight:700,color:fineRotation!==0?AMBER:'rgba(255,255,255,0.2)'}}>{fineRotation>0?'+':''}{fineRotation}°</span>
+              </div>
+              <div style={{position:'relative',height:6,borderRadius:6,background:'rgba(255,255,255,0.08)',marginBottom:2}}>
+                <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.15)'}}/>
+                <div style={{position:'absolute',borderRadius:6,background:AMBER,
+                  left:fineRotation<0?(50+fineRotation/45*50)+'%':'50%',
+                  width:Math.abs(fineRotation)/45*50+'%',top:0,bottom:0,opacity:0.85}}/>
+                <div style={{position:'absolute',top:'50%',
+                  left:'calc('+((fineRotation+45)/90*100)+'% - 8px)',
+                  width:16,height:16,borderRadius:'50%',
+                  background:AMBER,border:'2px solid #060606',
+                  transform:'translateY(-50%)',boxShadow:'0 1px 6px rgba(0,0,0,0.6)',
+                  pointerEvents:'none'}}/>
+              </div>
+              <input type="range" min={-45} max={45} value={fineRotation}
+                onChange={e=>{snapshot();setFineRotation(Number(e.target.value));}}
+                style={{width:'100%',opacity:0,height:20,cursor:'pointer',position:'relative',zIndex:1,marginTop:-18,display:'block'}}/>
             </div>
           </div>
 
