@@ -7344,15 +7344,26 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   },[onClose]);
 
   async function handlePhotoEdit(blob){
+    console.log('handlePhotoEdit called, blob:', blob, 'size:', blob?.size);
     setPhotoEditorUploading(true);
     try{
+      if(!blob){alert('No blob produced — canvas export failed');setPhotoEditorUploading(false);return;}
+      if(!window._storage){alert('Firebase storage not initialised');setPhotoEditorUploading(false);return;}
+      console.log('uploading to storage...');
       const ts=Date.now();
-      const ref=window._storage.ref('portfolio/'+sectionId+'/'+studentIdx+'/edited_'+ts+'.jpg');
+      const path='portfolio/'+sectionId+'/'+studentIdx+'/edited_'+ts+'.jpg';
+      console.log('path:', path);
+      const ref=window._storage.ref(path);
       await ref.put(blob,{contentType:'image/jpeg'});
+      console.log('put done, getting URL...');
       const url=await ref.getDownloadURL();
+      console.log('url:', url);
       updateData(d=>{if(d.students[studentIdx].portfolio[active]) d.students[studentIdx].portfolio[active].url=url;});
       setPhotoEditorOpen(false);
-    }catch(err){alert('Save failed: '+err.message);}
+    }catch(err){
+      console.error('handlePhotoEdit error:', err);
+      alert('Save failed: '+err.message);
+    }
     setPhotoEditorUploading(false);
   }
 
