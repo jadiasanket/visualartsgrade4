@@ -6423,7 +6423,8 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
         </div>
 
         {/* Flip container */}
-        <div style={{position:'relative',width:'100%',height:375,transformStyle:'preserve-3d',transition:'transform .6s cubic-bezier(.4,0,.2,1)',transform:flipped?'rotateY(180deg)':'rotateY(0deg)'}}>
+        <div style={{perspective:'1200px',width:'100%',height:375}}>
+        <div style={{position:'relative',width:'100%',height:'100%',transformStyle:'preserve-3d',transition:'transform .6s cubic-bezier(.4,0,.2,1)',transform:flipped?'rotateY(180deg)':'rotateY(0deg)'}}>
 
           {/* ══ FRONT — ID Card ══ */}
           <div style={{
@@ -6718,6 +6719,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
           </div>
 
         </div>
+        </div>{/* end perspective wrapper */}
       </div>
     </div>
   );
@@ -6769,6 +6771,12 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   const fileInputRef=React.useRef(null);
   const overlayRef=React.useRef(null);
   const allLessons=React.useMemo(()=>PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color,phaseId:ph.id}))),[]);
+  const fullscreenRef=React.useRef(fullscreen);
+  const editCaptionRef=React.useRef(editCaption);
+  const portfolioLenRef=React.useRef(portfolio.length);
+  React.useEffect(()=>{fullscreenRef.current=fullscreen;},[fullscreen]);
+  React.useEffect(()=>{editCaptionRef.current=editCaption;},[editCaption]);
+  React.useEffect(()=>{portfolioLenRef.current=(student.portfolio||[]).length;},[student.portfolio]);
 
   React.useEffect(()=>{
     if(portfolio.length>0&&active>=portfolio.length) setActive(portfolio.length-1);
@@ -6776,15 +6784,15 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
 
   React.useEffect(()=>{
     function onKey(e){
-      if(editCaption!==null) return;
-      if(e.key==='ArrowLeft') setActive(p=>Math.max(0,p-1));
-      if(e.key==='ArrowRight') setActive(p=>Math.min((student.portfolio||[]).length-1,p+1));
-      if(e.key==='Escape'){if(fullscreen)setFullscreen(false);else onClose();}
+      if(editCaptionRef.current!==null) return;
+      if(e.key==='ArrowLeft'){e.preventDefault();setActive(p=>Math.max(0,p-1));}
+      if(e.key==='ArrowRight'){e.preventDefault();setActive(p=>Math.min(portfolioLenRef.current-1,p+1));}
+      if(e.key==='Escape'){if(fullscreenRef.current)setFullscreen(false);else onClose();}
       if(e.key==='f'||e.key==='F') setFullscreen(v=>!v);
     }
     window.addEventListener('keydown',onKey);
     return()=>window.removeEventListener('keydown',onKey);
-  },[fullscreen,onClose,editCaption,student.portfolio]);
+  },[onClose]);
 
   async function handleUpload(e){
     const files=Array.from(e.target.files||[]);
@@ -6871,23 +6879,15 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   return ReactDOM.createPortal(
     <div ref={overlayRef} style={{position:'fixed',inset:0,zIndex:3000,background:'rgba(10,15,26,0.92)',backdropFilter:'blur(12px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
       onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{width:'min(900px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:20,boxShadow:'var(--glass-shadow2)',overflow:'hidden'}}>
-        {/* Header */}
+      <div onClick={e=>e.stopPropagation()} style={{width:'min(960px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:20,boxShadow:'var(--glass-shadow2)',overflow:'hidden'}}>
+        {/* Header — name + close only, no add/fullscreen buttons here */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',borderBottom:'1px solid var(--glass-border)',flexShrink:0,background:'var(--glass-bg)'}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <span style={{fontSize:16}}>&#x1F5BC;</span>
             <span style={{fontFamily:"'Fraunces',serif",fontSize:14,fontWeight:700,color:'var(--tx)'}}>{student.name}</span>
             <span style={{fontSize:10,color:'var(--tx3)'}}>&middot; {portfolio.length} photo{portfolio.length!==1?'s':''}</span>
           </div>
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            {portfolio.length>0&&<button onClick={()=>setFullscreen(true)} title="Fullscreen (F)"
-              style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:8,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>&#x26F6; Fullscreen</button>}
-            <label style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:8,border:'1px solid var(--teal)',background:'rgba(59,191,160,0.1)',color:'var(--teal)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:5}}>
-              {uploading?'Uploading…':'+ Add Photos'}
-              <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleUpload} disabled={uploading}/>
-            </label>
-            <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:18,cursor:'pointer',padding:'2px 6px'}}>&#x2715;</button>
-          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:18,cursor:'pointer',padding:'2px 6px'}}>&#x2715;</button>
         </div>
         {portfolio.length===0?(
           <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:48}}>
@@ -6899,156 +6899,150 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
             </label>
           </div>
         ):(
-          <div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-            <div style={{flex:1,minHeight:0,display:'flex',overflow:'hidden'}}>
-              {/* Image pane */}
-              <div style={{flex:1,minWidth:0,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.3)'}}>
-                {current&&<img src={current.url} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block'}}/>}
-                {portfolio.length>1&&<>
-                  <button onClick={()=>setActive(p=>Math.max(0,p-1))} disabled={active===0}
-                    style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:24,padding:'4px 10px',cursor:active===0?'not-allowed':'pointer',opacity:active===0?0.2:0.8}}>&#8249;</button>
-                  <button onClick={()=>setActive(p=>Math.min(portfolio.length-1,p+1))} disabled={active===portfolio.length-1}
-                    style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:24,padding:'4px 10px',cursor:active===portfolio.length-1?'not-allowed':'pointer',opacity:active===portfolio.length-1?0.2:0.8}}>&#8250;</button>
-                </>}
-                <div style={{position:'absolute',top:10,left:12,background:'rgba(0,0,0,0.55)',color:'rgba(255,255,255,0.7)',fontSize:10,padding:'3px 10px',borderRadius:12,backdropFilter:'blur(4px)'}}>{current&&current.date}</div>
-                {current&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:current.type==='documentation'?'rgba(155,127,232,0.75)':' rgba(59,191,160,0.75)',color:'#fff',fontSize:9,fontWeight:700,padding:'2px 10px',borderRadius:12,letterSpacing:'.05em',whiteSpace:'nowrap'}}>{current.type==='documentation'?'DOCS':'ARTWORK'}</div>}
-                <button onClick={()=>handleDelete(active)}
-                  style={{position:'absolute',top:10,right:12,background:'rgba(232,112,90,0.25)',border:'1px solid rgba(232,112,90,0.4)',borderRadius:8,color:'var(--coral)',fontSize:10,fontWeight:700,padding:'3px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>&#x2715; Delete</button>
-              </div>
-              {/* Meta panel */}
-              <div style={{width:250,flexShrink:0,borderLeft:'1px solid var(--glass-border)',display:'flex',flexDirection:'column',overflowY:'auto',background:'var(--glass-bg)'}}>
-                {current&&(
-                  <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:14}}>
-                    {/* Type */}
-                    <div>
-                      <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Type</div>
-                      <div style={{display:'flex',gap:6}}>
-                        {['artwork','documentation'].map(t=>(
-                          <button key={t} onClick={()=>updateField(active,'type',t)}
-                            style={{flex:1,fontSize:10,fontWeight:700,padding:'5px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                              border:(current.type||'artwork')===t?'1px solid var(--teal)':'1px solid var(--glass-border)',
-                              background:(current.type||'artwork')===t?'rgba(59,191,160,0.15)':'var(--glass-bg)',
-                              color:(current.type||'artwork')===t?'var(--teal)':'var(--tx3)'}}>
-                            {t==='artwork'?'Artwork':'Docs'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {/* Caption */}
-                    <div>
-                      <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Caption</div>
-                      {editCaption===active?(
-                        <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                          <input autoFocus value={captionVal} onChange={e=>setCaptionVal(e.target.value)}
-                            onKeyDown={e=>{if(e.key==='Enter')saveCaption(active);if(e.key==='Escape')setEditCaption(null);}}
-                            placeholder="Add a caption…"
-                            style={{width:'100%',background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',borderRadius:8,color:'var(--tx)',fontSize:11,padding:'5px 8px',outline:'none',fontFamily:"'DM Sans',sans-serif"}}/>
-                          <div style={{display:'flex',gap:5}}>
-                            <button onClick={()=>saveCaption(active)} style={{flex:1,fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:7,border:'1px solid #22c55e',background:'rgba(34,197,94,0.1)',color:'#16a34a',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Save</button>
-                            <button onClick={()=>setEditCaption(null)} style={{flex:1,fontSize:10,padding:'4px 0',borderRadius:7,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
-                          </div>
-                        </div>
-                      ):(
-                        <div onClick={()=>{setEditCaption(active);setCaptionVal(current.caption||'');}}
-                          style={{fontSize:11,color:current.caption?'var(--tx2)':'var(--tx3)',fontStyle:current.caption?'normal':'italic',cursor:'pointer',padding:'5px 8px',borderRadius:7,border:'1px solid var(--glass-border)',background:'var(--glass-bg2)',minHeight:30}}>
-                          {current.caption||'Click to add caption…'}
-                        </div>
-                      )}
-                    </div>
-                    {/* Review note */}
-                    <div>
-                      <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Review Note</div>
-                      <textarea value={current.review||''} onChange={e=>updateField(active,'review',e.target.value)}
-                        placeholder="Teacher's notes on this work…"
-                        rows={3}
-                        style={{width:'100%',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:8,color:'var(--tx)',fontSize:11,padding:'6px 8px',outline:'none',fontFamily:"'DM Sans',sans-serif",resize:'none',lineHeight:1.5}}/>
-                    </div>
-                    {/* Lessons */}
-                    <div>
-                      <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Lessons</div>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                        {allLessons.map(l=>{
-                          const sel=(current.lessons||[]).includes(l.n);
-                          const cl=phaseColors[l.color]||'var(--tx2)';
-                          return(
-                            <button key={l.n} onClick={()=>toggleLesson(active,l.n)}
-                              style={{fontSize:9,padding:'3px 7px',borderRadius:6,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:sel?700:400,
-                                border:sel?`1px solid ${cl}`:' 1px solid var(--glass-border)',
-                                background:sel?'rgba(255,255,255,0.08)':'var(--glass-bg)',
-                                color:sel?cl:'var(--tx3)'}}>
-                              {l.n}. {l.title.length>16?l.title.slice(0,16)+'…':l.title}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    {/* Assessment — artwork only */}
-                    {(current.type||'artwork')==='artwork'&&(
-                      <div>
-                        <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                          <span>Assessment</span>
-                          <button onClick={()=>{setEditTagMode(v=>!v);setShowAddArtTag(false);}}
-                            style={{fontSize:9,padding:'1px 7px',borderRadius:5,border:`1px solid ${editTagMode?'var(--coral)':'var(--glass-border)'}`,background:editTagMode?'rgba(232,112,90,0.1)':'var(--glass-bg)',color:editTagMode?'var(--coral)':'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                            {editTagMode?'Done':'± Edit'}
-                          </button>
-                        </div>
-                        {editTagMode&&(
-                          <div style={{marginBottom:8,display:'flex',flexDirection:'column',gap:5}}>
-                            <input value={newArtTagLabel} onChange={e=>setNewArtTagLabel(e.target.value)} placeholder="New tag name"
-                              style={{fontSize:10,padding:'4px 8px',borderRadius:6,border:'1px solid var(--glass-border)',background:'var(--glass-bg2)',color:'var(--tx)',outline:'none',fontFamily:"'DM Sans',sans-serif"}}/>
-                            <div style={{display:'flex',gap:4}}>
-                              {['green','yellow','red'].map(c=>(
-                                <button key={c} onClick={()=>setNewArtTagColor(c)}
-                                  style={{flex:1,fontSize:9,padding:'3px 0',borderRadius:5,cursor:'pointer',border:newArtTagColor===c?`1px solid ${tagColors[c].cl}`:'1px solid var(--glass-border)',background:newArtTagColor===c?tagColors[c].bg:'var(--glass-bg)',color:tagColors[c].cl,fontFamily:"'DM Sans',sans-serif",fontWeight:newArtTagColor===c?700:400}}>
-                                  {c}
-                                </button>
-                              ))}
-                            </div>
-                            <button onClick={addArtworkTag} style={{fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:6,border:'1px solid #22c55e',background:'rgba(34,197,94,0.1)',color:'#16a34a',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>+ Add Tag</button>
-                          </div>
-                        )}
-                        <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                          {artworkTags.map(t=>{
-                            const sel=(current.artTags||[]).includes(t.label);
-                            const tc=tagColors[t.color]||tagColors.yellow;
-                            return(
-                              <div key={t.label} style={{display:'flex',alignItems:'center',gap:2}}>
-                                <button onClick={()=>!editTagMode&&toggleArtTag(active,t.label)}
-                                  style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:editTagMode?'default':'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,
-                                    border:`1px solid ${tc.cl}`,
-                                    background:sel?tc.bg:'transparent',
-                                    color:tc.cl,
-                                    opacity:editTagMode?0.6:1,
-                                    boxShadow:sel&&!editTagMode?`0 0 8px ${tc.bg}`:'none',
-                                    transition:'all .15s'}}>
-                                  {t.label}
-                                </button>
-                                {editTagMode&&<button onClick={()=>deleteArtworkTag(t.label)} style={{fontSize:8,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',padding:'0 2px',lineHeight:1}}>✕</button>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            {/* Thumbnail strip */}
-            <div style={{display:'flex',gap:6,padding:'10px 14px',overflowX:'auto',flexShrink:0,background:'var(--glass-bg)',borderTop:'1px solid var(--glass-border)'}}>
+          <div style={{flex:1,minHeight:0,display:'flex',overflow:'hidden'}}>
+            {/* LEFT — vertical thumbnail strip (67px wide items) */}
+            <div style={{width:87,flexShrink:0,display:'flex',flexDirection:'column',gap:5,padding:'8px 6px',overflowY:'auto',background:'var(--glass-bg)',borderRight:'1px solid var(--glass-border)'}}>
               {portfolio.map((item,i)=>(
                 <div key={i} onClick={()=>setActive(i)}
-                  style={{flexShrink:0,width:56,height:56,borderRadius:8,overflow:'hidden',cursor:'pointer',
+                  style={{flexShrink:0,width:67,height:67,borderRadius:8,overflow:'hidden',cursor:'pointer',
                     border:`2px solid ${i===active?'var(--teal)':'var(--glass-border)'}`,
-                    opacity:i===active?1:0.55,transition:'all .15s',position:'relative'}}>
+                    opacity:i===active?1:0.5,transition:'all .15s',position:'relative'}}>
                   <img src={item.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                   {item.type==='documentation'&&<div style={{position:'absolute',bottom:0,left:0,right:0,background:'rgba(155,127,232,0.75)',fontSize:7,color:'#fff',textAlign:'center',padding:'1px 0',fontWeight:700}}>DOCS</div>}
                 </div>
               ))}
-              <label style={{flexShrink:0,width:56,height:56,borderRadius:8,border:'2px dashed var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'var(--tx3)',fontSize:20,background:'var(--glass-bg)'}}>
+              {/* Add photo button in strip */}
+              <label style={{flexShrink:0,width:67,height:67,borderRadius:8,border:'2px dashed var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'var(--tx3)',fontSize:24,background:'var(--glass-bg)'}}>
                 +
                 <input type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleUpload} disabled={uploading}/>
               </label>
+            </div>
+            {/* CENTRE — image pane */}
+            <div style={{flex:1,minWidth:0,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.3)'}}>
+              {current&&<img src={current.url} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block'}}/>}
+              {/* Prev / Next */}
+              {portfolio.length>1&&<>
+                <button onClick={()=>setActive(p=>Math.max(0,p-1))} disabled={active===0}
+                  style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:24,padding:'4px 10px',cursor:active===0?'not-allowed':'pointer',opacity:active===0?0.2:0.8}}>&#8249;</button>
+                <button onClick={()=>setActive(p=>Math.min(portfolio.length-1,p+1))} disabled={active===portfolio.length-1}
+                  style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:24,padding:'4px 10px',cursor:active===portfolio.length-1?'not-allowed':'pointer',opacity:active===portfolio.length-1?0.2:0.8}}>&#8250;</button>
+              </>}
+              {/* Type badge — top centre */}
+              {current&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:current.type==='documentation'?'rgba(155,127,232,0.75)':'rgba(59,191,160,0.75)',color:'#fff',fontSize:9,fontWeight:700,padding:'2px 10px',borderRadius:12,letterSpacing:'.05em',whiteSpace:'nowrap',pointerEvents:'none'}}>{current.type==='documentation'?'DOCS':'ARTWORK'}</div>}
+              {/* Delete — top left */}
+              <button onClick={()=>handleDelete(active)}
+                style={{position:'absolute',top:10,left:12,background:'rgba(232,112,90,0.25)',border:'1px solid rgba(232,112,90,0.4)',borderRadius:8,color:'var(--coral)',fontSize:10,fontWeight:700,padding:'3px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>&#x2715; Delete</button>
+              {/* Fullscreen icon — top right on image */}
+              {portfolio.length>0&&<button onClick={()=>setFullscreen(true)} title="Fullscreen (F)"
+                style={{position:'absolute',top:10,right:12,background:'rgba(0,0,0,0.45)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'rgba(255,255,255,0.85)',fontSize:14,padding:'3px 8px',cursor:'pointer',lineHeight:1}}>&#x26F6;</button>}
+            </div>
+            {/* RIGHT — meta panel */}
+            <div style={{width:250,flexShrink:0,borderLeft:'1px solid var(--glass-border)',display:'flex',flexDirection:'column',overflowY:'auto',background:'var(--glass-bg)'}}>
+              {current&&(
+                <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:14}}>
+                  {/* Type toggle — Artwork=teal, Docs=violet */}
+                  <div>
+                    <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Type</div>
+                    <div style={{display:'flex',gap:6}}>
+                      <button onClick={()=>updateField(active,'type','artwork')}
+                        style={{flex:1,fontSize:10,fontWeight:700,padding:'5px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                          border:(current.type||'artwork')==='artwork'?'1px solid var(--teal)':'1px solid var(--glass-border)',
+                          background:(current.type||'artwork')==='artwork'?'rgba(59,191,160,0.15)':'var(--glass-bg)',
+                          color:(current.type||'artwork')==='artwork'?'var(--teal)':'var(--tx3)'}}>
+                        Artwork
+                      </button>
+                      <button onClick={()=>updateField(active,'type','documentation')}
+                        style={{flex:1,fontSize:10,fontWeight:700,padding:'5px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                          border:(current.type||'artwork')==='documentation'?'1px solid var(--violet)':'1px solid var(--glass-border)',
+                          background:(current.type||'artwork')==='documentation'?'rgba(155,127,232,0.18)':'var(--glass-bg)',
+                          color:(current.type||'artwork')==='documentation'?'var(--violet)':'var(--tx3)',
+                          transition:'color .15s,background .15s,border .15s'}}
+                        onMouseEnter={e=>{if((current.type||'artwork')!=='documentation'){e.currentTarget.style.color='rgba(155,127,232,0.6)';e.currentTarget.style.background='rgba(155,127,232,0.06)';}}}
+                        onMouseLeave={e=>{if((current.type||'artwork')!=='documentation'){e.currentTarget.style.color='var(--tx3)';e.currentTarget.style.background='var(--glass-bg)';}}}
+                      >
+                        Docs
+                      </button>
+                    </div>
+                  </div>
+                  {/* Caption / Lesson label — now called Review Note; old caption becomes Lesson field below */}
+                  {/* Review note */}
+                  <div>
+                    <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Review Note</div>
+                    <textarea value={current.review||''} onChange={e=>updateField(active,'review',e.target.value)}
+                      placeholder="Teacher's notes on this work…"
+                      rows={3}
+                      style={{width:'100%',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:8,color:'var(--tx)',fontSize:11,padding:'6px 8px',outline:'none',fontFamily:"'DM Sans',sans-serif",resize:'none',lineHeight:1.5}}/>
+                  </div>
+                  {/* Lesson — dropdown (was Caption) */}
+                  <div>
+                    <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Lesson</div>
+                    <select value={(current.lessons&&current.lessons[0])||''} onChange={e=>{const v=e.target.value;updateField(active,'lessons',v?[Number(v)]:[]);}}
+                      style={{width:'100%',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:8,color:'var(--tx)',fontSize:11,padding:'5px 8px',outline:'none',fontFamily:"'DM Sans',sans-serif",cursor:'pointer'}}>
+                      <option value="">— Select lesson —</option>
+                      {allLessons.map(l=>(
+                        <option key={l.n} value={l.n}>L{l.n} · {l.title}</option>
+                      ))}
+                      {current.caption&&<option value="__manual__" disabled>* {current.caption}</option>}
+                    </select>
+                    {/* Manual lesson entry */}
+                    <div style={{marginTop:6}}>
+                      <input value={captionVal} onChange={e=>setCaptionVal(e.target.value)}
+                        onKeyDown={e=>{if(e.key==='Enter'&&captionVal.trim()){updateField(active,'caption',captionVal.trim());setCaptionVal('');}}}
+                        placeholder="+ Add manual lesson name…"
+                        style={{width:'100%',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:8,color:'var(--tx)',fontSize:10,padding:'4px 8px',outline:'none',fontFamily:"'DM Sans',sans-serif"}}/>
+                      {current.caption&&<div style={{marginTop:4,fontSize:9,color:'var(--tx3)',fontStyle:'italic'}}>* {current.caption}</div>}
+                    </div>
+                  </div>
+                  {/* Assessment — artwork only */}
+                  {(current.type||'artwork')==='artwork'&&(
+                    <div>
+                      <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        <span>Assessment</span>
+                        <button onClick={()=>{setEditTagMode(v=>!v);setShowAddArtTag(false);}}
+                          style={{fontSize:9,padding:'1px 7px',borderRadius:5,border:`1px solid ${editTagMode?'var(--coral)':'var(--glass-border)'}`,background:editTagMode?'rgba(232,112,90,0.1)':'var(--glass-bg)',color:editTagMode?'var(--coral)':'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                          {editTagMode?'Done':'✎ Edit'}
+                        </button>
+                      </div>
+                      {editTagMode&&(
+                        <div style={{marginBottom:8,display:'flex',flexDirection:'column',gap:5}}>
+                          <input value={newArtTagLabel} onChange={e=>setNewArtTagLabel(e.target.value)} placeholder="New tag name"
+                            style={{fontSize:10,padding:'4px 8px',borderRadius:6,border:'1px solid var(--glass-border)',background:'var(--glass-bg2)',color:'var(--tx)',outline:'none',fontFamily:"'DM Sans',sans-serif"}}/>
+                          <div style={{display:'flex',gap:4}}>
+                            {['green','yellow','red'].map(c=>(
+                              <button key={c} onClick={()=>setNewArtTagColor(c)}
+                                style={{flex:1,fontSize:9,padding:'3px 0',borderRadius:5,cursor:'pointer',border:newArtTagColor===c?`1px solid ${tagColors[c].cl}`:'1px solid var(--glass-border)',background:newArtTagColor===c?tagColors[c].bg:'var(--glass-bg)',color:tagColors[c].cl,fontFamily:"'DM Sans',sans-serif",fontWeight:newArtTagColor===c?700:400}}>
+                                {c}
+                              </button>
+                            ))}
+                          </div>
+                          <button onClick={addArtworkTag} style={{fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:6,border:'1px solid #22c55e',background:'rgba(34,197,94,0.1)',color:'#16a34a',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>+ Add Tag</button>
+                        </div>
+                      )}
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                        {artworkTags.map(t=>{
+                          const sel=(current.artTags||[]).includes(t.label);
+                          const tc=tagColors[t.color]||tagColors.yellow;
+                          return(
+                            <div key={t.label} style={{display:'flex',alignItems:'center',gap:2}}>
+                              <button onClick={()=>!editTagMode&&toggleArtTag(active,t.label)}
+                                style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:editTagMode?'default':'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:sel?700:400,
+                                  border:sel?`1px solid ${tc.cl}`:'1px solid rgba(255,255,255,0.1)',
+                                  background:sel?tc.bg:'transparent',
+                                  color:sel?tc.cl:'var(--tx3)',
+                                  opacity:editTagMode?0.5:1,
+                                  boxShadow:sel&&!editTagMode?`0 0 8px ${tc.bg}`:'none',
+                                  transition:'all .15s'}}>
+                                {t.label}
+                              </button>
+                              {editTagMode&&<button onClick={()=>deleteArtworkTag(t.label)} style={{fontSize:8,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',padding:'0 2px',lineHeight:1}}>✕</button>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -8696,16 +8690,20 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
 // ── GALLERY VIEW — all sections portfolio feed ──
 function GalleryView(){
   const SECTION_IDS=G4_SECTIONS.map(s=>s.id);
-  const [allData,setAllData]=React.useState({}); // {sectionId: firestoreData}
+  const [allData,setAllData]=React.useState({});
   const [loading,setLoading]=React.useState(true);
-  const [filterType,setFilterType]=React.useState('all'); // all|artwork|documentation
+  const [filterType,setFilterType]=React.useState('all');
   const [filterSection,setFilterSection]=React.useState('all');
   const [filterLesson,setFilterLesson]=React.useState(null);
   const [filterTag,setFilterTag]=React.useState(null);
-  const [lightbox,setLightbox]=React.useState(null); // {url,caption,date,type,lessons,artTags,review,studentName,sectionName}
+  const [showFilter,setShowFilter]=React.useState(false);
+  const [lightbox,setLightbox]=React.useState(null);
+  const [lbFullscreen,setLbFullscreen]=React.useState(false);
+  const [metaVisible,setMetaVisible]=React.useState(true);
   const allLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color})));
   const artworkTags=getArtworkTags();
   const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
+  const phaseColors={coral:'var(--coral)',yellow:'var(--yellow)',teal:'var(--teal)',violet:'var(--violet)'};
 
   React.useEffect(()=>{
     let unsubs=[];
@@ -8713,9 +8711,7 @@ function GalleryView(){
     let loaded=0;
     SECTION_IDS.forEach(sid=>{
       const unsub=window._db.collection('sections').doc('shared-'+sid).onSnapshot(snap=>{
-        if(snap.exists){
-          setAllData(prev=>({...prev,[sid]:snap.data()}));
-        }
+        if(snap.exists) setAllData(prev=>({...prev,[sid]:snap.data()}));
         loaded++;
         if(loaded>=SECTION_IDS.length) setLoading(false);
       },()=>{loaded++;if(loaded>=SECTION_IDS.length)setLoading(false);});
@@ -8724,7 +8720,6 @@ function GalleryView(){
     return()=>unsubs.forEach(u=>u());
   },[]);
 
-  // Build flat list of all portfolio photos across all sections
   const allPhotos=React.useMemo(()=>{
     const photos=[];
     SECTION_IDS.forEach(sid=>{
@@ -8737,11 +8732,9 @@ function GalleryView(){
         });
       });
     });
-    // Sort by date descending (most recent first)
     return photos.reverse();
   },[allData]);
 
-  // Apply filters
   const filtered=React.useMemo(()=>{
     return allPhotos.filter(p=>{
       if(filterType!=='all'&&(p.type||'artwork')!==filterType) return false;
@@ -8752,25 +8745,43 @@ function GalleryView(){
     });
   },[allPhotos,filterType,filterSection,filterLesson,filterTag]);
 
+  const activeFilterCount=[filterType!=='all',filterSection!=='all',filterLesson!==null,filterTag!==null].filter(Boolean).length;
+  const clearFilters=()=>{setFilterType('all');setFilterSection('all');setFilterLesson(null);setFilterTag(null);};
+
   // Lightbox keyboard nav
+  const filteredRef=React.useRef(filtered);
+  const lightboxRef=React.useRef(lightbox);
+  const metaRef=React.useRef(metaVisible);
+  const lbFsRef=React.useRef(lbFullscreen);
+  React.useEffect(()=>{filteredRef.current=filtered;},[filtered]);
+  React.useEffect(()=>{lightboxRef.current=lightbox;},[lightbox]);
+  React.useEffect(()=>{metaRef.current=metaVisible;},[metaVisible]);
+  React.useEffect(()=>{lbFsRef.current=lbFullscreen;},[lbFullscreen]);
+
   React.useEffect(()=>{
-    if(!lightbox) return;
     function onKey(e){
-      if(e.key==='Escape') setLightbox(null);
+      if(!lightboxRef.current) return;
+      if(e.key==='Escape'){
+        if(lbFsRef.current){setLbFullscreen(false);}
+        else setLightbox(null);
+        return;
+      }
+      if(e.key===' '){e.preventDefault();setMetaVisible(v=>!v);return;}
       if(e.key==='ArrowLeft'){
-        const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);
-        if(idx>0) setLightbox(filtered[idx-1]);
+        const idx=filteredRef.current.findIndex(p=>p.url===lightboxRef.current.url&&p.studentName===lightboxRef.current.studentName);
+        if(idx>0) setLightbox(filteredRef.current[idx-1]);
       }
       if(e.key==='ArrowRight'){
-        const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);
-        if(idx<filtered.length-1) setLightbox(filtered[idx+1]);
+        const idx=filteredRef.current.findIndex(p=>p.url===lightboxRef.current.url&&p.studentName===lightboxRef.current.studentName);
+        if(idx<filteredRef.current.length-1) setLightbox(filteredRef.current[idx+1]);
       }
     }
     window.addEventListener('keydown',onKey);
     return()=>window.removeEventListener('keydown',onKey);
-  },[lightbox,filtered]);
+  },[]);
 
-  const phaseColors={coral:'var(--coral)',yellow:'var(--yellow)',teal:'var(--teal)',violet:'var(--violet)'};
+  // Reset meta visible when opening new lightbox
+  React.useEffect(()=>{if(lightbox) setMetaVisible(true);},[lightbox&&lightbox.url]);
 
   return(
     <div style={{padding:'24px 28px',height:'100%',overflowY:'auto',display:'flex',flexDirection:'column',gap:16}}>
@@ -8780,73 +8791,99 @@ function GalleryView(){
           <div style={{fontSize:22,fontWeight:800,fontFamily:"'Bricolage Grotesque',sans-serif",color:'var(--tx)'}}>Gallery</div>
           <div style={{fontSize:12,color:'var(--tx3)',marginTop:2}}>{filtered.length} photo{filtered.length!==1?'s':''} across all sections</div>
         </div>
-      </div>
-
-      {/* Filters */}
-      <div style={{display:'flex',flexWrap:'wrap',gap:8,flexShrink:0}}>
-        {/* Type filter */}
-        <div style={{display:'flex',gap:4}}>
-          {[['all','All'],['artwork','Artwork'],['documentation','Docs']].map(([v,l])=>(
-            <button key={v} onClick={()=>setFilterType(v)}
-              style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                border:filterType===v?'1px solid var(--teal)':'1px solid var(--glass-border)',
-                background:filterType===v?'rgba(59,191,160,0.15)':'var(--glass-bg)',
-                color:filterType===v?'var(--teal)':'var(--tx3)'}}>
-              {l}
-            </button>
-          ))}
-        </div>
-        {/* Section filter */}
-        <div style={{display:'flex',gap:4}}>
-          <button onClick={()=>setFilterSection('all')}
-            style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-              border:filterSection==='all'?'1px solid var(--violet)':'1px solid var(--glass-border)',
-              background:filterSection==='all'?'rgba(155,127,232,0.15)':'var(--glass-bg)',
-              color:filterSection==='all'?'var(--violet)':'var(--tx3)'}}>All Sections</button>
-          {G4_SECTIONS.map(s=>(
-            <button key={s.id} onClick={()=>setFilterSection(filterSection===s.id?'all':s.id)}
-              style={{fontSize:10,fontWeight:700,padding:'4px 10px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                border:filterSection===s.id?'1px solid var(--violet)':'1px solid var(--glass-border)',
-                background:filterSection===s.id?'rgba(155,127,232,0.15)':'var(--glass-bg)',
-                color:filterSection===s.id?'var(--violet)':'var(--tx3)'}}>
-              {s.icon} {s.name}
-            </button>
-          ))}
-        </div>
-        {/* Lesson filter */}
-        <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-          {allLessons.map(l=>(
-            <button key={l.n} onClick={()=>setFilterLesson(filterLesson===l.n?null:l.n)}
-              style={{fontSize:9,padding:'3px 9px',borderRadius:14,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:filterLesson===l.n?700:400,
-                border:filterLesson===l.n?`1px solid ${phaseColors[l.color]}`:'1px solid var(--glass-border)',
-                background:filterLesson===l.n?'rgba(255,255,255,0.08)':'var(--glass-bg)',
-                color:filterLesson===l.n?phaseColors[l.color]:'var(--tx3)'}}>
-              L{l.n}
-            </button>
-          ))}
-        </div>
-        {/* Assessment tag filter */}
-        {filterType!=='documentation'&&(
-          <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-            {artworkTags.map(t=>(
-              <button key={t.label} onClick={()=>setFilterTag(filterTag===t.label?null:t.label)}
-                style={{fontSize:9,padding:'3px 9px',borderRadius:14,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:filterTag===t.label?700:400,
-                  border:filterTag===t.label?`1px solid ${tagColors[t.color]}`:'1px solid var(--glass-border)',
-                  background:filterTag===t.label?'rgba(255,255,255,0.08)':'var(--glass-bg)',
-                  color:filterTag===t.label?tagColors[t.color]:'var(--tx3)'}}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-        )}
-        {/* Clear filters */}
-        {(filterType!=='all'||filterSection!=='all'||filterLesson!==null||filterTag!==null)&&(
-          <button onClick={()=>{setFilterType('all');setFilterSection('all');setFilterLesson(null);setFilterTag(null);}}
-            style={{fontSize:10,padding:'4px 12px',borderRadius:20,border:'1px solid rgba(232,112,90,0.4)',background:'rgba(232,112,90,0.1)',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>
-            ✕ Clear filters
+        {/* ⚙ Filter button */}
+        <div style={{position:'relative'}}>
+          <button onClick={()=>setShowFilter(v=>!v)}
+            style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,padding:'6px 14px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+              border:showFilter||activeFilterCount>0?'1px solid var(--violet)':'1px solid var(--glass-border)',
+              background:showFilter||activeFilterCount>0?'rgba(155,127,232,0.15)':'var(--glass-bg)',
+              color:activeFilterCount>0?'var(--violet)':'var(--tx2)'}}>
+            ⚙ Filter
+            {activeFilterCount>0&&<span style={{background:'var(--violet)',color:'#fff',borderRadius:'50%',fontSize:9,fontWeight:700,width:16,height:16,display:'inline-flex',alignItems:'center',justifyContent:'center'}}>{activeFilterCount}</span>}
           </button>
-        )}
+          {/* Filter popup */}
+          {showFilter&&(
+            <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'calc(100% + 8px)',right:0,zIndex:500,width:320,background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:14,boxShadow:'var(--glass-shadow2)',padding:'14px 16px',display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontSize:11,fontWeight:700,color:'var(--tx)'}}>Filter</span>
+                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                  {activeFilterCount>0&&<button onClick={clearFilters} style={{fontSize:10,fontWeight:700,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Clear ({activeFilterCount})</button>}
+                  <button onClick={()=>setShowFilter(false)} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:16,cursor:'pointer',padding:'0 2px'}}>✕</button>
+                </div>
+              </div>
+              {/* Type */}
+              <div>
+                <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Type</div>
+                <div style={{display:'flex',gap:5}}>
+                  {[['all','All'],['artwork','Artwork'],['documentation','Docs']].map(([v,l])=>(
+                    <button key={v} onClick={()=>setFilterType(v)}
+                      style={{flex:1,fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                        border:filterType===v?'1px solid var(--teal)':'1px solid var(--glass-border)',
+                        background:filterType===v?'rgba(59,191,160,0.15)':'var(--glass-bg)',
+                        color:filterType===v?'var(--teal)':'var(--tx3)'}}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Section */}
+              <div>
+                <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Section</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                  <button onClick={()=>setFilterSection('all')}
+                    style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                      border:filterSection==='all'?'1px solid var(--violet)':'1px solid var(--glass-border)',
+                      background:filterSection==='all'?'rgba(155,127,232,0.15)':'var(--glass-bg)',
+                      color:filterSection==='all'?'var(--violet)':'var(--tx3)'}}>All</button>
+                  {G4_SECTIONS.map(s=>(
+                    <button key={s.id} onClick={()=>setFilterSection(filterSection===s.id?'all':s.id)}
+                      style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                        border:filterSection===s.id?'1px solid var(--violet)':'1px solid var(--glass-border)',
+                        background:filterSection===s.id?'rgba(155,127,232,0.15)':'var(--glass-bg)',
+                        color:filterSection===s.id?'var(--violet)':'var(--tx3)'}}>
+                      {s.icon} {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Lesson */}
+              <div>
+                <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                  {allLessons.map(l=>(
+                    <button key={l.n} onClick={()=>setFilterLesson(filterLesson===l.n?null:l.n)}
+                      style={{fontSize:9,padding:'2px 8px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:filterLesson===l.n?700:400,
+                        border:filterLesson===l.n?`1px solid ${phaseColors[l.color]}`:'1px solid var(--glass-border)',
+                        background:filterLesson===l.n?'rgba(255,255,255,0.08)':'var(--glass-bg)',
+                        color:filterLesson===l.n?phaseColors[l.color]:'var(--tx3)'}}>
+                      L{l.n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Assessment */}
+              {filterType!=='documentation'&&(
+                <div>
+                  <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Assessment</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                    {artworkTags.map(t=>(
+                      <button key={t.label} onClick={()=>setFilterTag(filterTag===t.label?null:t.label)}
+                        style={{fontSize:9,padding:'2px 9px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:filterTag===t.label?700:400,
+                          border:filterTag===t.label?`1px solid ${tagColors[t.color]}`:'1px solid var(--glass-border)',
+                          background:filterTag===t.label?'rgba(255,255,255,0.08)':'var(--glass-bg)',
+                          color:filterTag===t.label?tagColors[t.color]:'var(--tx3)'}}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+      {/* Click outside to close filter */}
+      {showFilter&&<div style={{position:'fixed',inset:0,zIndex:499}} onClick={()=>setShowFilter(false)}/>}
 
       {/* Grid */}
       {loading?(
@@ -8860,64 +8897,90 @@ function GalleryView(){
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:12}}>
           {filtered.map((p,i)=>(
             <div key={i} onClick={()=>setLightbox(p)}
-              style={{borderRadius:12,overflow:'hidden',cursor:'pointer',background:'var(--glass-bg)',border:'1px solid var(--glass-border)',transition:'transform .15s,box-shadow .15s'}}
-              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.3)';}}
+              style={{borderRadius:12,overflow:'hidden',cursor:'pointer',position:'relative',transition:'transform .15s,box-shadow .15s',aspectRatio:'1'}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.4)';}}
               onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='';}}>
-              <div style={{aspectRatio:'1',overflow:'hidden',position:'relative'}}>
-                <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                <div style={{position:'absolute',top:6,left:6,background:(p.type||'artwork')==='documentation'?'rgba(155,127,232,0.85)':'rgba(59,191,160,0.85)',color:'#fff',fontSize:8,fontWeight:700,padding:'2px 7px',borderRadius:8,letterSpacing:'.05em'}}>{(p.type||'artwork')==='documentation'?'DOCS':'ART'}</div>
-                {(p.lessons||[]).length>0&&<div style={{position:'absolute',top:6,right:6,background:'rgba(0,0,0,0.6)',color:'#fff',fontSize:8,padding:'2px 6px',borderRadius:8}}>L{p.lessons.join(',')}</div>}
-              </div>
-              <div style={{padding:'8px 10px'}}>
-                <div style={{fontSize:11,fontWeight:700,color:'var(--tx)',marginBottom:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.studentName}</div>
-                <div style={{fontSize:10,color:'var(--tx3)',marginBottom:4}}>{p.sectionName} · {p.date}</div>
-                {(p.artTags||[]).length>0&&(
-                  <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
-                    {(p.artTags||[]).slice(0,3).map(t=>{
-                      const td=artworkTags.find(x=>x.label===t);
-                      return<span key={t} style={{fontSize:8,padding:'1px 6px',borderRadius:8,background:'rgba(255,255,255,0.07)',color:td?tagColors[td.color]:'var(--tx3)',border:`1px solid ${td?tagColors[td.color]:'var(--glass-border)'}`}}>{t}</span>;
-                    })}
-                  </div>
-                )}
+              <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+              {/* Gradient overlay — always visible */}
+              <div style={{position:'absolute',inset:0,background:'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 45%, transparent 70%)',pointerEvents:'none'}}/>
+              {/* Name + Section on gradient */}
+              <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none'}}>
+                <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.studentName}</div>
+                <div style={{fontSize:9,color:'rgba(255,255,255,0.7)',marginTop:1}}>{p.sectionName}</div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Lightbox */}
+      {/* iPhone-style Lightbox */}
       {lightbox&&ReactDOM.createPortal(
-        <div style={{position:'fixed',inset:0,zIndex:4000,background:'rgba(10,15,26,0.96)',backdropFilter:'blur(16px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
-          onClick={()=>setLightbox(null)}>
-          <div onClick={e=>e.stopPropagation()} style={{display:'flex',gap:0,maxWidth:'90vw',maxHeight:'88vh',borderRadius:20,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.7)'}}>
-            <img src={lightbox.url} alt="" style={{maxWidth:'65vw',maxHeight:'88vh',objectFit:'contain',display:'block',background:'#000'}}/>
-            <div style={{width:240,flexShrink:0,background:'var(--popup-bg)',borderLeft:'1px solid var(--glass-border)',display:'flex',flexDirection:'column',padding:'20px 16px',gap:12,overflowY:'auto'}}>
-              <div style={{fontSize:14,fontWeight:700,fontFamily:"'Fraunces',serif",color:'var(--tx)'}}>{lightbox.studentName}</div>
-              <div style={{fontSize:11,color:'var(--tx3)'}}>{lightbox.sectionName} · {lightbox.date}</div>
-              <div style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:10,background:(lightbox.type||'artwork')==='documentation'?'rgba(155,127,232,0.15)':'rgba(59,191,160,0.15)',color:(lightbox.type||'artwork')==='documentation'?'var(--violet)':'var(--teal)',alignSelf:'flex-start'}}>{(lightbox.type||'artwork')==='documentation'?'📋 Documentation':'🎨 Artwork'}</div>
-              {lightbox.caption&&<div style={{fontSize:12,color:'var(--tx2)',fontStyle:'italic',lineHeight:1.5}}>"{lightbox.caption}"</div>}
-              {lightbox.review&&<div><div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:4,textTransform:'uppercase'}}>Review</div><div style={{fontSize:11,color:'var(--tx)',lineHeight:1.6}}>{lightbox.review}</div></div>}
-              {(lightbox.lessons||[]).length>0&&(
-                <div><div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Lessons</div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                  {(lightbox.lessons||[]).map(ln=>{const l=allLessons.find(x=>x.n===ln);return<span key={ln} style={{fontSize:9,padding:'2px 8px',borderRadius:8,background:'var(--glass-bg)',border:'1px solid var(--glass-border)',color:l?phaseColors[l.color]:'var(--tx3)'}}>L{ln}{l?' · '+l.title.slice(0,12):''}</span>;})}
-                </div></div>
-              )}
-              {(lightbox.artTags||[]).length>0&&(
-                <div><div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',marginBottom:6,textTransform:'uppercase'}}>Assessment</div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                  {(lightbox.artTags||[]).map(t=>{const td=artworkTags.find(x=>x.label===t);return<span key={t} style={{fontSize:9,padding:'2px 8px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:`1px solid ${td?tagColors[td.color]:'var(--glass-border)'}`,color:td?tagColors[td.color]:'var(--tx3)'}}>{t}</span>;})}
-                </div></div>
-              )}
-              <button onClick={()=>setLightbox(null)} style={{marginTop:'auto',fontSize:11,fontWeight:700,padding:'7px 0',borderRadius:10,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Close</button>
+        (()=>{
+          const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);
+          return(
+            <div style={{position:'fixed',inset:0,zIndex:4000,background:'#000',display:'flex',alignItems:'center',justifyContent:'center'}}
+              onClick={()=>setMetaVisible(v=>!v)}>
+              {/* Full image */}
+              <img src={lightbox.url} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',userSelect:'none'}}
+                onClick={e=>e.stopPropagation()}/>
+
+              {/* Top-right controls — always visible */}
+              <div style={{position:'absolute',top:16,right:16,display:'flex',gap:8,alignItems:'center'}} onClick={e=>e.stopPropagation()}>
+                <button onClick={()=>setMetaVisible(v=>!v)}
+                  style={{fontSize:10,fontWeight:700,padding:'5px 12px',borderRadius:8,background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.85)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",backdropFilter:'blur(8px)'}}>
+                  {metaVisible?'Hide Info':'Show Info'}
+                </button>
+                <button onClick={()=>{
+                  if(!lbFullscreen){
+                    document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();
+                  } else {
+                    document.exitFullscreen&&document.exitFullscreen();
+                  }
+                  setLbFullscreen(v=>!v);
+                }}
+                  style={{fontSize:16,padding:'4px 8px',borderRadius:8,background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.85)',cursor:'pointer',backdropFilter:'blur(8px)',lineHeight:1}}>&#x26F6;</button>
+                <button onClick={()=>setLightbox(null)}
+                  style={{fontSize:16,padding:'4px 8px',borderRadius:8,background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.85)',cursor:'pointer',backdropFilter:'blur(8px)',lineHeight:1}}>&#x2715;</button>
+              </div>
+
+              {/* Arrow nav — always visible */}
+              <div onClick={e=>e.stopPropagation()}>
+                {idx>0&&<button onClick={()=>setLightbox(filtered[idx-1])} style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8249;</button>}
+                {idx<filtered.length-1&&<button onClick={()=>setLightbox(filtered[idx+1])} style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
+              </div>
+
+              {/* Meta bar — slides in from bottom */}
+              <div onClick={e=>e.stopPropagation()} style={{position:'absolute',bottom:0,left:0,right:0,
+                background:'linear-gradient(to top, rgba(10,15,26,0.97) 0%, rgba(10,15,26,0.88) 80%, transparent 100%)',
+                backdropFilter:'blur(12px)',
+                padding:'32px 24px 24px',
+                transform:metaVisible?'translateY(0)':'translateY(100%)',
+                transition:'transform .35s cubic-bezier(.4,0,.2,1)',
+                pointerEvents:metaVisible?'auto':'none'}}>
+                <div style={{maxWidth:600,margin:'0 auto',display:'flex',flexDirection:'column',gap:8}}>
+                  <div style={{display:'flex',alignItems:'baseline',gap:10,flexWrap:'wrap'}}>
+                    <span style={{fontSize:16,fontWeight:700,fontFamily:"'Fraunces',serif",color:'#fff'}}>{lightbox.studentName}</span>
+                    <span style={{fontSize:11,color:'rgba(255,255,255,0.55)'}}>{lightbox.sectionName} · {lightbox.date}</span>
+                    <span style={{fontSize:9,fontWeight:700,padding:'2px 8px',borderRadius:8,background:(lightbox.type||'artwork')==='documentation'?'rgba(155,127,232,0.3)':'rgba(59,191,160,0.3)',color:(lightbox.type||'artwork')==='documentation'?'#c4a8f8':'#7ee8cb'}}>{(lightbox.type||'artwork')==='documentation'?'DOCS':'ARTWORK'}</span>
+                  </div>
+                  {(lightbox.lessons||[]).length>0&&(
+                    <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                      {(lightbox.lessons||[]).map(ln=>{const l=allLessons.find(x=>x.n===ln);return<span key={ln} style={{fontSize:9,padding:'2px 8px',borderRadius:8,background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',color:l?phaseColors[l.color]:'rgba(255,255,255,0.6)'}}>L{ln}{l?' · '+l.title.slice(0,12):''}</span>;})}
+                    </div>
+                  )}
+                  {(lightbox.artTags||[]).length>0&&(
+                    <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                      {(lightbox.artTags||[]).map(t=>{const td=artworkTags.find(x=>x.label===t);return<span key={t} style={{fontSize:9,padding:'2px 8px',borderRadius:8,background:'rgba(255,255,255,0.08)',border:`1px solid ${td?tagColors[td.color]:'rgba(255,255,255,0.2)'}`,color:td?tagColors[td.color]:'rgba(255,255,255,0.6)'}}>{t}</span>;})}
+                    </div>
+                  )}
+                  {lightbox.caption&&<div style={{fontSize:12,color:'rgba(255,255,255,0.7)',fontStyle:'italic'}}>"{lightbox.caption}"</div>}
+                  {lightbox.review&&<div style={{fontSize:11,color:'rgba(255,255,255,0.6)',lineHeight:1.6}}>{lightbox.review}</div>}
+                  <div style={{fontSize:9,color:'rgba(255,255,255,0.3)',marginTop:4}}>Tap photo to toggle info · Space bar · ← → navigate · Esc close</div>
+                </div>
+              </div>
             </div>
-          </div>
-          {/* Arrow nav */}
-          {(()=>{const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);return(<>
-            {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);}} style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8249;</button>}
-            {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);}} style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
-          </>);})()}
-        </div>,
+          );
+        })(),
         document.body
       )}
     </div>
