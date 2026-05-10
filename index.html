@@ -6524,8 +6524,11 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
   async function handleProfilePhotoEdit(blob){
     setProfilePhotoEditorUploading(true);
     try{
-      const file=new File([blob],'profile-edited.jpg',{type:'image/jpeg'});
-      await onPhotoChange(file);
+      const ts=Date.now();
+      const ref=window._storage.ref('photos/profile_edited_'+ts+'.jpg');
+      await ref.put(blob,{contentType:'image/jpeg'});
+      const url=await ref.getDownloadURL();
+      updateData(d=>{d.students[studentIdx].photo=url;});
       setProfilePhotoEditor(false);
     }catch(err){alert('Save failed: '+err.message);}
     setProfilePhotoEditorUploading(false);
@@ -7353,17 +7356,17 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
     return()=>window.removeEventListener('keydown',onKey);
   },[onClose]);
 
-  async function handleProfilePhotoEdit(blob){
-    setProfilePhotoEditorUploading(true);
+  async function handlePhotoEdit(blob){
+    setPhotoEditorUploading(true);
     try{
       const ts=Date.now();
-      const ref=window._storage.ref('photos/profile_edited_'+ts+'.jpg');
+      const ref=window._storage.ref('portfolio/'+sectionId+'/'+studentIdx+'/edited_'+ts+'.jpg');
       await ref.put(blob,{contentType:'image/jpeg'});
       const url=await ref.getDownloadURL();
-      updateData(d=>{d.students[studentIdx].photo=url;});
-      setProfilePhotoEditor(false);
+      updateData(d=>{if(d.students[studentIdx].portfolio[active]) d.students[studentIdx].portfolio[active].url=url;});
+      setPhotoEditorOpen(false);
     }catch(err){alert('Save failed: '+err.message);}
-    setProfilePhotoEditorUploading(false);
+    setPhotoEditorUploading(false);
   }
 
   async function handleUpload(e){
