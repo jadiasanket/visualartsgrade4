@@ -6725,29 +6725,59 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                 style={{flexShrink:0,padding:'6px 0',borderRadius:9,border:'1px solid rgba(0,0,0,0.12)',background:'rgba(255,255,255,0.4)',color:loading?'#9b9590':'#0d7a60',cursor:loading?'not-allowed':'pointer',fontSize:10,fontWeight:700,fontFamily:"'DM Sans',sans-serif",opacity:loading?0.6:1}}>
                 {loading?'Generating…':displayProfile?'↻ Regenerate':'✨ Generate AI Profile'}
               </button>
-              {obs.filter(o=>o.type!=='ai-profile').length===0
+              {obs.length===0
                 ?<div style={{textAlign:'center',fontSize:11,color:'#9b9590',padding:'20px 0'}}>No observations yet.</div>
-                :[...obs].map((o,realIdx)=>({o,realIdx})).filter(({o})=>o.type!=='ai-profile').reverse().map(({o,realIdx})=>(
-                  <div key={realIdx} className="obs-history-entry" style={{position:'relative',flexShrink:0,background:'rgba(255,255,255,0.3)',borderRadius:8,padding:'6px 10px',border:'1px solid rgba(0,0,0,0.07)'}}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
-                      <div style={{fontSize:9,color:'#6b6560',fontFamily:"'DM Sans',sans-serif"}}>{o.date}{o.thumb?' '+(o.thumb==='up'?'👍':'👎'):''}</div>
-                      <button onClick={()=>onDeleteObs(realIdx)}
-                        style={{fontSize:10,lineHeight:1,padding:'2px 6px',borderRadius:5,background:'rgba(232,112,90,0.1)',border:'1px solid rgba(232,112,90,0.25)',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
-                    </div>
-                    {o.tags&&o.tags.length>0&&(
-                      <div style={{display:'flex',flexWrap:'wrap',gap:3,marginBottom:3}}>
-                        {o.tags.map((t,j)=>{
-                          const tagDef=OBS_TAGS.find(td=>td.label===t);
-                          const colors={green:{bg:'rgba(59,191,160,0.15)',cl:'#0d7a60'},yellow:{bg:'rgba(212,168,67,0.15)',cl:'#8a6a00'},red:{bg:'rgba(232,112,90,0.15)',cl:'#c0392b'}};
-                          const c=colors[tagDef?tagDef.color:'yellow']||colors.yellow;
-                          return<span key={j} style={{fontSize:8,padding:'1px 6px',borderRadius:6,background:c.bg,color:c.cl,fontFamily:"'DM Sans',sans-serif"}}>{t}</span>;
-                        })}
+                :(()=>{
+                  // Group all obs (including ai-profile) by date, newest date first
+                  const indexed=[...obs].map((o,realIdx)=>({o,realIdx}));
+                  const dateMap={};
+                  indexed.forEach(({o,realIdx})=>{
+                    const d=o.date||'Unknown';
+                    if(!dateMap[d]) dateMap[d]=[];
+                    dateMap[d].push({o,realIdx});
+                  });
+                  // Sort dates newest-first (reverse insertion order approximation)
+                  const dates=Object.keys(dateMap).reverse();
+                  return dates.map(date=>(
+                    <div key={date} style={{flexShrink:0}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'#6b6560',letterSpacing:'.05em',textTransform:'uppercase',marginBottom:4,paddingLeft:2}}>{date}</div>
+                      <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                        {dateMap[date].map(({o,realIdx})=>(
+                          o.type==='ai-profile'?(
+                            <div key={realIdx} style={{position:'relative',flexShrink:0,background:'rgba(59,191,160,0.07)',borderRadius:8,padding:'6px 10px',border:'1px solid rgba(59,191,160,0.2)'}}>
+                              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
+                                <span style={{fontSize:9,fontWeight:700,color:'#0d7a60',letterSpacing:'.05em'}}>✨ AI Profile</span>
+                                <button onClick={()=>onDeleteObs(realIdx)}
+                                  style={{fontSize:10,lineHeight:1,padding:'2px 6px',borderRadius:5,background:'rgba(232,112,90,0.1)',border:'1px solid rgba(232,112,90,0.25)',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
+                              </div>
+                              <div style={{fontSize:10,color:'#1a1a2e',fontStyle:'italic',lineHeight:1.5,fontFamily:"'DM Sans',sans-serif"}}>{o.note}</div>
+                            </div>
+                          ):(
+                            <div key={realIdx} className="obs-history-entry" style={{position:'relative',flexShrink:0,background:'rgba(255,255,255,0.3)',borderRadius:8,padding:'6px 10px',border:'1px solid rgba(0,0,0,0.07)'}}>
+                              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
+                                <div style={{fontSize:9,color:'#6b6560',fontFamily:"'DM Sans',sans-serif"}}>{o.thumb?<span>{o.thumb==='up'?'👍':'👎'}</span>:null}</div>
+                                <button onClick={()=>onDeleteObs(realIdx)}
+                                  style={{fontSize:10,lineHeight:1,padding:'2px 6px',borderRadius:5,background:'rgba(232,112,90,0.1)',border:'1px solid rgba(232,112,90,0.25)',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
+                              </div>
+                              {o.tags&&o.tags.length>0&&(
+                                <div style={{display:'flex',flexWrap:'wrap',gap:3,marginBottom:3}}>
+                                  {o.tags.map((t,j)=>{
+                                    const tagDef=OBS_TAGS.find(td=>td.label===t);
+                                    const colors={green:{bg:'rgba(59,191,160,0.15)',cl:'#0d7a60'},yellow:{bg:'rgba(212,168,67,0.15)',cl:'#8a6a00'},red:{bg:'rgba(232,112,90,0.15)',cl:'#c0392b'}};
+                                    const c=colors[tagDef?tagDef.color:'yellow']||colors.yellow;
+                                    return<span key={j} style={{fontSize:8,padding:'1px 6px',borderRadius:6,background:c.bg,color:c.cl,fontFamily:"'DM Sans',sans-serif"}}>{t}</span>;
+                                  })}
+                                </div>
+                              )}
+                              {o.note&&<div style={{fontSize:10,color:'#2a2520',fontStyle:'italic',lineHeight:1.4,fontFamily:"'DM Sans',sans-serif"}}>"{o.note}"</div>}
+                              {o.escalation&&!o.escalationCleared&&<div style={{fontSize:9,color:'#c0392b',marginTop:2}}>⚠️ Escalation needed</div>}
+                            </div>
+                          )
+                        ))}
                       </div>
-                    )}
-                    {o.note&&<div style={{fontSize:10,color:'#2a2520',fontStyle:'italic',lineHeight:1.4,fontFamily:"'DM Sans',sans-serif"}}>"{o.note}"</div>}
-                    {o.escalation&&!o.escalationCleared&&<div style={{fontSize:9,color:'#c0392b',marginTop:2}}>⚠️ Escalation needed</div>}
-                  </div>
-                ))
+                    </div>
+                  ));
+                })()
               }
             </div>
           </div>}{/* end back face */}
@@ -8367,7 +8397,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                             title={teacherMode&&editMode&&!sess.linkedSession&&sess.sessType!=='manual'?'Click to edit date':undefined}>
                             {sess.date}
                             {sess.sessType==='sub'&&<span style={{fontSize:8,display:'block',color:'var(--violet)',fontWeight:700,letterSpacing:'.05em'}}>SUB</span>}
-                            {sess.sessType==='cancelled'&&<span style={{fontSize:8,display:'block',color:'var(--coral)',fontWeight:700,letterSpacing:'.05em'}}>OFF</span>}
+                            {sess.sessType==='cancelled'&&<span style={{fontSize:8,display:'block',color:'var(--coral)',fontWeight:700,letterSpacing:'.05em'}}>✕</span>}
                             {sess.sessType==='manual'&&<sup title={[sess.manualTitle,sess.manualActivity].filter(Boolean).join(' · ')||'Extra session — click to add details'} style={{fontSize:7,color:'var(--teal)',fontWeight:700,verticalAlign:'super',lineHeight:0,marginLeft:1,cursor:'pointer'}}>●</sup>}
                           </span>
                         )}
@@ -8380,6 +8410,33 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                               onClick={e=>{e.stopPropagation();updateData(d=>{d.sessions[si].sessType=d.sessions[si].sessType==='sub'?'normal':'sub';});}}>
                               {sess.sessType==='sub'?'▶ REG':'⇄ SUB'}
                             </span>
+                            {sess.sessType!=='cancelled'&&(
+                              linkPickerFor===si?(
+                                <select autoFocus
+                                  style={{fontSize:7,width:'100%',marginTop:2,borderRadius:4,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",cursor:'pointer'}}
+                                  defaultValue={sess.linkedSession?(sess.linkedSession.phaseId+':'+sess.linkedSession.sessionN):''}
+                                  onChange={e=>{
+                                    e.stopPropagation();
+                                    const val=e.target.value;
+                                    const allLessons=[];
+                                    PHASES.forEach(p=>p.sessions.forEach(s=>allLessons.push({label:'S'+s.n+': '+s.title,key:p.id+':'+s.n,phaseId:p.id,sessionN:s.n})));
+                                    const picked=val?allLessons.find(l=>l.key===val):null;
+                                    updateData(d=>{d.sessions[si].linkedSession=picked||null;});
+                                    setLinkPickerFor(null);
+                                  }}
+                                  onBlur={()=>setLinkPickerFor(null)}
+                                  onClick={e=>e.stopPropagation()}>
+                                  <option value="">— No link —</option>
+                                  {(()=>{const ll=[];PHASES.forEach(p=>p.sessions.forEach(s=>ll.push({key:p.id+':'+s.n,label:'S'+s.n+': '+s.title})));return ll.map((l,i)=><option key={i} value={l.key}>{l.label}</option>);})()}
+                                </select>
+                              ):(
+                                <span title={sess.linkedSession?'Linked: S'+sess.linkedSession.sessionN+' — click to change':'Link to a lesson'}
+                                  style={{fontSize:7,color:sess.linkedSession?'var(--teal)':'var(--tx3)',cursor:'pointer',display:'block',textAlign:'center',marginTop:1,fontWeight:700,letterSpacing:'.03em'}}
+                                  onClick={e=>{e.stopPropagation();setLinkPickerFor(si);}}>
+                                  {sess.linkedSession?'🔗 S'+sess.linkedSession.sessionN:'🔗 LINK'}
+                                </span>
+                              )
+                            )}
                           </>
                         )}
                       </div>
