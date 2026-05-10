@@ -7039,13 +7039,26 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading}){
     const fc=document.createElement('canvas');
     fc.width=Math.round(outW*scale);fc.height=Math.round(outH*scale);
     const ctx=fc.getContext('2d');
-    ctx.filter=getCSSFilter();
     ctx.save();ctx.translate(fc.width/2,fc.height/2);
     if(flipH) ctx.scale(-1,1);
     ctx.rotate(rotation*Math.PI/180);
     ctx.drawImage(img,srcX,srcY,srcW,srcH,-Math.round(srcW*scale)/2,-Math.round(srcH*scale)/2,Math.round(srcW*scale),Math.round(srcH*scale));
     ctx.restore();
-    fc.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.88);
+    const filterStr=getCSSFilter();
+    if(filterStr==='none'){
+      fc.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.88);
+    } else {
+      const fc2=document.createElement('canvas');
+      fc2.width=fc.width;fc2.height=fc.height;
+      const ctx2=fc2.getContext('2d');
+      ctx2.filter=filterStr;
+      try{
+        ctx2.drawImage(fc,0,0);
+        fc2.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.88);
+      }catch(err){
+        fc.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.88);
+      }
+    }
   }
 
   const sliders=[
@@ -7304,15 +7317,17 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
     return()=>window.removeEventListener('keydown',onKey);
   },[onClose]);
 
-  async function handlePhotoEdit(blob){
-    setPhotoEditorUploading(true);
+  async function handleProfilePhotoEdit(blob){
+    setProfilePhotoEditorUploading(true);
     try{
-      const file=new File([blob],'edited.jpg',{type:'image/jpeg'});
-      const url=await uploadPortfolioPhoto(file,sectionId,studentIdx);
-      updateData(d=>{if(d.students[studentIdx].portfolio[active]) d.students[studentIdx].portfolio[active].url=url;});
-      setPhotoEditorOpen(false);
+      const ts=Date.now();
+      const ref=window._storage.ref('photos/profile_edited_'+ts+'.jpg');
+      await ref.put(blob,{contentType:'image/jpeg'});
+      const url=await ref.getDownloadURL();
+      updateData(d=>{d.students[studentIdx].photo=url;});
+      setProfilePhotoEditor(false);
     }catch(err){alert('Save failed: '+err.message);}
-    setPhotoEditorUploading(false);
+    setProfilePhotoEditorUploading(false);
   }
 
   async function handleUpload(e){
