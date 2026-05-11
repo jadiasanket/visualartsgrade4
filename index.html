@@ -4038,12 +4038,22 @@ function RefsPanel({refs,sessionKey}){
   function openLb(idx){setLbIdx(idx);setMetaVisible(true);setZoom(1);setPanX(0);setPanY(0);}
   function closeLb(){setLbIdx(null);setZoom(1);setPanX(0);setPanY(0);}
 
-  const handleArtUpload=(i,e)=>{
+  const handleArtUpload=async(i,e)=>{
     const file=e.target.files[0];if(!file)return;
-    const rd=new FileReader();
-    rd.onload=ev=>setArtistUploads(prev=>({...prev,[i]:{src:ev.target.result,name:file.name}}));
-    rd.readAsDataURL(file);
     e.target.value='';
+    try{
+      const ts=Date.now();
+      const ext=file.name.split('.').pop()||'jpg';
+      const ref=window._storage.ref('refs/'+sessionKey+'/'+i+'_'+ts+'.'+ext);
+      await ref.put(file);
+      const url=await ref.getDownloadURL();
+      setArtistUploads(prev=>({...prev,[i]:{src:url,name:file.name}}));
+    }catch(err){
+      // Fallback to base64 if Firebase fails
+      const rd=new FileReader();
+      rd.onload=ev=>setArtistUploads(prev=>({...prev,[i]:{src:ev.target.result,name:file.name}}));
+      rd.readAsDataURL(file);
+    }
   };
   const removeArtImg=(i)=>setArtistUploads(prev=>{const n={...prev};delete n[i];return n;});
 
@@ -4086,18 +4096,21 @@ function RefsPanel({refs,sessionKey}){
                     <div className="ref-why" style={{marginTop:4}}>{r.why}</div>
                   </div>
                 </div>
-                {/* Full image thumbnail — contain so full artwork visible */}
+                {/* Thumbnail with gradient info overlay */}
                 {artImg&&(
-                  <div style={{position:'relative',borderRadius:8,overflow:'hidden',background:'var(--glass-bg2)',cursor:'pointer',border:'1px solid var(--glass-border2)'}}
+                  <div style={{position:'relative',width:200,height:160,borderRadius:8,overflow:'hidden',background:'#111',cursor:'pointer',border:'1px solid var(--glass-border2)',flexShrink:0}}
                     onClick={()=>lbItemIdx>=0&&openLb(lbItemIdx)}>
                     <img src={artImg.src} alt={artImg.name}
-                      style={{width:'100%',maxHeight:320,objectFit:'contain',display:'block',background:'#111'}}/>
-                    <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0)',transition:'background .15s'}}
-                      onMouseEnter={e=>e.currentTarget.style.background='rgba(0,0,0,0.12)'}
-                      onMouseLeave={e=>e.currentTarget.style.background='rgba(0,0,0,0)'}/>
+                      style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                    {/* Gradient info overlay — always visible */}
+                    <div style={{position:'absolute',bottom:0,left:0,right:0,
+                      background:'linear-gradient(to top,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.4) 60%,transparent 100%)',
+                      padding:'20px 10px 8px',pointerEvents:'none'}}>
+                      <div style={{fontSize:11,fontWeight:700,color:'#fff',lineHeight:1.3}}>{r.name}</div>
+                      {r.work&&<div style={{fontSize:9,color:'rgba(255,255,255,0.6)',fontStyle:'italic',marginTop:1}}>{r.work}</div>}
+                    </div>
                     {teacherMode&&<button onClick={e=>{e.stopPropagation();removeArtImg(i);}}
-                      style={{position:'absolute',top:6,right:6,background:'rgba(0,0,0,0.6)',border:'none',borderRadius:'50%',width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'#fff',fontSize:11}}>✕</button>}
-                    <div style={{position:'absolute',bottom:6,right:8,fontSize:9,color:'rgba(255,255,255,0.5)',fontWeight:700,letterSpacing:'.05em',textShadow:'0 1px 4px rgba(0,0,0,0.8)'}}>click to view</div>
+                      style={{position:'absolute',top:5,right:5,background:'rgba(0,0,0,0.6)',border:'none',borderRadius:'50%',width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'#fff',fontSize:10}}>✕</button>}
                   </div>
                 )}
                 {/* Video thumb */}
