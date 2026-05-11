@@ -5841,6 +5841,7 @@ function inlineFormat(text){
 // ── JUMP LINK RENDERER — wraps Lesson N / Wave N in tappable chips ──
 function inlineWithJumps(text, onJump){
   if(!text) return text;
+  if(typeof text!=='string') return text; // already React elements — don't process
   // Match "Lesson 1-14" or "Wave 1/2/3" (case-insensitive)
   const regex=/(Lesson\s+(\d+)|Wave\s+([123]))/gi;
   const parts=[];
@@ -5880,14 +5881,13 @@ function AIChatbot({phases,sections,teacherMode,currentView,currentPhase,current
   const [model,setModel]=React.useState('gemini-2.5-flash');
 
   function handleJump(type,num){
-    // Build a navigation message as if the user typed it
     if(type==='lesson'){
       const allLessons=phases.flatMap(p=>p.sessions);
       const sess=allLessons.find(s=>s.n===num);
-      if(sess&&window.sendPrompt) window.sendPrompt('Go to Lesson '+num+': '+sess.title);
+      if(sess) sendMessage('Tell me about Lesson '+num+': '+sess.title);
     } else {
       const wave=phases.find((p,i)=>i+1===num);
-      if(wave&&window.sendPrompt) window.sendPrompt('Show me Wave '+num+': '+wave.name);
+      if(wave) sendMessage('Tell me about Wave '+num+': '+wave.name);
     }
   }
   const [liveData,setLiveData]=React.useState(null);
@@ -6033,8 +6033,8 @@ RESPONSE STYLE — VERY IMPORTANT:
 - When flagging students of concern, be specific: name, section, what the data shows.`;
   }
 
-  async function sendMessage(){
-    const text=input.trim();
+  async function sendMessage(overrideText){
+    const text=(overrideText||input).trim();
     if(!text||loading) return;
     const key=getGeminiKey();
     if(!key){
@@ -6076,6 +6076,7 @@ RESPONSE STYLE — VERY IMPORTANT:
         const groundingMeta=data.candidates?.[0]?.groundingMetadata;
         const sources=(groundingMeta?.groundingChunks||[])
           .map(c=>c.web).filter(Boolean)
+          .filter(s=>s.uri&&!s.uri.includes('vertexaisearch')&&!s.uri.includes('google.com/search'))
           .filter((s,i,arr)=>arr.findIndex(x=>x.uri===s.uri)===i)// dedupe
           .slice(0,4);
         const sourceSuffix=sources.length>0
@@ -6611,17 +6612,21 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
                 </div>}
 
                 {/* Photo upload — edit mode only */}
-                {editMode&&<div style={{position:'absolute',top:8,right:8,zIndex:10,display:'flex',flexDirection:'column',gap:4}} onMouseDown={e=>e.stopPropagation()}>
-                  <label htmlFor={'snp-photo-'+studentIdx}
-                    style={{fontSize:9,color:'rgba(255,255,255,0.9)',background:'rgba(0,0,0,0.55)',padding:'3px 8px',borderRadius:6,cursor:'pointer',backdropFilter:'blur(4px)',display:'block',letterSpacing:'.03em',textAlign:'center'}}>
-                    📷 {student.photo?'Change':'Add'}
+                {editMode&&<div style={{position:'absolute',top:8,right:8,zIndex:10,display:'flex',flexDirection:'row',gap:4,alignItems:'center'}} onMouseDown={e=>e.stopPropagation()}>
+                  {student.photo&&<button onClick={()=>setProfilePhotoEditor(true)} title="Edit photo"
+                    style={{display:'flex',alignItems:'center',justifyContent:'center',width:28,height:28,borderRadius:6,border:'none',background:'rgba(245,158,11,0.85)',cursor:'pointer',padding:0}}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#060606" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>}
+                  <label htmlFor={'snp-photo-'+studentIdx} title={student.photo?'Change photo':'Add photo'}
+                    style={{display:'flex',alignItems:'center',justifyContent:'center',width:28,height:28,borderRadius:6,background:'rgba(0,0,0,0.55)',cursor:'pointer',backdropFilter:'blur(4px)'}}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/>
+                    </svg>
                   </label>
                   <input id={'snp-photo-'+studentIdx} type="file" accept="image/*" style={{display:'none'}}
                     onChange={e=>{const file=e.target.files[0];if(!file)return;onPhotoChange(file);e.target.value='';}}/>
-                  {student.photo&&<button onClick={()=>setProfilePhotoEditor(true)}
-                    style={{fontSize:9,fontWeight:800,color:'#080808',background:'rgba(245,158,11,0.85)',border:'none',padding:'3px 8px',borderRadius:6,cursor:'pointer',letterSpacing:'.03em',textAlign:'center'}}>
-                    ✎ Edit
-                  </button>}
                 </div>}
 
                 {/* Resize handle — right edge, edit mode only */}
@@ -6909,7 +6914,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
       return next;
     });
   }
-  const [cropMode,setCropMode]=React.useState(false);
+  const [cropMode,setCropMode]=React.useState(false); // will be set true below if saved crop exists
   const [fineRotation,setFineRotation]=React.useState(0); // -45 to +45 degrees
   const [imgReady,setImgReady]=React.useState(false);
   const [canvasRect,setCanvasRect]=React.useState(null);
@@ -6958,6 +6963,12 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
 
   // Redraw canvas when params change
   React.useEffect(()=>{if(imgReady) redraw();},[imgReady,rotation,fineRotation,flipH]);
+  // Auto-show crop overlay if a non-default crop was saved
+  React.useEffect(()=>{
+    if(imgReady&&initialCrop&&!(initialCrop.x===0&&initialCrop.y===0&&initialCrop.w===1&&initialCrop.h===1)){
+      setCropMode(true);
+    }
+  },[imgReady]);
 
   // Update canvas rect when ready
   React.useEffect(()=>{
@@ -6977,10 +6988,12 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
     const maxH=window.innerHeight-80;
     const totalRot=rotation+fineRotation;
     const rad=totalRot*Math.PI/180;
-    // Compute bounding box for arbitrary rotation
-    const cosA=Math.abs(Math.cos(rad)), sinA=Math.abs(Math.sin(rad));
-    const outNatW=img.width*cosA+img.height*sinA;
-    const outNatH=img.width*sinA+img.height*cosA;
+    // Canvas size is fixed to the crop region — image rotates within it (corners clip)
+    const rot90=(rotation===90||rotation===270);
+    const baseW=rot90?img.height:img.width;
+    const baseH=rot90?img.width:img.height;
+    const outNatW=baseW;
+    const outNatH=baseH;
     const scale=Math.min(maxW/outNatW,maxH/outNatH,1);
     canvas.width=Math.round(outNatW*scale);
     canvas.height=Math.round(outNatH*scale);
@@ -7148,14 +7161,43 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
               {/* Move handle (drag inside box) */}
               <div onMouseDown={e=>cropHandleMouseDown(e,'move')}
                 style={{position:'absolute',left:(crop.x*100)+'%',top:(crop.y*100)+'%',width:(crop.w*100)+'%',height:(crop.h*100)+'%',cursor:'move',zIndex:4}}/>
-              {/* Edge/corner handles */}
+              {/* Photoshop-style L-shaped corner marks + thin edge lines */}
+              <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:5}} overflow="visible">
+                {/* Corner L-marks */}
+                {[
+                  {x:crop.x,y:crop.y,dx:1,dy:1},
+                  {x:crop.x+crop.w,y:crop.y,dx:-1,dy:1},
+                  {x:crop.x,y:crop.y+crop.h,dx:1,dy:-1},
+                  {x:crop.x+crop.w,y:crop.y+crop.h,dx:-1,dy:-1}
+                ].map((c,i)=>{
+                  const px=c.x*100+'%', py=c.y*100+'%';
+                  const L=12;
+                  return(
+                    <g key={i}>
+                      <line x1={px} y1={py} x2={'calc('+px+' + '+(c.dx*L)+'px)'} y2={py} stroke={AMBER} strokeWidth="2.5" strokeLinecap="round"/>
+                      <line x1={px} y1={py} x2={px} y2={'calc('+py+' + '+(c.dy*L)+'px)'} stroke={AMBER} strokeWidth="2.5" strokeLinecap="round"/>
+                    </g>
+                  );
+                })}
+                {/* Edge midpoint lines */}
+                {[
+                  {x:(crop.x+crop.w/2)*100+'%',y:crop.y*100+'%',horiz:true},
+                  {x:(crop.x+crop.w/2)*100+'%',y:(crop.y+crop.h)*100+'%',horiz:true},
+                  {x:crop.x*100+'%',y:(crop.y+crop.h/2)*100+'%',horiz:false},
+                  {x:(crop.x+crop.w)*100+'%',y:(crop.y+crop.h/2)*100+'%',horiz:false},
+                ].map((e,i)=>(
+                  <line key={'e'+i}
+                    x1={e.horiz?'calc('+e.x+' - 8px)':e.x} y1={e.horiz?e.y:'calc('+e.y+' - 8px)'}
+                    x2={e.horiz?'calc('+e.x+' + 8px)':e.x} y2={e.horiz?e.y:'calc('+e.y+' + 8px)'}
+                    stroke={AMBER} strokeWidth="2" strokeLinecap="round"/>
+                ))}
+              </svg>
+              {/* Invisible hit areas for handles */}
               {cropHandles.map(h=>(
                 <div key={h.id} onMouseDown={e=>cropHandleMouseDown(e,h.id)}
                   style={{position:'absolute',left:(h.x*100)+'%',top:(h.y*100)+'%',
-                    width:14,height:14,borderRadius:h.id.length===2?3:'50%',
-                    background:AMBER,border:'2px solid #060606',
-                    transform:'translate(-50%,-50%)',cursor:h.cursor,zIndex:5,
-                    boxShadow:'0 1px 4px rgba(0,0,0,0.6)'}}/>
+                    width:20,height:20,background:'transparent',
+                    transform:'translate(-50%,-50%)',cursor:h.cursor,zIndex:6}}/>
               ))}
             </div>
           );
@@ -7203,28 +7245,6 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
                   {b.label}
                 </button>
               ))}
-            </div>
-            {/* Fine rotation slider */}
-            <div style={{marginTop:8}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
-                <span style={{fontSize:9,color:'rgba(255,255,255,0.45)'}}>↻ Fine Rotate</span>
-                <span style={{fontSize:9,fontWeight:700,color:fineRotation!==0?AMBER:'rgba(255,255,255,0.2)'}}>{fineRotation>0?'+':''}{fineRotation}°</span>
-              </div>
-              <div style={{position:'relative',height:6,borderRadius:6,background:'rgba(255,255,255,0.08)',marginBottom:2}}>
-                <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.15)'}}/>
-                <div style={{position:'absolute',borderRadius:6,background:AMBER,
-                  left:fineRotation<0?(50+fineRotation/45*50)+'%':'50%',
-                  width:Math.abs(fineRotation)/45*50+'%',top:0,bottom:0,opacity:0.85}}/>
-                <div style={{position:'absolute',top:'50%',
-                  left:'calc('+((fineRotation+45)/90*100)+'% - 8px)',
-                  width:16,height:16,borderRadius:'50%',
-                  background:AMBER,border:'2px solid #060606',
-                  transform:'translateY(-50%)',boxShadow:'0 1px 6px rgba(0,0,0,0.6)',
-                  pointerEvents:'none'}}/>
-              </div>
-              <input type="range" min={-45} max={45} value={fineRotation}
-                onChange={e=>{snapshot();setFineRotation(Number(e.target.value));}}
-                style={{width:'100%',opacity:0,height:20,cursor:'pointer',position:'relative',zIndex:1,marginTop:-18,display:'block'}}/>
             </div>
           </div>
 
@@ -7277,6 +7297,28 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
               Reset
             </button>}
           </div>
+          {/* Fine rotation slider — shown when crop is active */}
+          {cropMode&&<div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
+              <span style={{fontSize:9,color:'rgba(255,255,255,0.45)'}}>↻ Straighten</span>
+              <span style={{fontSize:9,fontWeight:700,color:fineRotation!==0?AMBER:'rgba(255,255,255,0.2)'}}>{fineRotation>0?'+':''}{fineRotation}°</span>
+            </div>
+            <div style={{position:'relative',height:6,borderRadius:6,background:'rgba(255,255,255,0.08)',marginBottom:2}}>
+              <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.15)'}}/>
+              <div style={{position:'absolute',borderRadius:6,background:AMBER,
+                left:fineRotation<0?(50+fineRotation/45*50)+'%':'50%',
+                width:Math.abs(fineRotation)/45*50+'%',top:0,bottom:0,opacity:0.85}}/>
+              <div style={{position:'absolute',top:'50%',
+                left:'calc('+((fineRotation+45)/90*100)+'% - 8px)',
+                width:16,height:16,borderRadius:'50%',
+                background:AMBER,border:'2px solid #060606',
+                transform:'translateY(-50%)',boxShadow:'0 1px 6px rgba(0,0,0,0.6)',
+                pointerEvents:'none'}}/>
+            </div>
+            <input type="range" min={-45} max={45} value={fineRotation}
+              onChange={e=>{snapshot();setFineRotation(Number(e.target.value));}}
+              style={{width:'100%',opacity:0,height:20,cursor:'pointer',position:'relative',zIndex:1,marginTop:-18,display:'block'}}/>
+          </div>}
 
           {/* Reset all */}
           <button onClick={reset}
@@ -7368,7 +7410,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   async function handlePhotoEdit(blob){
     const activeAtSave=active;
     const localUrl=URL.createObjectURL(blob);
-    updateData(d=>{const p=d.students[studentIdx].portfolio;if(p&&p[activeAtSave]){if(!p[activeAtSave].originalUrl) p[activeAtSave].originalUrl=p[activeAtSave].url;p[activeAtSave].url=localUrl;}});
+    updateData(d=>{const p=d.students[studentIdx].portfolio;if(p&&p[activeAtSave]) p[activeAtSave].url=localUrl;});
     setPhotoEditorOpen(false);
     setPhotoEditorUploading(true);
     try{
@@ -7376,7 +7418,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
       const ref=window._storage.ref('portfolio/'+sectionId+'/'+studentIdx+'/edited_'+ts+'.jpg');
       await ref.put(blob,{contentType:'image/jpeg'});
       const url=await ref.getDownloadURL();
-      updateData(d=>{const p=d.students[studentIdx].portfolio;if(p&&p[activeAtSave]){if(!p[activeAtSave].originalUrl) p[activeAtSave].originalUrl=p[activeAtSave].url;p[activeAtSave].url=url;}});
+      updateData(d=>{const p=d.students[studentIdx].portfolio;if(p&&p[activeAtSave]) p[activeAtSave].url=url;});
     }catch(err){alert('Save failed: '+err.message);}
     setPhotoEditorUploading(false);
   }
@@ -7391,7 +7433,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
         const date=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
         updateData(d=>{
           if(!d.students[studentIdx].portfolio) d.students[studentIdx].portfolio=[];
-          d.students[studentIdx].portfolio.push({url,originalUrl:url,date,caption:'',type:'artwork',lessons:[],artTags:[],review:''});
+          d.students[studentIdx].portfolio.push({url,date,caption:'',type:'artwork',lessons:[],artTags:[],review:''});
         });
         setActive((student.portfolio||[]).length);
       }
@@ -7466,7 +7508,7 @@ function StudentPortfolio({studentIdx,student,sectionId,updateData,onClose}){
   return ReactDOM.createPortal(
     <div ref={overlayRef} style={{position:'fixed',inset:0,zIndex:3000,background:'rgba(10,15,26,0.92)',backdropFilter:'blur(12px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
       onClick={photoEditorOpen?undefined:onClose}>
-      {photoEditorOpen&&current&&<PhotoEditor srcUrl={current.originalUrl||current.url} onSave={handlePhotoEdit} onClose={()=>setPhotoEditorOpen(false)} uploading={photoEditorUploading} initialCrop={savedCrop} onCropChange={setSavedCrop}/>}
+      {photoEditorOpen&&current&&<PhotoEditor srcUrl={current.url} onSave={handlePhotoEdit} onClose={()=>setPhotoEditorOpen(false)} uploading={photoEditorUploading} initialCrop={savedCrop} onCropChange={setSavedCrop}/>}
       <div onClick={e=>e.stopPropagation()} style={{width:'min(960px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:20,boxShadow:'var(--glass-shadow2)',overflow:'hidden'}}>
         {/* Header — name + close only, no add/fullscreen buttons here */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',borderBottom:'1px solid var(--glass-border)',flexShrink:0,background:'var(--glass-bg)'}}>
