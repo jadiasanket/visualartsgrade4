@@ -3066,6 +3066,28 @@ function useLocalStorage(key,init){
   return[val,set];
 }
 
+// ── Global custom lessons store ──
+// Custom lessons added manually (e.g. "Field Trip", "Guest Artist") are stored in
+// localStorage under 'g4-custom-lessons' and appear everywhere lessons can be selected.
+// Shape: [{id:string, label:string}]
+const CUSTOM_LESSONS_KEY='g4-custom-lessons';
+function useCustomLessons(){
+  return useLocalStorage(CUSTOM_LESSONS_KEY,[]);
+}
+function getCustomLessons(){
+  try{const s=localStorage.getItem(CUSTOM_LESSONS_KEY);return s?JSON.parse(s):[];}catch{return[];}
+}
+function addCustomLesson(label){
+  const trimmed=label.trim();
+  if(!trimmed) return null;
+  const id='custom_'+Date.now();
+  const lessons=getCustomLessons();
+  if(lessons.find(l=>l.label.toLowerCase()===trimmed.toLowerCase())) return null; // dupe
+  const next=[...lessons,{id,label:trimmed}];
+  try{localStorage.setItem(CUSTOM_LESSONS_KEY,JSON.stringify(next));}catch{}
+  return{id,label:trimmed};
+}
+
 // ── Firestore hook — replaces useLocalStorage for section data only ──
 // Reads/writes Firestore doc at sections/shared-[sectionId].
 // Accessible to all users (authenticated or sub PIN). Falls back to localStorage.
@@ -4624,54 +4646,60 @@ function RefsPanel({refs,sessionKey}){
               if(nz===1){setPanX(0);setPanY(0);}return nz;});}}}>
 
           {curItem.type==='image'&&(
-            <img src={curItem.src} alt="" draggable={false}
-              onClick={e=>e.stopPropagation()}
-              onMouseDown={e=>{e.stopPropagation();if(zoom>1){e.preventDefault();
-                setDragging(true);dragStart.current={x:e.clientX-panX,y:e.clientY-panY,moved:false};}}}
-              style={{
-                maxWidth:'100vw',maxHeight:'100vh',
-                objectFit:'contain',display:'block',
-                transform:`scale(${zoom}) translate(${panX/zoom}px,${panY/zoom}px)`,
-                transition:dragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1)',
-                willChange:'transform',
-                cursor:zoom>1?(dragging?'grabbing':'grab'):'default',
-                userSelect:'none',imageRendering:'high-quality',
-                position:'relative',zIndex:1}}/>
-          )}
+            /* Fixed starting box — zoom expands beyond this via scale() */
+            <div style={{position:'relative',
+              width:'min(88vw,960px)',height:'min(84vh,760px)',
+              display:'flex',alignItems:'center',justifyContent:'center',
+              flexShrink:0}}
+              onClick={e=>{
+                // click on image wrapper toggles info (unless dragging)
+                if(dragStart.current&&dragStart.current.moved){e.stopPropagation();return;}
+                e.stopPropagation();
+                setMetaVisible(v=>!v);
+              }}>
+              {/* The image — blur+darken when info visible */}
+              <img src={curItem.src} alt="" draggable={false}
+                onMouseDown={e=>{e.stopPropagation();if(zoom>1){e.preventDefault();
+                  setDragging(true);dragStart.current={x:e.clientX-panX,y:e.clientY-panY,moved:false};}}}
+                style={{
+                  maxWidth:'100%',maxHeight:'100%',
+                  objectFit:'contain',display:'block',
+                  transform:`scale(${zoom}) translate(${panX/zoom}px,${panY/zoom}px)`,
+                  transition:dragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1), filter .3s ease',
+                  willChange:'transform',
+                  filter:metaVisible&&(curItem.title||curItem.subtitle||curItem.why)
+                    ?'blur(7px) brightness(0.78)':'none',
+                  cursor:zoom>1?(dragging?'grabbing':'grab'):'pointer',
+                  userSelect:'none',imageRendering:'high-quality'}}/>
 
-          {/* Info overlay — centred on screen, subtle translucent card, click to toggle */}
-          {curItem.type==='image'&&(curItem.title||curItem.subtitle||curItem.why)&&(
-            <div onClick={e=>{e.stopPropagation();setMetaVisible(v=>!v);}}
-              style={{position:'fixed',bottom:28,left:'50%',transform:'translateX(-50%)',
-                zIndex:5010,cursor:'pointer',
-                maxWidth:560,width:'calc(100vw - 48px)',
-                pointerEvents:'auto'}}>
-              <div style={{
-                background:'rgba(0,0,0,0.52)',
-                backdropFilter:'blur(14px)',
-                WebkitBackdropFilter:'blur(14px)',
-                border:'1px solid rgba(255,255,255,0.12)',
-                borderRadius:14,
-                padding:metaVisible?'16px 20px':'10px 20px',
-                transition:'opacity .25s, padding .2s',
-                opacity:metaVisible?1:0.45}}>
-                {metaVisible&&(
-                  <>
-                    {curItem.title&&<div style={{fontSize:17,fontWeight:700,color:'#fff',
-                      fontFamily:"'DM Sans',sans-serif",marginBottom:3,letterSpacing:'-.01em'}}>{curItem.title}</div>}
-                    {curItem.subtitle&&<div style={{fontSize:13,color:'rgba(255,255,255,0.72)',
-                      fontFamily:"'DM Sans',sans-serif",marginBottom:curItem.why?5:0}}>{curItem.subtitle}</div>}
-                    {curItem.why&&<div style={{fontSize:12,color:'rgba(255,255,255,0.52)',
-                      fontFamily:"'DM Sans',sans-serif",lineHeight:1.55}}>{curItem.why}</div>}
-                    {curItem.badge&&<div style={{marginTop:8,display:'inline-block',fontSize:9,
-                      fontWeight:700,padding:'2px 8px',borderRadius:5,
-                      background:'rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.5)',
-                      letterSpacing:'.07em',textTransform:'uppercase',fontFamily:"'DM Sans',sans-serif"}}>{curItem.badge}</div>}
-                  </>
-                )}
-                {!metaVisible&&<div style={{fontSize:11,color:'rgba(255,255,255,0.5)',
-                  textAlign:'center',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.04em'}}>tap to show info</div>}
-              </div>
+              {/* Info overlay — appears centred over the blurred image */}
+              {(curItem.title||curItem.subtitle||curItem.why)&&(
+                <div style={{
+                  position:'absolute',inset:0,
+                  display:'flex',flexDirection:'column',
+                  alignItems:'center',justifyContent:'center',
+                  padding:'24px 32px',
+                  pointerEvents:'none',
+                  opacity:metaVisible?1:0,
+                  transition:'opacity .3s ease'}}>
+                  <div style={{maxWidth:520,textAlign:'center'}}>
+                    {curItem.title&&<div style={{fontSize:22,fontWeight:700,color:'#fff',
+                      fontFamily:"'DM Sans',sans-serif",letterSpacing:'-.01em',
+                      marginBottom:6,textShadow:'0 2px 12px rgba(0,0,0,0.5)'}}>{curItem.title}</div>}
+                    {curItem.subtitle&&<div style={{fontSize:15,color:'rgba(255,255,255,0.82)',
+                      fontFamily:"'DM Sans',sans-serif",marginBottom:curItem.why?10:0,
+                      textShadow:'0 1px 8px rgba(0,0,0,0.5)'}}>{curItem.subtitle}</div>}
+                    {curItem.why&&<div style={{fontSize:13,color:'rgba(255,255,255,0.65)',
+                      fontFamily:"'DM Sans',sans-serif",lineHeight:1.6,
+                      textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>{curItem.why}</div>}
+                    {curItem.badge&&<div style={{marginTop:12,display:'inline-block',fontSize:9,
+                      fontWeight:700,padding:'3px 10px',borderRadius:5,
+                      background:'rgba(255,255,255,0.15)',color:'rgba(255,255,255,0.7)',
+                      border:'1px solid rgba(255,255,255,0.2)',
+                      letterSpacing:'.08em',textTransform:'uppercase',fontFamily:"'DM Sans',sans-serif"}}>{curItem.badge}</div>}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -4725,7 +4753,7 @@ function RefsPanel({refs,sessionKey}){
               <span style={{color:'rgba(255,255,255,0.4)',fontSize:9}}>1×</span>
             </div>
           )}
-          {zoom>1&&<div style={{position:'fixed',bottom:120,left:'50%',
+          {zoom>1&&<div style={{position:'fixed',bottom:56,left:'50%',
             transform:'translateX(-50%)',background:'rgba(0,0,0,0.55)',
             color:'rgba(255,255,255,0.5)',fontSize:10,padding:'3px 12px',
             borderRadius:10,pointerEvents:'none',zIndex:5011}}>{Math.round(zoom*100)}% · drag to pan</div>}
@@ -8945,15 +8973,32 @@ function AddSessionModal({phases,onAdd,onClose}){
   const [sessType,setSessType]=React.useState('normal'); // normal | sub | cancelled
   const [isExtra,setIsExtra]=React.useState(false);
   const [linkedSession,setLinkedSession]=React.useState(null);
+  const [customLessons,setCustomLessons]=useCustomLessons();
+  const [newCustomName,setNewCustomName]=React.useState('');
+  const [showAddCustom,setShowAddCustom]=React.useState(false);
   const allSessions=[];
   phases.forEach(p=>p.sessions.forEach(s=>allSessions.push({label:`S${s.n}: ${s.title}`,key:`${p.id}:${s.n}`,phaseId:p.id,sessionN:s.n})));
   function handleAdd(){
     if(!dateStr.trim()) return;
     const ls=linkedSession==='none'?null:linkedSession;
-    // Extra session → store as sessType 'manual' internally for backward compat
     onAdd({date:dateStr.trim(),isDivider:false,sessType:isExtra?'manual':sessType,linkedSession:ls,
       manualTitle:'',manualActivity:''});
     onClose();
+  }
+  function handleAddCustomLesson(){
+    const trimmed=newCustomName.trim();
+    if(!trimmed) return;
+    const exists=customLessons.find(l=>l.label.toLowerCase()===trimmed.toLowerCase());
+    if(!exists){
+      const id='custom_'+Date.now();
+      const newLesson={id,label:trimmed};
+      setCustomLessons(prev=>[...prev,newLesson]);
+      setLinkedSession({key:'custom:'+id,label:trimmed,isCustom:true,customId:id});
+    } else {
+      setLinkedSession({key:'custom:'+exists.id,label:exists.label,isCustom:true,customId:exists.id});
+    }
+    setNewCustomName('');
+    setShowAddCustom(false);
   }
   const typeColors={normal:'var(--teal)',sub:'var(--violet)',cancelled:'var(--coral)'};
   const typeLabels={normal:'Normal class',sub:'Substitute class',cancelled:'Cancelled / Holiday'};
@@ -8993,7 +9038,7 @@ function AddSessionModal({phases,onAdd,onClose}){
           {sessType==='sub'&&!isExtra&&<div style={{fontSize:10,color:'var(--violet)',marginTop:5}}>Column will be highlighted purple. Attendance still applies.</div>}
           {sessType==='cancelled'&&<div style={{fontSize:10,color:'var(--coral)',marginTop:5}}>Column will show as cancelled. No attendance required.</div>}
         </div>
-        {/* Extra session toggle — only for non-cancelled */}
+        {/* Extra session toggle */}
         {sessType!=='cancelled'&&(
           <div className="modal-field" style={{borderTop:'1px solid var(--glass-border)',paddingTop:10}}>
             <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
@@ -9007,16 +9052,46 @@ function AddSessionModal({phases,onAdd,onClose}){
         )}
         {sessType!=='cancelled'&&!isExtra&&(
           <div className="modal-field">
-            <div className="modal-label">Link to Session (optional)</div>
+            <div className="modal-label" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span>Link to Lesson (optional)</span>
+              <button onClick={()=>setShowAddCustom(v=>!v)}
+                style={{fontSize:9,fontWeight:700,padding:'2px 8px',borderRadius:6,border:'1px solid var(--glass-border2)',
+                  background:'transparent',color:'var(--teal)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                + My own lesson
+              </button>
+            </div>
             <select className="modal-select" value={linkedSession?linkedSession==='none'?'none':linkedSession.key:''} onChange={e=>{
               if(!e.target.value) setLinkedSession(null);
               else if(e.target.value==='none') setLinkedSession('none');
+              else if(e.target.value.startsWith('custom:')){
+                const id=e.target.value.replace('custom:','');
+                const cl=customLessons.find(l=>l.id===id);
+                if(cl) setLinkedSession({key:'custom:'+cl.id,label:cl.label,isCustom:true,customId:cl.id});
+              }
               else setLinkedSession(allSessions.find(s=>s.key===e.target.value)||null);
             }}>
-              <option value="">— pick a session —</option>
-              <option value="none">No session link</option>
+              <option value="">— pick a lesson —</option>
+              <option value="none">No lesson link</option>
               {allSessions.map((s,i)=><option key={i} value={s.key}>{s.label}</option>)}
+              {customLessons.length>0&&<option disabled>── My lessons ──</option>}
+              {customLessons.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
             </select>
+            {/* Add custom lesson inline */}
+            {showAddCustom&&(
+              <div style={{display:'flex',gap:6,marginTop:7,alignItems:'center'}}>
+                <input autoFocus value={newCustomName} onChange={e=>setNewCustomName(e.target.value)}
+                  onKeyDown={e=>{if(e.key==='Enter')handleAddCustomLesson();if(e.key==='Escape')setShowAddCustom(false);}}
+                  placeholder="e.g. Field Trip, Guest Artist, Art Show…"
+                  style={{flex:1,fontSize:11,padding:'5px 9px',borderRadius:7,border:'1px solid var(--teal)',
+                    background:'var(--glass-bg)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
+                <button onClick={handleAddCustomLesson} disabled={!newCustomName.trim()}
+                  style={{fontSize:11,fontWeight:700,padding:'5px 12px',borderRadius:7,border:'none',
+                    background:'var(--teal)',color:'#fff',cursor:'pointer',opacity:newCustomName.trim()?1:0.5}}>Add</button>
+                <button onClick={()=>setShowAddCustom(false)}
+                  style={{fontSize:11,padding:'5px 8px',borderRadius:7,border:'1px solid var(--glass-border)',
+                    background:'transparent',color:'var(--tx3)',cursor:'pointer'}}>✕</button>
+              </div>
+            )}
           </div>
         )}
         <div className="modal-actions">
@@ -9990,42 +10065,28 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
 }
 
 // ── GALLERY UPLOAD MODAL ──
-// Allows bulk upload directly from Gallery view.
-// Each file gets assigned a section + student + optional label before saving.
 function GalleryUpload({onClose,onDone}){
-  const [queue,setQueue]=React.useState([]); // [{file,localUrl,sectionId,studentIdx,label,status}]
+  const [queue,setQueue]=React.useState([]);
   const [saving,setSaving]=React.useState(false);
-  const fileInputRef=React.useRef();
+  const [customLessons]=useCustomLessons();
+  const allPhaseLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`,phaseId:ph.id,sessionN:s.n})));
 
-  function addFiles(files){
-    const newItems=Array.from(files).map(f=>({
-      file:f,
-      localUrl:URL.createObjectURL(f),
-      sectionId:G4_SECTIONS[0].id,
-      studentIdx:0,
-      label:'',
-      status:'pending', // pending | uploading | done | error
-    }));
-    setQueue(prev=>[...prev,...newItems]);
+  function makeItem(f){
+    return{file:f,localUrl:URL.createObjectURL(f),
+      photoType:'artwork', // 'artwork' | 'documentation'
+      sectionId:G4_SECTIONS[0].id,studentIdx:0,label:'',
+      docLessonKey:'',docSectionId:G4_SECTIONS[0].id,
+      status:'pending'};
   }
-
-  function handleDrop(e){
-    e.preventDefault();
-    if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
-  }
-
-  function update(i,patch){
-    setQueue(prev=>prev.map((item,idx)=>idx===i?{...item,...patch}:item));
-  }
-
-  function remove(i){
-    setQueue(prev=>prev.filter((_,idx)=>idx!==i));
-  }
-
-  // Apply same section+student to all subsequent items after this one
+  function addFiles(files){setQueue(prev=>[...prev,...Array.from(files).map(makeItem)]);}
+  function handleDrop(e){e.preventDefault();if(e.dataTransfer.files.length)addFiles(e.dataTransfer.files);}
+  function update(i,patch){setQueue(prev=>prev.map((item,idx)=>idx===i?{...item,...patch}:item));}
+  function remove(i){setQueue(prev=>prev.filter((_,idx)=>idx!==i));}
   function applyToAll(fromIdx){
     const src=queue[fromIdx];
-    setQueue(prev=>prev.map((item,idx)=>idx<fromIdx?item:{...item,sectionId:src.sectionId,studentIdx:src.studentIdx}));
+    setQueue(prev=>prev.map((item,idx)=>idx<fromIdx?item:{...item,
+      photoType:src.photoType,sectionId:src.sectionId,studentIdx:src.studentIdx,
+      docLessonKey:src.docLessonKey,docSectionId:src.docSectionId}));
   }
 
   async function saveAll(){
@@ -10037,24 +10098,24 @@ function GalleryUpload({onClose,onDone}){
       if(item.status==='done') continue;
       update(i,{status:'uploading'});
       try{
-        const url=await uploadPortfolioPhoto(item.file,item.sectionId,item.studentIdx);
+        const isDoc=item.photoType==='documentation';
+        const sid=isDoc?item.docSectionId:item.sectionId;
+        const url=await uploadPortfolioPhoto(item.file,sid,item.studentIdx);
         const date=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
-        const sharedDocId='shared-'+item.sectionId;
+        const sharedDocId='shared-'+sid;
         const snap=await db.collection('sections').doc(sharedDocId).get();
         if(snap.exists){
           const data=snap.data();
-          if(!data.students[item.studentIdx].portfolio) data.students[item.studentIdx].portfolio=[];
-          data.students[item.studentIdx].portfolio.push({
-            url,date,
-            caption:item.label.trim(),
-            type:'artwork',lessons:[],artTags:[],review:''
-          });
+          // For documentation, attach to first student slot (idx 0) with type=documentation and lesson tag
+          const stuIdx=isDoc?0:item.studentIdx;
+          if(!data.students[stuIdx].portfolio) data.students[stuIdx].portfolio=[];
+          const entry={url,date,caption:item.label.trim(),type:item.photoType,lessons:[],artTags:[],review:''};
+          if(isDoc&&item.docLessonKey) entry.lessons=[item.docLessonKey];
+          data.students[stuIdx].portfolio.push(entry);
           await db.collection('sections').doc(sharedDocId).set(data);
         }
         update(i,{status:'done'});
-      }catch(err){
-        update(i,{status:'error',errorMsg:err.message});
-      }
+      }catch(err){update(i,{status:'error',errorMsg:err.message});}
     }
     setSaving(false);
     onDone();
@@ -10066,9 +10127,9 @@ function GalleryUpload({onClose,onDone}){
 
   return ReactDOM.createPortal(
     <div style={{position:'fixed',inset:0,zIndex:6000,background:'rgba(6,8,16,0.88)',backdropFilter:'blur(18px)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}
-      onClick={e=>{if(e.target===e.currentTarget&&!saving) onClose();}}>
+      onClick={e=>{if(e.target===e.currentTarget&&!saving)onClose();}}>
       <div style={{background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:20,
-        boxShadow:'var(--glass-shadow2)',width:'min(780px,96vw)',maxHeight:'90vh',
+        boxShadow:'var(--glass-shadow2)',width:'min(800px,96vw)',maxHeight:'90vh',
         display:'flex',flexDirection:'column',overflow:'hidden'}}>
 
         {/* Header */}
@@ -10076,37 +10137,29 @@ function GalleryUpload({onClose,onDone}){
           <div>
             <div style={{fontSize:16,fontWeight:800,color:'var(--tx)',fontFamily:"'Bricolage Grotesque',sans-serif"}}>Upload to Gallery</div>
             <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>
-              {queue.length===0?'Add photos below — assign each to a student before saving'
+              {queue.length===0?'Add photos — assign each to a student or lesson before saving'
                 :`${queue.length} photo${queue.length!==1?'s':''} queued · ${doneCount} saved`}
             </div>
           </div>
-          <button onClick={()=>{if(!saving)onClose();}}
-            style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'2px 6px',lineHeight:1}}>✕</button>
+          <button onClick={()=>{if(!saving)onClose();}} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'2px 6px',lineHeight:1}}>✕</button>
         </div>
 
-        {/* Drop zone — shown when queue is empty, or as a small add-more strip */}
         {queue.length===0?(
           <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:48}}
             onDragOver={e=>e.preventDefault()} onDrop={handleDrop}>
-            <div style={{width:72,height:72,borderRadius:18,border:'2px dashed var(--glass-border2)',
-              display:'flex',alignItems:'center',justifyContent:'center',
-              background:'var(--glass-bg)'}}>
+            <div style={{width:72,height:72,borderRadius:18,border:'2px dashed var(--glass-border2)',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--glass-bg)'}}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
+                <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
             </div>
             <div style={{textAlign:'center'}}>
               <div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:6}}>Drop photos here or click to browse</div>
               <div style={{fontSize:11,color:'var(--tx3)'}}>Supports JPEG, PNG · Multiple files at once</div>
             </div>
-            <label style={{fontSize:12,fontWeight:700,padding:'9px 24px',borderRadius:10,
-              border:'1px solid var(--teal)',background:'rgba(59,191,160,0.1)',color:'var(--teal)',
-              cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+            <label style={{fontSize:12,fontWeight:700,padding:'9px 24px',borderRadius:10,border:'1px solid var(--teal)',background:'rgba(59,191,160,0.1)',color:'var(--teal)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
               Choose Photos
-              <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}}
-                onChange={e=>{if(e.target.files.length)addFiles(e.target.files);e.target.value='';}}/>
+              <input type="file" accept="image/*" multiple style={{display:'none'}} onChange={e=>{if(e.target.files.length)addFiles(e.target.files);e.target.value='';}}/>
             </label>
           </div>
         ):(
@@ -10114,13 +10167,10 @@ function GalleryUpload({onClose,onDone}){
             {/* Add more strip */}
             <div style={{padding:'10px 22px',borderBottom:'1px solid var(--glass-border)',display:'flex',alignItems:'center',gap:10,flexShrink:0}}
               onDragOver={e=>e.preventDefault()} onDrop={handleDrop}>
-              <label style={{display:'flex',alignItems:'center',gap:7,fontSize:11,fontWeight:700,
-                padding:'6px 14px',borderRadius:8,border:'1px dashed var(--glass-border2)',
-                background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+              <label style={{display:'flex',alignItems:'center',gap:7,fontSize:11,fontWeight:700,padding:'6px 14px',borderRadius:8,border:'1px dashed var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Add more
-                <input type="file" accept="image/*" multiple style={{display:'none'}}
-                  onChange={e=>{if(e.target.files.length)addFiles(e.target.files);e.target.value='';}}/>
+                <input type="file" accept="image/*" multiple style={{display:'none'}} onChange={e=>{if(e.target.files.length)addFiles(e.target.files);e.target.value='';}}/>
               </label>
               <span style={{fontSize:10,color:'var(--tx3)'}}>or drag & drop more photos</span>
             </div>
@@ -10128,14 +10178,14 @@ function GalleryUpload({onClose,onDone}){
             {/* Queue list */}
             <div style={{flex:1,overflowY:'auto',padding:'10px 16px',display:'flex',flexDirection:'column',gap:10}}>
               {queue.map((item,i)=>{
-                const sec=G4_SECTIONS.find(s=>s.id===item.sectionId)||G4_SECTIONS[0];
-                const students=sec.students||[];
                 const isDone=item.status==='done';
                 const isUploading=item.status==='uploading';
                 const isError=item.status==='error';
+                const isDoc=item.photoType==='documentation';
+                const artSec=G4_SECTIONS.find(s=>s.id===item.sectionId)||G4_SECTIONS[0];
+                const docSec=G4_SECTIONS.find(s=>s.id===item.docSectionId)||G4_SECTIONS[0];
                 return(
-                  <div key={i} style={{display:'flex',gap:12,alignItems:'flex-start',
-                    padding:'12px 14px',borderRadius:12,
+                  <div key={i} style={{display:'flex',gap:12,alignItems:'flex-start',padding:'12px 14px',borderRadius:12,
                     background:isDone?'rgba(59,191,160,0.07)':isError?'rgba(232,112,90,0.08)':'var(--glass-bg)',
                     border:`1px solid ${isDone?'rgba(59,191,160,0.25)':isError?'rgba(232,112,90,0.25)':'var(--glass-border)'}`,
                     opacity:isDone?0.7:1}}>
@@ -10150,52 +10200,78 @@ function GalleryUpload({onClose,onDone}){
 
                     {/* Controls */}
                     <div style={{flex:1,display:'flex',flexDirection:'column',gap:7,minWidth:0}}>
-                      {/* Section + Student row */}
-                      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                        <select value={item.sectionId}
-                          onChange={e=>update(i,{sectionId:e.target.value,studentIdx:0})}
-                          disabled={isDone||isUploading}
-                          style={{fontSize:11,fontWeight:700,padding:'4px 8px',borderRadius:7,
-                            border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',
-                            color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',
-                            flexShrink:0}}>
-                          {G4_SECTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                        <select value={item.studentIdx}
-                          onChange={e=>update(i,{studentIdx:Number(e.target.value)})}
-                          disabled={isDone||isUploading}
-                          style={{flex:1,fontSize:11,padding:'4px 8px',borderRadius:7,
-                            border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',
-                            color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',
-                            minWidth:0}}>
-                          {students.map((name,si)=><option key={si} value={si}>{name}</option>)}
-                        </select>
-                      </div>
-                      {/* Label */}
-                      <input value={item.label}
-                        onChange={e=>update(i,{label:e.target.value})}
+
+                      {/* Type toggle */}
+                      {!isDone&&!isUploading&&(
+                        <div style={{display:'flex',gap:5}}>
+                          {[['artwork','🎨 Artwork'],['documentation','📸 Documentation']].map(([v,l])=>(
+                            <button key={v} onClick={()=>update(i,{photoType:v})}
+                              style={{flex:1,fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:7,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                                border:`1px solid ${item.photoType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--glass-border)'}`,
+                                background:item.photoType===v?v==='artwork'?'rgba(59,191,160,0.12)':'rgba(155,127,232,0.12)':'var(--glass-bg)',
+                                color:item.photoType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--tx3)'}}>
+                              {l}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {isDone&&<div style={{fontSize:10,fontWeight:700,color:isDoc?'var(--violet)':'var(--teal)'}}>{isDoc?'📸 Documentation':'🎨 Artwork'}</div>}
+
+                      {/* Artwork fields */}
+                      {!isDoc&&(
+                        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                          <select value={item.sectionId} onChange={e=>update(i,{sectionId:e.target.value,studentIdx:0})}
+                            disabled={isDone||isUploading}
+                            style={{fontSize:11,fontWeight:700,padding:'4px 8px',borderRadius:7,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',flexShrink:0}}>
+                            {G4_SECTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                          <select value={item.studentIdx} onChange={e=>update(i,{studentIdx:Number(e.target.value)})}
+                            disabled={isDone||isUploading}
+                            style={{flex:1,fontSize:11,padding:'4px 8px',borderRadius:7,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',minWidth:0}}>
+                            {artSec.students.map((name,si)=><option key={si} value={si}>{name}</option>)}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Documentation fields */}
+                      {isDoc&&(
+                        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                          <select value={item.docSectionId} onChange={e=>update(i,{docSectionId:e.target.value})}
+                            disabled={isDone||isUploading}
+                            style={{fontSize:11,fontWeight:700,padding:'4px 8px',borderRadius:7,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',flexShrink:0}}>
+                            {G4_SECTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                          <select value={item.docLessonKey} onChange={e=>update(i,{docLessonKey:e.target.value})}
+                            disabled={isDone||isUploading}
+                            style={{flex:1,fontSize:11,padding:'4px 8px',borderRadius:7,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',minWidth:0}}>
+                            <option value="">— link to a lesson (optional) —</option>
+                            {allPhaseLessons.map(l=><option key={l.key} value={l.key}>{l.label}</option>)}
+                            {customLessons.length>0&&<option disabled>── My lessons ──</option>}
+                            {customLessons.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Label / caption */}
+                      <input value={item.label} onChange={e=>update(i,{label:e.target.value})}
                         disabled={isDone||isUploading}
-                        placeholder="Label / caption (optional)"
-                        style={{fontSize:11,padding:'5px 9px',borderRadius:7,
-                          border:'1px solid var(--glass-border)',background:'var(--glass-bg)',
-                          color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',width:'100%'}}/>
+                        placeholder={isDoc?'Caption / note (optional)':'Label / caption (optional)'}
+                        style={{fontSize:11,padding:'5px 9px',borderRadius:7,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',width:'100%'}}/>
+
                       {isError&&<div style={{fontSize:10,color:'var(--coral)'}}>{item.errorMsg||'Upload failed'}</div>}
+
                       {/* Apply to all below */}
                       {!isDone&&!isUploading&&i<queue.length-1&&(
                         <button onClick={()=>applyToAll(i)}
-                          style={{alignSelf:'flex-start',fontSize:9,fontWeight:700,padding:'2px 9px',
-                            borderRadius:6,border:'1px solid var(--glass-border2)',background:'transparent',
-                            color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                          Apply section & student to all below ↓
+                          style={{alignSelf:'flex-start',fontSize:9,fontWeight:700,padding:'2px 9px',borderRadius:6,border:'1px solid var(--glass-border2)',background:'transparent',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                          Apply type & assignment to all below ↓
                         </button>
                       )}
                     </div>
 
                     {/* Remove */}
                     {!isDone&&!isUploading&&(
-                      <button onClick={()=>remove(i)}
-                        style={{background:'none',border:'none',color:'var(--tx3)',fontSize:16,cursor:'pointer',
-                          padding:'2px',flexShrink:0,lineHeight:1,marginTop:2}}>✕</button>
+                      <button onClick={()=>remove(i)} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:16,cursor:'pointer',padding:'2px',flexShrink:0,lineHeight:1,marginTop:2}}>✕</button>
                     )}
                   </div>
                 );
@@ -10216,26 +10292,15 @@ function GalleryUpload({onClose,onDone}){
             </div>
             <div style={{display:'flex',gap:8}}>
               {doneCount===queue.length&&!hasErrors?(
-                <button onClick={onClose}
-                  style={{fontSize:12,fontWeight:700,padding:'8px 22px',borderRadius:10,border:'none',
-                    background:'var(--teal)',color:'#fff',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                  Done
-                </button>
+                <button onClick={onClose} style={{fontSize:12,fontWeight:700,padding:'8px 22px',borderRadius:10,border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Done</button>
               ):(
                 <>
-                  <button onClick={()=>{if(!saving)onClose();}}
-                    style={{fontSize:12,padding:'8px 16px',borderRadius:10,
-                      border:'1px solid var(--glass-border)',background:'transparent',
-                      color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                    Cancel
-                  </button>
+                  <button onClick={()=>{if(!saving)onClose();}} style={{fontSize:12,padding:'8px 16px',borderRadius:10,border:'1px solid var(--glass-border)',background:'transparent',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
                   <button onClick={saveAll} disabled={saving||pendingCount===0}
                     style={{fontSize:12,fontWeight:700,padding:'8px 22px',borderRadius:10,border:'none',
                       background:saving||pendingCount===0?'var(--glass-bg2)':'var(--teal)',
                       color:saving||pendingCount===0?'var(--tx3)':'#fff',
-                      cursor:saving||pendingCount===0?'default':'pointer',
-                      fontFamily:"'DM Sans',sans-serif",
-                      opacity:saving?0.7:1}}>
+                      cursor:saving||pendingCount===0?'default':'pointer',fontFamily:"'DM Sans',sans-serif",opacity:saving?0.7:1}}>
                     {saving?'Saving…':`Save ${pendingCount} photo${pendingCount!==1?'s':''}`}
                   </button>
                 </>
