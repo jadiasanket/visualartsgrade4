@@ -4236,34 +4236,28 @@ function RefsPanel({refs,sessionKey}){
             </div>
           )}
 
-          {/* Info overlay — slides in from bottom on click */}
+          {/* Info overlay — full grey overlay, info centered, click to toggle */}
           {curItem.type==='image'&&(
-            <div style={{position:'absolute',bottom:0,left:0,right:0,pointerEvents:'none',
-              transform:metaVisible?'translateY(0)':'translateY(100%)',
-              transition:'transform .3s cubic-bezier(.4,0,.2,1)'}}>
-              <div style={{background:'linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.7) 60%,transparent 100%)',padding:'40px 24px 28px'}}>
-                {curItem.artist&&<div style={{fontSize:15,fontWeight:700,color:'#fff',fontFamily:"'Fraunces',serif",marginBottom:3}}>{curItem.artist}</div>}
-                {curItem.work&&<div style={{fontSize:12,color:'rgba(255,255,255,0.6)',fontStyle:'italic',marginBottom:4}}>{curItem.work}</div>}
-                {curItem.why&&<div style={{fontSize:11,color:'rgba(255,255,255,0.5)',lineHeight:1.5}}>{curItem.why}</div>}
-                <div style={{marginTop:6,display:'inline-block',fontSize:8,fontWeight:700,padding:'2px 8px',borderRadius:6,
-                  background:'rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.4)',letterSpacing:'.06em',textTransform:'uppercase'}}>
+            <div onClick={e=>{e.stopPropagation();setMetaVisible(v=>!v);}}
+              style={{position:'absolute',inset:0,
+                background:metaVisible?'rgba(0,0,0,0.62)':'transparent',
+                transition:'background .25s',cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                pointerEvents:'auto'}}>
+              <div style={{textAlign:'center',padding:'24px 32px',maxWidth:480,
+                opacity:metaVisible?1:0,transition:'opacity .25s',pointerEvents:'none'}}>
+                {curItem.artist&&<div style={{fontSize:18,fontWeight:700,color:'#fff',fontFamily:"'Fraunces',serif",marginBottom:6}}>{curItem.artist}</div>}
+                {curItem.work&&<div style={{fontSize:13,color:'rgba(255,255,255,0.7)',fontStyle:'italic',marginBottom:8}}>{curItem.work}</div>}
+                {curItem.why&&<div style={{fontSize:12,color:'rgba(255,255,255,0.6)',lineHeight:1.6}}>{curItem.why}</div>}
+                <div style={{marginTop:10,display:'inline-block',fontSize:9,fontWeight:700,padding:'3px 10px',borderRadius:6,
+                  background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.5)',letterSpacing:'.07em',textTransform:'uppercase'}}>
                   {curItem.refType}
                 </div>
               </div>
             </div>
           )}
 
-          {/* ⓘ toggle */}
-          {curItem.type==='image'&&(
-            <button onClick={e=>{e.stopPropagation();setMetaVisible(v=>!v);}}
-              style={{position:'absolute',bottom:16,right:16,background:'none',border:'none',cursor:'pointer',padding:4,
-                opacity:metaVisible?0.9:0.35,transition:'opacity .25s'}}>
-              <svg width="22" height="22" viewBox="0 0 20 20" fill="white">
-                <circle cx="10" cy="10" r="9" fill="rgba(0,0,0,0.4)" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/>
-                <text x="10" y="14.5" textAnchor="middle" fontSize="11" fontWeight="700" fontFamily="serif" fill="white">i</text>
-              </svg>
-            </button>
-          )}
+
 
           {/* Close */}
           <button onClick={e=>{e.stopPropagation();closeLb();}}
@@ -4273,7 +4267,7 @@ function RefsPanel({refs,sessionKey}){
           {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLbIdx(i=>i-1);setZoom(1);setPanX(0);setPanY(0);setMetaVisible(true);}}
             style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:'pointer'}}>&#8249;</button>}
           {lbIdx<lbItems.length-1&&<button onClick={e=>{e.stopPropagation();setLbIdx(i=>i+1);setZoom(1);setPanX(0);setPanY(0);setMetaVisible(true);}}
-            style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
+            style={{position:'absolute',right:70,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
 
           {/* Counter */}
           {lbItems.length>1&&<div style={{position:'absolute',top:14,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,0.5)',color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 14px',borderRadius:12,pointerEvents:'none'}}>
@@ -4282,7 +4276,7 @@ function RefsPanel({refs,sessionKey}){
 
           {/* Zoom slider — right edge, only for images */}
           {curItem.type==='image'&&(
-            <div style={{position:'absolute',right:18,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',alignItems:'center',gap:6}}
+            <div style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}
               onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
               <span style={{color:'rgba(255,255,255,0.4)',fontSize:9}}>4×</span>
               <input type="range" min={100} max={400} step={5} value={Math.round(zoom*100)}
