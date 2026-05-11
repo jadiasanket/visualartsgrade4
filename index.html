@@ -4038,22 +4038,12 @@ function RefsPanel({refs,sessionKey}){
   function openLb(idx){setLbIdx(idx);setMetaVisible(true);setZoom(1);setPanX(0);setPanY(0);}
   function closeLb(){setLbIdx(null);setZoom(1);setPanX(0);setPanY(0);}
 
-  const handleArtUpload=async(i,e)=>{
+  const handleArtUpload=(i,e)=>{
     const file=e.target.files[0];if(!file)return;
+    const rd=new FileReader();
+    rd.onload=ev=>setArtistUploads(prev=>({...prev,[i]:{src:ev.target.result,name:file.name}}));
+    rd.readAsDataURL(file);
     e.target.value='';
-    try{
-      const ts=Date.now();
-      const ext=file.name.split('.').pop()||'jpg';
-      const ref=window._storage.ref('refs/'+sessionKey+'/'+i+'_'+ts+'.'+ext);
-      await ref.put(file);
-      const url=await ref.getDownloadURL();
-      setArtistUploads(prev=>({...prev,[i]:{src:url,name:file.name}}));
-    }catch(err){
-      // Fallback to base64 if Firebase fails
-      const rd=new FileReader();
-      rd.onload=ev=>setArtistUploads(prev=>({...prev,[i]:{src:ev.target.result,name:file.name}}));
-      rd.readAsDataURL(file);
-    }
   };
   const removeArtImg=(i)=>setArtistUploads(prev=>{const n={...prev};delete n[i];return n;});
 
@@ -4077,62 +4067,96 @@ function RefsPanel({refs,sessionKey}){
 
       {/* ARTIST REFS — full thumbnail grid */}
       {nonSlideRefs.length>0&&(
-        <div style={{marginBottom:16}}>
-          <div className="pl" style={{marginBottom:10}}>Artists & References</div>
-          {nonSlideRefs.map((r,i)=>{
-            const isVid=!!r.videoUrl;
-            const vid=isVid?ytId(r.videoUrl):null;
-            const thumb=vid?`https://img.youtube.com/vi/${vid}/mqdefault.jpg`:null;
-            const artImg=artistUploads[i]||null;
-            // Find this item's index in lbItems
-            const lbItemIdx=lbItems.findIndex(it=>it.artist===r.name&&it.work===r.work);
-            return(
-              <div key={i} className="ref-card" style={{marginBottom:12}}>
-                <div className="ref-top" style={{alignItems:'flex-start',gap:10,marginBottom:artImg||isVid?8:0}}>
-                  <span className={`ref-type rt-${isVid?'video':r.type}`}>{isVid?'video':r.type}</span>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div className="ref-name">{r.name}</div>
-                    {r.work&&<div className="ref-work">{r.work}</div>}
-                    <div className="ref-why" style={{marginTop:4}}>{r.why}</div>
+        <div style={{marginBottom:24}}>
+          <div className="pl" style={{marginBottom:16}}>Artists & References</div>
+          {/* Fan card layout */}
+          <div style={{position:'relative',height:300+Math.max(0,(nonSlideRefs.length-1)*18)+'px',marginBottom:8}}>
+            {nonSlideRefs.map((r,i)=>{
+              const isVid=!!r.videoUrl;
+              const vid=isVid?ytId(r.videoUrl):null;
+              const thumb=vid?`https://img.youtube.com/vi/${vid}/mqdefault.jpg`:null;
+              const artImg=artistUploads[i]||null;
+              const imgSrc=artImg?artImg.src:thumb;
+              const lbItemIdx=lbItems.findIndex(it=>it.artist===r.name&&it.work===r.work);
+              const n=nonSlideRefs.length;
+              // Fan positioning: cards stack offset to the right, rotate slightly
+              const baseRotate=(i-(n-1)/2)*4;
+              const baseX=i*22;
+              const baseY=Math.abs(i-(n-1)/2)*8;
+              const [hovered,setHovered]=React.useState(false);
+              return(
+                <div key={i}
+                  onMouseEnter={()=>setHovered(true)}
+                  onMouseLeave={()=>setHovered(false)}
+                  onClick={()=>{if(imgSrc&&lbItemIdx>=0) openLb(lbItemIdx);}}
+                  style={{
+                    position:'absolute',
+                    left:baseX+'px',
+                    top:baseY+'px',
+                    width:220,
+                    height:280,
+                    borderRadius:14,
+                    overflow:'hidden',
+                    cursor:imgSrc?'pointer':'default',
+                    background:imgSrc?'#111':'var(--glass-bg2)',
+                    border:'1px solid rgba(255,255,255,0.12)',
+                    boxShadow:hovered?'0 20px 48px rgba(0,0,0,0.55)':'0 6px 20px rgba(0,0,0,0.3)',
+                    transform:hovered
+                      ?'rotate(0deg) scale(1.04) translateY(-12px)'
+                      :`rotate(${baseRotate}deg) translateX(0px) translateY(${baseY}px)`,
+                    transition:'transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s, z-index 0s',
+                    zIndex:hovered?50:i,
+                    transformOrigin:'bottom center',
+                  }}>
+                  {/* Image or placeholder */}
+                  {imgSrc
+                    ?<img src={imgSrc} alt={r.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block',pointerEvents:'none'}}/>
+                    :<div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,padding:16}}>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+                      </svg>
+                      <span style={{fontSize:10,color:'var(--tx3)',textAlign:'center',fontWeight:600}}>{r.name}</span>
+                    </div>
+                  }
+                  {/* Gradient info overlay — always visible at bottom */}
+                  <div style={{position:'absolute',bottom:0,left:0,right:0,
+                    background:'linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.55) 55%,transparent 100%)',
+                    padding:'32px 12px 12px',pointerEvents:'none'}}>
+                    <span style={{fontSize:8,fontWeight:700,padding:'2px 6px',borderRadius:5,
+                      background:'rgba(255,255,255,0.15)',color:'rgba(255,255,255,0.7)',
+                      letterSpacing:'.06em',textTransform:'uppercase',marginBottom:5,display:'inline-block'}}>
+                      {isVid?'video':r.type}
+                    </span>
+                    <div style={{fontSize:13,fontWeight:700,color:'#fff',lineHeight:1.3,marginTop:4,fontFamily:"'DM Sans',sans-serif"}}>{r.name}</div>
+                    {r.work&&<div style={{fontSize:10,color:'rgba(255,255,255,0.65)',fontStyle:'italic',marginTop:2}}>{r.work}</div>}
+                    {hovered&&r.why&&<div style={{fontSize:10,color:'rgba(255,255,255,0.55)',marginTop:4,lineHeight:1.4}}>{r.why}</div>}
                   </div>
+                  {/* Upload overlay — teacher mode, no image yet */}
+                  {!imgSrc&&teacherMode&&(
+                    <label style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',background:'transparent'}}
+                      onClick={e=>e.stopPropagation()}>
+                      <div style={{background:'rgba(0,0,0,0.5)',borderRadius:8,padding:'6px 12px',fontSize:10,color:'rgba(255,255,255,0.7)',fontWeight:700}}>+ Add image</div>
+                      <input type="file" accept="image/*" onChange={e=>handleArtUpload(i,e)} style={{display:'none'}}/>
+                    </label>
+                  )}
+                  {/* Delete button — teacher mode, has image */}
+                  {imgSrc&&teacherMode&&(
+                    <button onClick={e=>{e.stopPropagation();removeArtImg(i);}}
+                      style={{position:'absolute',top:8,right:8,background:'rgba(0,0,0,0.65)',border:'none',borderRadius:'50%',
+                        width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',
+                        cursor:'pointer',color:'#fff',fontSize:11,opacity:hovered?1:0,transition:'opacity .2s'}}>✕</button>
+                  )}
+                  {/* Video play button */}
+                  {isVid&&!artImg&&thumb&&(
+                    <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-60%)',
+                      width:44,height:44,borderRadius:'50%',background:'rgba(255,50,30,0.9)',
+                      display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,color:'#fff',paddingLeft:3,pointerEvents:'none'}}>▶</div>
+                  )}
                 </div>
-                {/* Thumbnail with gradient info overlay */}
-                {artImg&&(
-                  <div style={{position:'relative',width:200,height:160,borderRadius:8,overflow:'hidden',background:'#111',cursor:'pointer',border:'1px solid var(--glass-border2)',flexShrink:0}}
-                    onClick={()=>lbItemIdx>=0&&openLb(lbItemIdx)}>
-                    <img src={artImg.src} alt={artImg.name}
-                      style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
-                    {/* Gradient info overlay — always visible */}
-                    <div style={{position:'absolute',bottom:0,left:0,right:0,
-                      background:'linear-gradient(to top,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.4) 60%,transparent 100%)',
-                      padding:'20px 10px 8px',pointerEvents:'none'}}>
-                      <div style={{fontSize:11,fontWeight:700,color:'#fff',lineHeight:1.3}}>{r.name}</div>
-                      {r.work&&<div style={{fontSize:9,color:'rgba(255,255,255,0.6)',fontStyle:'italic',marginTop:1}}>{r.work}</div>}
-                    </div>
-                    {teacherMode&&<button onClick={e=>{e.stopPropagation();removeArtImg(i);}}
-                      style={{position:'absolute',top:5,right:5,background:'rgba(0,0,0,0.6)',border:'none',borderRadius:'50%',width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'#fff',fontSize:10}}>✕</button>}
-                  </div>
-                )}
-                {/* Video thumb */}
-                {isVid&&!artImg&&thumb&&(
-                  <div style={{position:'relative',borderRadius:8,overflow:'hidden',cursor:'pointer'}}
-                    onClick={()=>lbItemIdx>=0&&openLb(lbItemIdx)}>
-                    <img src={thumb} alt="" style={{width:'100%',maxHeight:180,objectFit:'cover',display:'block'}}/>
-                    <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.25)'}}>
-                      <div style={{width:40,height:40,borderRadius:'50%',background:'rgba(255,50,30,0.9)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,color:'#fff',paddingLeft:3}}>▶</div>
-                    </div>
-                  </div>
-                )}
-                {/* Upload prompt */}
-                {!artImg&&!isVid&&teacherMode&&(
-                  <label style={{display:'inline-flex',alignItems:'center',gap:5,marginTop:4,fontSize:'11px',color:'var(--tx3)',cursor:'pointer',padding:'4px 8px',borderRadius:6,border:'1px dashed var(--glass-border2)'}}>
-                    <span style={{fontSize:13}}>+</span> Add reference image
-                    <input type="file" accept="image/*" onChange={e=>handleArtUpload(i,e)} style={{display:'none'}}/>
-                  </label>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          <div style={{fontSize:10,color:'var(--tx3)',marginTop:4}}>Hover to preview · click to view</div>
         </div>
       )}
 
