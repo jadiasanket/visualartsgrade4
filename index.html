@@ -3980,7 +3980,7 @@ function ResourceAdder({onAdd,addType,setAddType,textDraft,setTextDraft,urlDraft
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 // ── Individual reference card ──
-function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,onSaveEdit,onCancelEdit}){
+function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,onSaveEdit,onCancelEdit}){
   const CARD=350;
   const dist=i-activeIdx; // signed distance from active card
   const absDist=Math.abs(dist);
@@ -4004,9 +4004,7 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,teacher
         overflow:'hidden',
         background:card.src?'#111':'var(--glass-bg2)',
         border:`1px solid ${isActive?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.07)'}`,
-        boxShadow:isActive
-          ?'0 32px 64px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.08)'
-          :`0 ${6+absDist*4}px ${20+absDist*8}px rgba(0,0,0,${0.25+absDist*0.08})`,
+        boxShadow:'none',
         transform:`translateX(calc(${xOffset}px - 50%)) translateY(-50%) scale(${scale})`,
         transition:'transform .32s cubic-bezier(.4,0,.2,1), box-shadow .32s',
         zIndex:zIdx,
@@ -4014,9 +4012,12 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,teacher
         filter:absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)',
       }}>
 
-      {/* Image */}
+      {/* Image — subtle zoom when active */}
       {card.src&&<img src={card.src} alt={card.title}
-        style={{width:'100%',height:'100%',objectFit:'cover',display:'block',pointerEvents:'none'}}/>}
+        style={{width:'100%',height:'100%',objectFit:'cover',display:'block',pointerEvents:'none',
+          transform:isActive?'scale(1.07)':'scale(1)',
+          transition:'transform .45s cubic-bezier(.4,0,.2,1)',
+          transformOrigin:'center center'}}/>}
 
       {/* Placeholder */}
       {!card.src&&(
@@ -4034,11 +4035,12 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,teacher
         </div>
       )}
 
-      {/* Bottom gradient info — always present */}
+      {/* Bottom gradient info — always visible on all cards */}
       {!isEditing&&(
         <div style={{position:'absolute',bottom:0,left:0,right:0,
-          background:'linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.55) 55%,transparent 100%)',
-          padding:'44px 14px 14px',pointerEvents:'none'}}>
+          background:'linear-gradient(to top,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.45) 50%,transparent 100%)',
+          padding:'44px 14px 14px',pointerEvents:'none',
+          opacity:isActive?1:0.75,transition:'opacity .32s'}}>
           {card.badge&&<span style={{fontSize:8,fontWeight:700,padding:'2px 6px',borderRadius:5,
             background:'rgba(255,255,255,0.15)',color:'rgba(255,255,255,0.75)',
             letterSpacing:'.07em',textTransform:'uppercase',display:'inline-block',marginBottom:6}}>
@@ -4094,9 +4096,26 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,teacher
         </label>
       )}
 
+      {/* Replace image — camera button top-left, all cards on hover, teacher mode */}
+      {teacherMode&&!isEditing&&card.src&&(
+        <label style={{position:'absolute',top:8,left:8,width:26,height:26,borderRadius:7,
+          background:'rgba(0,0,0,0.6)',border:'1px solid rgba(255,255,255,0.15)',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          cursor:'pointer',zIndex:10,opacity:isActive?1:0,transition:'opacity .25s'}}
+          onClick={e=>e.stopPropagation()}
+          title="Replace image">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="rgba(255,255,255,0.85)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <input type="file" accept="image/*"
+            onChange={e=>onReplaceImg(card,e)} style={{display:'none'}}/>
+        </label>
+      )}
       {/* Teacher controls — only on active card */}
       {teacherMode&&isActive&&!isEditing&&(
-        <div style={{position:'absolute',top:10,right:10,display:'flex',gap:5,zIndex:10}}
+        <div style={{position:'absolute',top:8,right:8,display:'flex',gap:5,zIndex:10}}
           onClick={e=>e.stopPropagation()}>
           {!card.isCurriculum&&(
             <button onClick={e=>{e.stopPropagation();onEdit(card.manualIdx);}}
@@ -4279,6 +4298,31 @@ function RefsPanel({refs,sessionKey}){
   };
   const removeArtImg=i=>setArtistUploads(prev=>{const n={...prev};delete n[i];return n;});
 
+  // ── Replace image (curriculum or manual) ──
+  const handleReplaceImg=async(card,e)=>{
+    const file=e.target.files[0];if(!file)return;
+    e.target.value='';
+    try{
+      const ts=Date.now();
+      const ext=file.name.split('.').pop()||'jpg';
+      const ref=window._storage.ref('refs/'+sessionKey+'/'+(card.isCurriculum?card.curriculumIdx:'manual_r'+card.manualIdx)+'_'+ts+'.'+ext);
+      await ref.put(file);
+      const url=await ref.getDownloadURL();
+      if(card.isCurriculum){
+        setArtistUploads(prev=>({...prev,[card.curriculumIdx]:{src:url,name:file.name}}));
+      } else {
+        setManualCards(prev=>prev.map((c,i)=>i===card.manualIdx?{...c,src:url}:c));
+      }
+    }catch{
+      const rd=new FileReader();
+      rd.onload=ev=>{
+        if(card.isCurriculum) setArtistUploads(prev=>({...prev,[card.curriculumIdx]:{src:ev.target.result,name:file.name}}));
+        else setManualCards(prev=>prev.map((c,i)=>i===card.manualIdx?{...c,src:ev.target.result}:c));
+      };
+      rd.readAsDataURL(file);
+    }
+  };
+
   // ── Manual card upload ──
   function onAddFileChange(e){
     const file=e.target.files[0];if(!file)return;
@@ -4349,6 +4393,7 @@ function RefsPanel({refs,sessionKey}){
                 onEdit={startEdit}
                 onDelete={handleDelete}
                 onArtUpload={handleArtUpload}
+                onReplaceImg={handleReplaceImg}
                 teacherMode={teacherMode}
                 editingCard={editingCard}
                 editTitle={editTitle} setEditTitle={setEditTitle}
