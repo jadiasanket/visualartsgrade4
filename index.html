@@ -5719,7 +5719,18 @@ function generateUnitPlanPDF(){
 
 // ── SUB PIN SYSTEM ──
 // ── GEMINI API KEY ──
-function getGeminiKey(){return 'AIzaSyA6gcwKnAiDw7jpEgwRpzr_TVFWr-JV1Vg';}
+function getGeminiKey(){
+  const stored=localStorage.getItem('g4-gemini-key');
+  if(stored&&stored.trim()) return stored.trim();
+  const entered=prompt('Enter your Gemini API key:');
+  if(entered&&entered.trim()){localStorage.setItem('g4-gemini-key',entered.trim());return entered.trim();}
+  return '';
+}
+function resetGeminiKey(){
+  const entered=prompt('Enter your new Gemini API key:');
+  if(entered&&entered.trim()){localStorage.setItem('g4-gemini-key',entered.trim());return entered.trim();}
+  return localStorage.getItem('g4-gemini-key')||'';
+}
 function getDefaultModel(){return 'gemini-2.5-flash';}
 function saveGeminiKey(k){try{localStorage.setItem('g4-gemini-key',k);}catch{}}
 // Legacy compat — profile generator still uses this
@@ -6038,7 +6049,8 @@ RESPONSE STYLE — VERY IMPORTANT:
     if(!text||loading) return;
     const key=getGeminiKey();
     if(!key){
-      setMessages(m=>[...m,{role:'assistant',content:'No API key found. Please add your Gemini API key in the code (search for getGeminiKey).'}]);
+      const newKey=resetGeminiKey();
+      if(newKey) sendMessage();
       return;
     }
     const userMsg={role:'user',content:text};
@@ -6068,6 +6080,11 @@ RESPONSE STYLE — VERY IMPORTANT:
       });
       const data=await res.json();
       if(data.error){
+        if(data.error.message&&(data.error.message.includes('API key')||data.error.message.includes('leaked')||data.error.message.includes('invalid'))){
+          const newKey=resetGeminiKey();
+          if(newKey) sendMessage();
+          return;
+        }
         setMessages(m=>[...m,{role:'assistant',content:`Error: ${data.error.message||'API call failed.'}`}]);
       } else {
         const parts=data.candidates?.[0]?.content?.parts||[];
@@ -6091,6 +6108,11 @@ RESPONSE STYLE — VERY IMPORTANT:
         if(!open) setUnread(true);
       }
     }catch(err){
+      if(err.message&&(err.message.includes('API key')||err.message.includes('leaked')||err.message.includes('invalid'))){
+        const newKey=resetGeminiKey();
+        if(newKey) sendMessage();
+        return;
+      }
       setMessages(m=>[...m,{role:'assistant',content:'Network error. Check your connection.'}]);
     }
     setLoading(false);
