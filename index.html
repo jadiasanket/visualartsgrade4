@@ -3979,118 +3979,113 @@ function ResourceAdder({onAdd,addType,setAddType,textDraft,setTextDraft,urlDraft
 }
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
-// ── Individual reference card — extracted to avoid hooks-in-loops ──
-function RefCard_({card,i,n,onOpen,onEdit,onDelete,onArtUpload,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,onSaveEdit,onCancelEdit}){
-  const [hovered,setHovered]=React.useState(false);
-  const CARD=320;
-  // Horizontal depth stack: centre card forward, outer cards behind + smaller
-  const centre=(n-1)/2;
-  const dist=Math.abs(i-centre);
-  const scale=1-dist*0.07; // 7% smaller per step from centre
-  const xOffset=(i-centre)*Math.round(CARD*0.35); // ~35% of card width = ~112px offset
-  const zIdx=n-Math.round(dist); // centre card highest z
-  const isEditing=editingCard===i&&!card.isCurriculum;
+// ── Individual reference card ──
+function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,onSaveEdit,onCancelEdit}){
+  const CARD=350;
+  const dist=i-activeIdx; // signed distance from active card
+  const absDist=Math.abs(dist);
+  // Coverflow geometry
+  const scale=Math.max(0.62, 1-absDist*0.12);
+  const xOffset=dist*Math.round(CARD*0.42); // 42% of card = ~147px spacing
+  const zIdx=100-absDist*10;
+  const isActive=i===activeIdx;
+  const isEditing=!card.isCurriculum&&editingCard===card.manualIdx;
 
   return(
     <div
-      onMouseEnter={()=>setHovered(true)}
-      onMouseLeave={()=>setHovered(false)}
+      onClick={()=>{if(!isEditing){if(isActive&&card.src) onOpen(i); else onOpen(i);}}}
       style={{
         position:'absolute',
         left:'50%',
         top:'50%',
         width:CARD+'px',
         height:CARD+'px',
-        borderRadius:16,
+        borderRadius:18,
         overflow:'hidden',
         background:card.src?'#111':'var(--glass-bg2)',
-        border:'1px solid rgba(255,255,255,0.1)',
-        boxShadow:hovered
-          ?'0 28px 60px rgba(0,0,0,0.7)'
-          :`0 ${4+dist*2}px ${16+dist*4}px rgba(0,0,0,${0.3+dist*0.06})`,
-        transform:hovered
-          ?`translateX(calc(${xOffset}px - 50%)) translateY(-50%) scale(${Math.min(scale+0.06,1.04)})`
-          :`translateX(calc(${xOffset}px - 50%)) translateY(-50%) scale(${scale})`,
-        transition:'transform .28s cubic-bezier(.4,0,.2,1), box-shadow .28s',
-        zIndex:hovered?200:zIdx,
-        cursor:card.src&&!isEditing?'pointer':'default',
-      }}
-      onClick={()=>{if(card.src&&!isEditing) onOpen(i);}}>
+        border:`1px solid ${isActive?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.07)'}`,
+        boxShadow:isActive
+          ?'0 32px 64px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.08)'
+          :`0 ${6+absDist*4}px ${20+absDist*8}px rgba(0,0,0,${0.25+absDist*0.08})`,
+        transform:`translateX(calc(${xOffset}px - 50%)) translateY(-50%) scale(${scale})`,
+        transition:'transform .32s cubic-bezier(.4,0,.2,1), box-shadow .32s',
+        zIndex:zIdx,
+        cursor:'pointer',
+        filter:absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)',
+      }}>
 
       {/* Image */}
       {card.src&&<img src={card.src} alt={card.title}
         style={{width:'100%',height:'100%',objectFit:'cover',display:'block',pointerEvents:'none'}}/>}
 
-      {/* No image placeholder */}
+      {/* Placeholder */}
       {!card.src&&(
         <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',
-          alignItems:'center',justifyContent:'center',gap:8,padding:20}}>
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)"
-            strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          alignItems:'center',justifyContent:'center',gap:10,padding:24}}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)"
+            strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2"/>
             <circle cx="8.5" cy="8.5" r="1.5"/>
             <path d="M21 15l-5-5L5 21"/>
           </svg>
-          <span style={{fontSize:11,color:'var(--tx3)',textAlign:'center',fontWeight:600,lineHeight:1.3}}>
+          <span style={{fontSize:12,color:'var(--tx3)',textAlign:'center',fontWeight:600,lineHeight:1.3}}>
             {card.title||'No image'}
           </span>
         </div>
       )}
 
-      {/* Gradient info overlay — always visible */}
+      {/* Bottom gradient info — always present */}
       {!isEditing&&(
         <div style={{position:'absolute',bottom:0,left:0,right:0,
-          background:'linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.5) 55%,transparent 100%)',
-          padding:'40px 14px 12px',pointerEvents:'none'}}>
+          background:'linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.55) 55%,transparent 100%)',
+          padding:'44px 14px 14px',pointerEvents:'none'}}>
           {card.badge&&<span style={{fontSize:8,fontWeight:700,padding:'2px 6px',borderRadius:5,
             background:'rgba(255,255,255,0.15)',color:'rgba(255,255,255,0.75)',
-            letterSpacing:'.07em',textTransform:'uppercase',display:'inline-block',marginBottom:5}}>
+            letterSpacing:'.07em',textTransform:'uppercase',display:'inline-block',marginBottom:6}}>
             {card.badge}
           </span>}
-          <div style={{fontSize:13,fontWeight:700,color:'#fff',lineHeight:1.3,
+          <div style={{fontSize:14,fontWeight:700,color:'#fff',lineHeight:1.3,
             fontFamily:"'DM Sans',sans-serif"}}>{card.title}</div>
-          {card.subtitle&&<div style={{fontSize:10,color:'rgba(255,255,255,0.65)',
+          {card.subtitle&&<div style={{fontSize:11,color:'rgba(255,255,255,0.65)',
             fontStyle:'italic',marginTop:2}}>{card.subtitle}</div>}
-          {hovered&&card.why&&<div style={{fontSize:10,color:'rgba(255,255,255,0.5)',
-            marginTop:4,lineHeight:1.4}}>{card.why}</div>}
+          {isActive&&card.why&&<div style={{fontSize:10,color:'rgba(255,255,255,0.5)',
+            marginTop:5,lineHeight:1.5}}>{card.why}</div>}
         </div>
       )}
 
-      {/* Edit mode — manual cards only */}
+      {/* Edit mode */}
       {isEditing&&(
-        <div style={{position:'absolute',inset:0,background:'rgba(10,10,20,0.92)',
-          display:'flex',flexDirection:'column',justifyContent:'flex-end',padding:14,gap:6}}
+        <div style={{position:'absolute',inset:0,background:'rgba(10,10,20,0.93)',
+          display:'flex',flexDirection:'column',justifyContent:'flex-end',padding:16,gap:8}}
           onClick={e=>e.stopPropagation()}>
           <input value={editTitle} onChange={e=>setEditTitle(e.target.value)}
-            placeholder="Title (artist or subject)"
-            autoFocus
-            style={{fontSize:12,padding:'6px 9px',borderRadius:6,
+            placeholder="Title" autoFocus
+            style={{fontSize:13,padding:'7px 10px',borderRadius:7,
               border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.08)',
               color:'#fff',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
           <input value={editSubtitle} onChange={e=>setEditSubtitle(e.target.value)}
-            placeholder="Subtitle (work title, caption...)"
+            placeholder="Subtitle"
             onKeyDown={e=>{if(e.key==='Enter') onSaveEdit();}}
-            style={{fontSize:11,padding:'6px 9px',borderRadius:6,
+            style={{fontSize:12,padding:'7px 10px',borderRadius:7,
               border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.08)',
               color:'rgba(255,255,255,0.8)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
-          <div style={{display:'flex',gap:6,marginTop:2}}>
-            <button onClick={onSaveEdit}
-              style={{flex:1,fontSize:10,fontWeight:700,padding:'5px 0',borderRadius:6,
-                border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer',
-                fontFamily:"'DM Sans',sans-serif"}}>Save</button>
-            <button onClick={onCancelEdit}
-              style={{fontSize:10,padding:'5px 10px',borderRadius:6,
+          <div style={{display:'flex',gap:7,marginTop:2}}>
+            <button onClick={e=>{e.stopPropagation();onSaveEdit();}}
+              style={{flex:1,fontSize:11,fontWeight:700,padding:'6px 0',borderRadius:7,
+                border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer'}}>Save</button>
+            <button onClick={e=>{e.stopPropagation();onCancelEdit();}}
+              style={{fontSize:11,padding:'6px 12px',borderRadius:7,
                 border:'1px solid rgba(255,255,255,0.15)',background:'transparent',
-                color:'rgba(255,255,255,0.5)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+                color:'rgba(255,255,255,0.5)',cursor:'pointer'}}>Cancel</button>
           </div>
         </div>
       )}
 
-      {/* Upload prompt — curriculum card, no image */}
+      {/* Curriculum: upload prompt if no image */}
       {card.isCurriculum&&!card.src&&teacherMode&&(
-        <label style={{position:'absolute',bottom:12,left:'50%',transform:'translateX(-50%)',
-          background:'rgba(0,0,0,0.65)',borderRadius:8,padding:'5px 12px',
-          fontSize:10,color:'rgba(255,255,255,0.75)',fontWeight:700,cursor:'pointer',
+        <label style={{position:'absolute',bottom:14,left:'50%',transform:'translateX(-50%)',
+          background:'rgba(0,0,0,0.65)',borderRadius:8,padding:'5px 14px',
+          fontSize:10,color:'rgba(255,255,255,0.8)',fontWeight:700,cursor:'pointer',
           whiteSpace:'nowrap',zIndex:2}}
           onClick={e=>e.stopPropagation()}>
           + Add image
@@ -4099,45 +4094,46 @@ function RefCard_({card,i,n,onOpen,onEdit,onDelete,onArtUpload,teacherMode,editi
         </label>
       )}
 
-      {/* Teacher controls — hover top-right */}
-      {teacherMode&&hovered&&!isEditing&&(
-        <div style={{position:'absolute',top:8,right:8,display:'flex',gap:4,zIndex:10}}
+      {/* Teacher controls — only on active card */}
+      {teacherMode&&isActive&&!isEditing&&(
+        <div style={{position:'absolute',top:10,right:10,display:'flex',gap:5,zIndex:10}}
           onClick={e=>e.stopPropagation()}>
           {!card.isCurriculum&&(
-            <button onClick={()=>onEdit(card.manualIdx)}
-              style={{width:26,height:26,borderRadius:6,border:'none',
+            <button onClick={e=>{e.stopPropagation();onEdit(card.manualIdx);}}
+              style={{width:28,height:28,borderRadius:7,border:'none',
                 background:'rgba(245,158,11,0.9)',cursor:'pointer',
                 display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                 stroke="#060606" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
             </button>
           )}
-          <button onClick={()=>onDelete(card)}
-            style={{width:26,height:26,borderRadius:6,border:'none',
+          <button onClick={e=>{e.stopPropagation();onDelete(card);}}
+            style={{width:28,height:28,borderRadius:7,border:'none',
               background:'rgba(232,112,90,0.9)',color:'#fff',cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800}}>
-            ✕
-          </button>
+              display:'flex',alignItems:'center',justifyContent:'center',
+              fontSize:14,fontWeight:800}}>✕</button>
         </div>
       )}
 
-      {/* Video play icon */}
-      {card.isVideo&&(
+      {/* Video play */}
+      {card.isVideo&&isActive&&(
         <div style={{position:'absolute',top:'50%',left:'50%',
-          transform:'translate(-50%,-65%)',
-          width:46,height:46,borderRadius:'50%',background:'rgba(255,50,30,0.9)',
-          display:'flex',alignItems:'center',justifyContent:'center',
-          fontSize:17,color:'#fff',paddingLeft:3,pointerEvents:'none'}}>▶</div>
+          transform:'translate(-50%,-65%)',width:48,height:48,borderRadius:'50%',
+          background:'rgba(255,50,30,0.9)',display:'flex',alignItems:'center',
+          justifyContent:'center',fontSize:18,color:'#fff',paddingLeft:3,
+          pointerEvents:'none'}}>▶</div>
       )}
     </div>
   );
 }
 
 function RefsPanel({refs,sessionKey}){
-  // ── Lightbox state ──
+  const CARD=350;
+
+  // ── Lightbox ──
   const [lbIdx,setLbIdx]=React.useState(null);
   const [metaVisible,setMetaVisible]=React.useState(true);
   const [zoom,setZoom]=React.useState(1);
@@ -4146,20 +4142,25 @@ function RefsPanel({refs,sessionKey}){
   const [dragging,setDragging]=React.useState(false);
   const dragStart=React.useRef(null);
 
+  // ── Carousel state ──
+  const [activeIdx,setActiveIdx]=React.useState(0);
+  const carouselRef=React.useRef(null);
+  const scrollAccum=React.useRef(0);
+
   // ── Storage ──
   const [artistUploads,setArtistUploads]=useLocalStorage('artist-uploads-'+sessionKey,{});
   const [manualCards,setManualCards]=useLocalStorage('manual-cards-'+sessionKey,[]);
   const [uploads]=useLocalStorage('uploads-'+sessionKey,[]);
 
-  // ── Add card flow ──
+  // ── Add card ──
   const [addingCard,setAddingCard]=React.useState(false);
   const [pendingFile,setPendingFile]=React.useState(null);
   const [cardTitle,setCardTitle]=React.useState('');
   const [cardSubtitle,setCardSubtitle]=React.useState('');
   const [uploadingCard,setUploadingCard]=React.useState(false);
 
-  // ── Edit state (lifted out of card) ──
-  const [editingCard,setEditingCard]=React.useState(null);
+  // ── Edit state ──
+  const [editingCard,setEditingCard]=React.useState(null); // stores manualIdx
   const [editTitle,setEditTitle]=React.useState('');
   const [editSubtitle,setEditSubtitle]=React.useState('');
 
@@ -4167,7 +4168,7 @@ function RefsPanel({refs,sessionKey}){
   const slideRefs=(refs||[]).filter(r=>r.type==='slide');
   const nonSlideRefs=(refs||[]).filter(r=>r.type!=='slide');
 
-  // ── Build fan cards array ──
+  // ── Fan cards ──
   const fanCards=React.useMemo(()=>{
     const cards=[];
     nonSlideRefs.forEach((r,i)=>{
@@ -4175,7 +4176,7 @@ function RefsPanel({refs,sessionKey}){
       const vid=r.videoUrl?ytId(r.videoUrl):null;
       const thumb=vid?`https://img.youtube.com/vi/${vid}/mqdefault.jpg`:null;
       cards.push({
-        src:artImg?artImg.src:thumb||null,
+        src:artImg?artImg.src:(thumb||null),
         title:r.name,subtitle:r.work||'',why:r.why||'',
         badge:r.videoUrl?'video':r.type,
         isVideo:!!r.videoUrl&&!artImg,
@@ -4192,16 +4193,23 @@ function RefsPanel({refs,sessionKey}){
     return cards;
   },[nonSlideRefs,artistUploads,manualCards]);
 
-  // ── Build lightbox items ──
-  const lbItems=React.useMemo(()=>{
-    return fanCards
-      .filter(c=>c.src)
-      .map(c=>({
-        type:c.isVideo?'video':'image',
-        src:c.isVideo?`https://www.youtube.com/embed/${ytId(nonSlideRefs[c.curriculumIdx]?.videoUrl||'')}`:c.src,
-        title:c.title,subtitle:c.subtitle,why:c.why,badge:c.badge,
-      }));
-  },[fanCards]);
+  const n=fanCards.length;
+
+  // Clamp activeIdx when cards change
+  React.useEffect(()=>{
+    setActiveIdx(i=>Math.min(i,Math.max(0,n-1)));
+  },[n]);
+
+  // ── Lightbox items (only cards with images) ──
+  const lbItems=React.useMemo(()=>
+    fanCards.filter(c=>c.src).map(c=>({
+      type:c.isVideo?'video':'image',
+      src:c.isVideo&&c.curriculumIdx!=null
+        ?`https://www.youtube.com/embed/${ytId(nonSlideRefs[c.curriculumIdx]?.videoUrl||'')}`
+        :c.src,
+      title:c.title,subtitle:c.subtitle,why:c.why,badge:c.badge,
+    }))
+  ,[fanCards]);
 
   // ── Keyboard nav ──
   React.useEffect(()=>{
@@ -4215,10 +4223,39 @@ function RefsPanel({refs,sessionKey}){
     return()=>window.removeEventListener('keydown',fn);
   },[lbIdx,lbItems.length]);
 
+  // ── Carousel scroll handler ──
+  function handleCarouselWheel(e){
+    e.preventDefault();
+    scrollAccum.current+=(e.deltaX||e.deltaY);
+    const threshold=60;
+    if(scrollAccum.current>threshold){
+      setActiveIdx(i=>Math.min(n-1,i+1));
+      scrollAccum.current=0;
+    } else if(scrollAccum.current<-threshold){
+      setActiveIdx(i=>Math.max(0,i-1));
+      scrollAccum.current=0;
+    }
+  }
+
+  // Touch swipe
+  const touchStart=React.useRef(null);
+  function handleTouchStart(e){touchStart.current=e.touches[0].clientX;}
+  function handleTouchEnd(e){
+    if(touchStart.current===null) return;
+    const diff=touchStart.current-e.changedTouches[0].clientX;
+    if(Math.abs(diff)>40){
+      if(diff>0) setActiveIdx(i=>Math.min(n-1,i+1));
+      else setActiveIdx(i=>Math.max(0,i-1));
+    }
+    touchStart.current=null;
+  }
+
   function openLb(cardIdx){
-    // Find matching lbItems index
     const card=fanCards[cardIdx];
-    const lbI=lbItems.findIndex(it=>it.title===card.title&&it.subtitle===card.subtitle);
+    if(!card?.src) return;
+    const lbI=lbItems.findIndex(it=>it.src===(card.isVideo
+      ?`https://www.youtube.com/embed/${ytId(nonSlideRefs[card.curriculumIdx]?.videoUrl||'')}`
+      :card.src));
     if(lbI>=0){setLbIdx(lbI);setMetaVisible(true);setZoom(1);setPanX(0);setPanY(0);}
   }
   function closeLb(){setLbIdx(null);setZoom(1);setPanX(0);setPanY(0);}
@@ -4246,8 +4283,7 @@ function RefsPanel({refs,sessionKey}){
   function onAddFileChange(e){
     const file=e.target.files[0];if(!file)return;
     e.target.value='';
-    const localUrl=URL.createObjectURL(file);
-    setPendingFile({file,localUrl});
+    setPendingFile({file,localUrl:URL.createObjectURL(file)});
     setCardTitle('');setCardSubtitle('');
     setAddingCard(true);
   }
@@ -4261,39 +4297,25 @@ function RefsPanel({refs,sessionKey}){
       const ref=window._storage.ref('refs/'+sessionKey+'/manual_'+ts+'.'+ext);
       await ref.put(pendingFile.file);
       const url=await ref.getDownloadURL();
-      setManualCards(prev=>[...prev,{
-        src:url,
-        title:skip?'':cardTitle.trim(),
-        subtitle:skip?'':cardSubtitle.trim()
-      }]);
-    }catch(err){
-      console.warn('Firebase upload failed, falling back to base64:',err);
+      setManualCards(prev=>[...prev,{src:url,title:skip?'':cardTitle.trim(),subtitle:skip?'':cardSubtitle.trim()}]);
+    }catch{
       await new Promise(resolve=>{
         const rd=new FileReader();
-        rd.onload=ev=>{
-          setManualCards(prev=>[...prev,{
-            src:ev.target.result,
-            title:skip?'':cardTitle.trim(),
-            subtitle:skip?'':cardSubtitle.trim()
-          }]);
-          resolve();
-        };
+        rd.onload=ev=>{setManualCards(prev=>[...prev,{src:ev.target.result,title:skip?'':cardTitle.trim(),subtitle:skip?'':cardSubtitle.trim()}]);resolve();};
         rd.readAsDataURL(pendingFile.file);
       });
     }
-    setUploadingCard(false);
-    setAddingCard(false);
-    setPendingFile(null);
-    setCardTitle('');setCardSubtitle('');
+    setUploadingCard(false);setAddingCard(false);
+    setPendingFile(null);setCardTitle('');setCardSubtitle('');
   }
 
   function removeManualCard(i){setManualCards(prev=>prev.filter((_,idx)=>idx!==i));}
-
   function handleDelete(card){
     if(card.isCurriculum) removeArtImg(card.curriculumIdx);
     else removeManualCard(card.manualIdx);
   }
 
+  // Fix: use manualIdx directly
   function startEdit(manualIdx){
     setEditingCard(manualIdx);
     setEditTitle(manualCards[manualIdx]?.title||'');
@@ -4304,26 +4326,25 @@ function RefsPanel({refs,sessionKey}){
     setEditingCard(null);
   }
 
-  const n=fanCards.length;
-  const CARD=320;
-  const containerHeight=CARD+40;
-  // Container width: centre card + cards spread on each side
-  const containerWidth=Math.max(CARD, CARD + Math.ceil(n/2)*Math.round(CARD*0.35)*2);
-
   const curItem=lbIdx!==null?lbItems[lbIdx]:null;
+  const containerHeight=CARD+40;
 
   return(
     <div>
-      {/* ── HORIZONTAL DEPTH STACK ── */}
+      {/* ── COVERFLOW CAROUSEL ── */}
       {fanCards.length>0&&(
         <div style={{marginBottom:20}}>
           <div className="pl" style={{marginBottom:16}}>Artists & References</div>
-          <div style={{position:'relative',height:containerHeight+'px',
-            width:'100%',overflowX:'visible',marginBottom:4}}>
+          {/* Carousel container */}
+          <div ref={carouselRef}
+            style={{position:'relative',height:containerHeight+'px',width:'100%',
+              overflow:'hidden',userSelect:'none'}}
+            onWheel={handleCarouselWheel}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}>
             {fanCards.map((card,i)=>(
               <RefCard_
-                key={i}
-                card={card} i={i} n={n}
+                key={i} card={card} i={i} activeIdx={activeIdx} n={n}
                 onOpen={openLb}
                 onEdit={startEdit}
                 onDelete={handleDelete}
@@ -4336,20 +4357,49 @@ function RefsPanel({refs,sessionKey}){
                 onCancelEdit={()=>setEditingCard(null)}
               />
             ))}
+            {/* Left arrow */}
+            {activeIdx>0&&(
+              <button onClick={()=>setActiveIdx(i=>i-1)}
+                style={{position:'absolute',left:8,top:'50%',transform:'translateY(-50%)',
+                  background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
+                  borderRadius:10,color:'#fff',fontSize:24,padding:'5px 13px',
+                  cursor:'pointer',zIndex:300,lineHeight:1}}>&#8249;</button>
+            )}
+            {/* Right arrow */}
+            {activeIdx<n-1&&(
+              <button onClick={()=>setActiveIdx(i=>i+1)}
+                style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',
+                  background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
+                  borderRadius:10,color:'#fff',fontSize:24,padding:'5px 13px',
+                  cursor:'pointer',zIndex:300,lineHeight:1}}>&#8250;</button>
+            )}
           </div>
-          <div style={{fontSize:10,color:'var(--tx3)',marginTop:4}}>Hover to preview · click to view</div>
+          {/* Dot indicators */}
+          {n>1&&(
+            <div style={{display:'flex',gap:5,justifyContent:'center',marginTop:8}}>
+              {fanCards.map((_,i)=>(
+                <div key={i} onClick={()=>setActiveIdx(i)}
+                  style={{width:i===activeIdx?16:6,height:6,borderRadius:3,cursor:'pointer',
+                    background:i===activeIdx?'var(--teal)':'rgba(255,255,255,0.2)',
+                    transition:'all .25s'}}/>
+              ))}
+            </div>
+          )}
+          <div style={{fontSize:10,color:'var(--tx3)',marginTop:6,textAlign:'center'}}>
+            Scroll or use arrows · click to view
+          </div>
         </div>
       )}
 
-      {/* ── ADD CARD BUTTON ── */}
+      {/* ── ADD CARD ── */}
       {teacherMode&&(
         <div style={{marginBottom:20}}>
           {!addingCard&&(
             <label style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,
               fontWeight:700,color:'var(--tx2)',cursor:'pointer',padding:'7px 14px',
               borderRadius:8,border:'1px dashed var(--glass-border2)',background:'var(--glass-bg)'}}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2.5" strokeLinecap="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/>
                 <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
@@ -4357,7 +4407,6 @@ function RefsPanel({refs,sessionKey}){
               <input type="file" accept="image/*" onChange={onAddFileChange} style={{display:'none'}}/>
             </label>
           )}
-
           {addingCard&&pendingFile&&(
             <div style={{display:'flex',gap:10,alignItems:'flex-start',flexWrap:'wrap',
               background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',
@@ -4380,21 +4429,16 @@ function RefsPanel({refs,sessionKey}){
                   <button onClick={()=>submitCard(false)} disabled={uploadingCard}
                     style={{fontSize:11,fontWeight:700,padding:'5px 12px',borderRadius:6,
                       border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer',
-                      fontFamily:"'DM Sans',sans-serif",opacity:uploadingCard?0.6:1}}>
+                      opacity:uploadingCard?0.6:1}}>
                     {uploadingCard?'Uploading…':'Add to stack'}
                   </button>
                   <button onClick={()=>submitCard(true)} disabled={uploadingCard}
                     style={{fontSize:11,padding:'5px 12px',borderRadius:6,
                       border:'1px solid var(--glass-border2)',background:'transparent',
-                      color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                    Skip info
-                  </button>
+                      color:'var(--tx3)',cursor:'pointer'}}>Skip info</button>
                   <button onClick={()=>{setAddingCard(false);setPendingFile(null);}}
                     style={{fontSize:11,padding:'5px 10px',borderRadius:6,border:'none',
-                      background:'transparent',color:'var(--tx3)',cursor:'pointer',
-                      fontFamily:"'DM Sans',sans-serif"}}>
-                    Cancel
-                  </button>
+                      background:'transparent',color:'var(--tx3)',cursor:'pointer'}}>Cancel</button>
                 </div>
               </div>
             </div>
@@ -4409,17 +4453,21 @@ function RefsPanel({refs,sessionKey}){
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             {slideRefs.map((r,i)=>{
               const src=r.embeddedSrc||(uploads[i]&&uploads[i].src)||null;
-              const lbI=lbItems.findIndex(it=>it.src===src);
               return(
-                <div key={i} onClick={()=>src&&lbI>=0&&(setLbIdx(lbI),setMetaVisible(true),setZoom(1),setPanX(0),setPanY(0))}
+                <div key={i}
+                  onClick={()=>{
+                    if(src){
+                      const lbI=lbItems.findIndex(it=>it.src===src);
+                      if(lbI>=0){setLbIdx(lbI);setMetaVisible(true);setZoom(1);setPanX(0);setPanY(0);}
+                    }
+                  }}
                   style={{width:90,height:68,borderRadius:8,
                     border:`1px solid ${src?'var(--glass-border2)':'var(--glass-border)'}`,
                     overflow:'hidden',cursor:src?'pointer':'default',
                     background:'var(--glass-bg)',display:'flex',alignItems:'center',
                     justifyContent:'center',flex:'0 0 auto'}}>
-                  {src
-                    ?<img src={src} alt={r.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                    :<div style={{textAlign:'center',padding:4}}>
+                  {src?<img src={src} alt={r.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:
+                    <div style={{textAlign:'center',padding:4}}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
                         strokeLinejoin="round" style={{color:'var(--tx3)'}}>
@@ -4446,23 +4494,57 @@ function RefsPanel({refs,sessionKey}){
               if(nz===1){setPanX(0);setPanY(0);}return nz;});}}}>
 
           {curItem.type==='image'&&(
-            <img src={curItem.src} alt="" draggable={false}
-              onClick={e=>{e.stopPropagation();setMetaVisible(v=>!v);}}
-              onMouseDown={e=>{if(zoom>1){e.preventDefault();e.stopPropagation();
-                setDragging(true);dragStart.current={x:e.clientX-panX,y:e.clientY-panY,moved:false};}}}
-              onMouseMove={e=>{if(!dragging||!dragStart.current)return;
-                const dx=e.clientX-dragStart.current.x-panX;
-                const dy=e.clientY-dragStart.current.y-panY;
-                if(Math.abs(dx)>3||Math.abs(dy)>3)dragStart.current.moved=true;
-                setPanX(e.clientX-dragStart.current.x);
-                setPanY(e.clientY-dragStart.current.y);}}
-              onMouseUp={()=>{setDragging(false);
-                setTimeout(()=>{if(dragStart.current)dragStart.current.moved=false;},50);}}
-              style={{maxWidth:'90vw',maxHeight:'90vh',objectFit:'contain',display:'block',
-                transform:`scale(${zoom}) translate(${panX/zoom}px,${panY/zoom}px)`,
-                transition:dragging?'none':'transform .12s ease',
-                cursor:zoom>1?(dragging?'grabbing':'grab'):'pointer',
-                userSelect:'none',imageRendering:'high-quality'}}/>
+            <div style={{position:'relative',maxWidth:'90vw',maxHeight:'90vh',
+              display:'flex',alignItems:'center',justifyContent:'center'}}
+              onClick={e=>e.stopPropagation()}>
+              <img src={curItem.src} alt="" draggable={false}
+                onMouseDown={e=>{if(zoom>1){e.preventDefault();
+                  setDragging(true);dragStart.current={x:e.clientX-panX,y:e.clientY-panY,moved:false};}}}
+                onMouseMove={e=>{if(!dragging||!dragStart.current)return;
+                  const dx=e.clientX-dragStart.current.x-panX;
+                  const dy=e.clientY-dragStart.current.y-panY;
+                  if(Math.abs(dx)>3||Math.abs(dy)>3)dragStart.current.moved=true;
+                  setPanX(e.clientX-dragStart.current.x);
+                  setPanY(e.clientY-dragStart.current.y);}}
+                onMouseUp={()=>{setDragging(false);
+                  setTimeout(()=>{if(dragStart.current)dragStart.current.moved=false;},50);}}
+                style={{maxWidth:'90vw',maxHeight:'90vh',objectFit:'contain',display:'block',
+                  transform:`scale(${zoom}) translate(${panX/zoom}px,${panY/zoom}px)`,
+                  transition:dragging?'none':'transform .12s ease',
+                  cursor:zoom>1?(dragging?'grabbing':'grab'):'default',
+                  userSelect:'none',imageRendering:'high-quality'}}/>
+              {/* Bottom gradient info — click to toggle */}
+              <div onClick={()=>setMetaVisible(v=>!v)}
+                style={{position:'absolute',bottom:0,left:0,right:0,cursor:'pointer',
+                  background:metaVisible
+                    ?'linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.6) 45%,transparent 100%)'
+                    :'transparent',
+                  padding:metaVisible?'44px 20px 18px':'0',
+                  transition:'background .25s, padding .25s',pointerEvents:'auto'}}>
+                <div style={{opacity:metaVisible?1:0,transition:'opacity .25s'}}>
+                  {curItem.title&&<div style={{fontSize:17,fontWeight:700,color:'#fff',
+                    fontFamily:"'Fraunces',serif",marginBottom:4}}>{curItem.title}</div>}
+                  {curItem.subtitle&&<div style={{fontSize:13,color:'rgba(255,255,255,0.7)',
+                    fontStyle:'italic',marginBottom:6}}>{curItem.subtitle}</div>}
+                  {curItem.why&&<div style={{fontSize:12,color:'rgba(255,255,255,0.55)',
+                    lineHeight:1.6}}>{curItem.why}</div>}
+                  {curItem.badge&&<div style={{marginTop:8,display:'inline-block',fontSize:9,
+                    fontWeight:700,padding:'2px 8px',borderRadius:5,
+                    background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.5)',
+                    letterSpacing:'.07em',textTransform:'uppercase'}}>{curItem.badge}</div>}
+                </div>
+                {/* ⓘ hint always visible */}
+                <div style={{position:'absolute',bottom:14,right:14,
+                  opacity:metaVisible?0.7:0.3,transition:'opacity .25s'}}>
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="white">
+                    <circle cx="10" cy="10" r="9" fill="rgba(0,0,0,0.35)"
+                      stroke="rgba(255,255,255,0.4)" strokeWidth="1"/>
+                    <text x="10" y="14.5" textAnchor="middle" fontSize="11"
+                      fontWeight="700" fontFamily="serif" fill="white">i</text>
+                  </svg>
+                </div>
+              </div>
+            </div>
           )}
 
           {curItem.type==='video'&&(
@@ -4470,29 +4552,6 @@ function RefsPanel({refs,sessionKey}){
               <iframe src={curItem.src+'?autoplay=1'} allow="autoplay;encrypted-media"
                 allowFullScreen title={curItem.title}
                 style={{width:'100%',height:'100%',border:'none',borderRadius:8}}/>
-            </div>
-          )}
-
-          {/* Info overlay — centred, click to toggle */}
-          {curItem.type==='image'&&(
-            <div onClick={e=>{e.stopPropagation();setMetaVisible(v=>!v);}}
-              style={{position:'absolute',inset:0,
-                background:metaVisible?'rgba(0,0,0,0.62)':'transparent',
-                transition:'background .25s',cursor:'pointer',
-                display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <div style={{textAlign:'center',padding:'24px 32px',maxWidth:480,
-                opacity:metaVisible?1:0,transition:'opacity .25s',pointerEvents:'none'}}>
-                {curItem.title&&<div style={{fontSize:18,fontWeight:700,color:'#fff',
-                  fontFamily:"'Fraunces',serif",marginBottom:6}}>{curItem.title}</div>}
-                {curItem.subtitle&&<div style={{fontSize:13,color:'rgba(255,255,255,0.7)',
-                  fontStyle:'italic',marginBottom:8}}>{curItem.subtitle}</div>}
-                {curItem.why&&<div style={{fontSize:12,color:'rgba(255,255,255,0.6)',
-                  lineHeight:1.6}}>{curItem.why}</div>}
-                {curItem.badge&&<div style={{marginTop:10,display:'inline-block',fontSize:9,
-                  fontWeight:700,padding:'3px 10px',borderRadius:6,
-                  background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.5)',
-                  letterSpacing:'.07em',textTransform:'uppercase'}}>{curItem.badge}</div>}
-              </div>
             </div>
           )}
 
