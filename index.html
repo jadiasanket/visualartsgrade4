@@ -9989,6 +9989,267 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   );
 }
 
+// ── GALLERY UPLOAD MODAL ──
+// Allows bulk upload directly from Gallery view.
+// Each file gets assigned a section + student + optional label before saving.
+function GalleryUpload({onClose,onDone}){
+  const [queue,setQueue]=React.useState([]); // [{file,localUrl,sectionId,studentIdx,label,status}]
+  const [saving,setSaving]=React.useState(false);
+  const fileInputRef=React.useRef();
+
+  function addFiles(files){
+    const newItems=Array.from(files).map(f=>({
+      file:f,
+      localUrl:URL.createObjectURL(f),
+      sectionId:G4_SECTIONS[0].id,
+      studentIdx:0,
+      label:'',
+      status:'pending', // pending | uploading | done | error
+    }));
+    setQueue(prev=>[...prev,...newItems]);
+  }
+
+  function handleDrop(e){
+    e.preventDefault();
+    if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  }
+
+  function update(i,patch){
+    setQueue(prev=>prev.map((item,idx)=>idx===i?{...item,...patch}:item));
+  }
+
+  function remove(i){
+    setQueue(prev=>prev.filter((_,idx)=>idx!==i));
+  }
+
+  // Apply same section+student to all subsequent items after this one
+  function applyToAll(fromIdx){
+    const src=queue[fromIdx];
+    setQueue(prev=>prev.map((item,idx)=>idx<fromIdx?item:{...item,sectionId:src.sectionId,studentIdx:src.studentIdx}));
+  }
+
+  async function saveAll(){
+    if(!queue.length||saving) return;
+    setSaving(true);
+    const db=window._db;
+    for(let i=0;i<queue.length;i++){
+      const item=queue[i];
+      if(item.status==='done') continue;
+      update(i,{status:'uploading'});
+      try{
+        const url=await uploadPortfolioPhoto(item.file,item.sectionId,item.studentIdx);
+        const date=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+        const sharedDocId='shared-'+item.sectionId;
+        const snap=await db.collection('sections').doc(sharedDocId).get();
+        if(snap.exists){
+          const data=snap.data();
+          if(!data.students[item.studentIdx].portfolio) data.students[item.studentIdx].portfolio=[];
+          data.students[item.studentIdx].portfolio.push({
+            url,date,
+            caption:item.label.trim(),
+            type:'artwork',lessons:[],artTags:[],review:''
+          });
+          await db.collection('sections').doc(sharedDocId).set(data);
+        }
+        update(i,{status:'done'});
+      }catch(err){
+        update(i,{status:'error',errorMsg:err.message});
+      }
+    }
+    setSaving(false);
+    onDone();
+  }
+
+  const pendingCount=queue.filter(q=>q.status==='pending').length;
+  const doneCount=queue.filter(q=>q.status==='done').length;
+  const hasErrors=queue.some(q=>q.status==='error');
+
+  return ReactDOM.createPortal(
+    <div style={{position:'fixed',inset:0,zIndex:6000,background:'rgba(6,8,16,0.88)',backdropFilter:'blur(18px)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}
+      onClick={e=>{if(e.target===e.currentTarget&&!saving) onClose();}}>
+      <div style={{background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:20,
+        boxShadow:'var(--glass-shadow2)',width:'min(780px,96vw)',maxHeight:'90vh',
+        display:'flex',flexDirection:'column',overflow:'hidden'}}>
+
+        {/* Header */}
+        <div style={{padding:'18px 22px 14px',borderBottom:'1px solid var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+          <div>
+            <div style={{fontSize:16,fontWeight:800,color:'var(--tx)',fontFamily:"'Bricolage Grotesque',sans-serif"}}>Upload to Gallery</div>
+            <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>
+              {queue.length===0?'Add photos below — assign each to a student before saving'
+                :`${queue.length} photo${queue.length!==1?'s':''} queued · ${doneCount} saved`}
+            </div>
+          </div>
+          <button onClick={()=>{if(!saving)onClose();}}
+            style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'2px 6px',lineHeight:1}}>✕</button>
+        </div>
+
+        {/* Drop zone — shown when queue is empty, or as a small add-more strip */}
+        {queue.length===0?(
+          <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:48}}
+            onDragOver={e=>e.preventDefault()} onDrop={handleDrop}>
+            <div style={{width:72,height:72,borderRadius:18,border:'2px dashed var(--glass-border2)',
+              display:'flex',alignItems:'center',justifyContent:'center',
+              background:'var(--glass-bg)'}}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:6}}>Drop photos here or click to browse</div>
+              <div style={{fontSize:11,color:'var(--tx3)'}}>Supports JPEG, PNG · Multiple files at once</div>
+            </div>
+            <label style={{fontSize:12,fontWeight:700,padding:'9px 24px',borderRadius:10,
+              border:'1px solid var(--teal)',background:'rgba(59,191,160,0.1)',color:'var(--teal)',
+              cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+              Choose Photos
+              <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}}
+                onChange={e=>{if(e.target.files.length)addFiles(e.target.files);e.target.value='';}}/>
+            </label>
+          </div>
+        ):(
+          <div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+            {/* Add more strip */}
+            <div style={{padding:'10px 22px',borderBottom:'1px solid var(--glass-border)',display:'flex',alignItems:'center',gap:10,flexShrink:0}}
+              onDragOver={e=>e.preventDefault()} onDrop={handleDrop}>
+              <label style={{display:'flex',alignItems:'center',gap:7,fontSize:11,fontWeight:700,
+                padding:'6px 14px',borderRadius:8,border:'1px dashed var(--glass-border2)',
+                background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add more
+                <input type="file" accept="image/*" multiple style={{display:'none'}}
+                  onChange={e=>{if(e.target.files.length)addFiles(e.target.files);e.target.value='';}}/>
+              </label>
+              <span style={{fontSize:10,color:'var(--tx3)'}}>or drag & drop more photos</span>
+            </div>
+
+            {/* Queue list */}
+            <div style={{flex:1,overflowY:'auto',padding:'10px 16px',display:'flex',flexDirection:'column',gap:10}}>
+              {queue.map((item,i)=>{
+                const sec=G4_SECTIONS.find(s=>s.id===item.sectionId)||G4_SECTIONS[0];
+                const students=sec.students||[];
+                const isDone=item.status==='done';
+                const isUploading=item.status==='uploading';
+                const isError=item.status==='error';
+                return(
+                  <div key={i} style={{display:'flex',gap:12,alignItems:'flex-start',
+                    padding:'12px 14px',borderRadius:12,
+                    background:isDone?'rgba(59,191,160,0.07)':isError?'rgba(232,112,90,0.08)':'var(--glass-bg)',
+                    border:`1px solid ${isDone?'rgba(59,191,160,0.25)':isError?'rgba(232,112,90,0.25)':'var(--glass-border)'}`,
+                    opacity:isDone?0.7:1}}>
+                    {/* Thumbnail */}
+                    <div style={{width:64,height:64,borderRadius:9,overflow:'hidden',flexShrink:0,position:'relative'}}>
+                      <img src={item.localUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                      {isDone&&<div style={{position:'absolute',inset:0,background:'rgba(59,191,160,0.45)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>✓</div>}
+                      {isUploading&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                        <div style={{width:20,height:20,border:'2px solid rgba(255,255,255,0.3)',borderTop:'2px solid #fff',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>
+                      </div>}
+                    </div>
+
+                    {/* Controls */}
+                    <div style={{flex:1,display:'flex',flexDirection:'column',gap:7,minWidth:0}}>
+                      {/* Section + Student row */}
+                      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                        <select value={item.sectionId}
+                          onChange={e=>update(i,{sectionId:e.target.value,studentIdx:0})}
+                          disabled={isDone||isUploading}
+                          style={{fontSize:11,fontWeight:700,padding:'4px 8px',borderRadius:7,
+                            border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',
+                            color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',
+                            flexShrink:0}}>
+                          {G4_SECTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <select value={item.studentIdx}
+                          onChange={e=>update(i,{studentIdx:Number(e.target.value)})}
+                          disabled={isDone||isUploading}
+                          style={{flex:1,fontSize:11,padding:'4px 8px',borderRadius:7,
+                            border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',
+                            color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',
+                            minWidth:0}}>
+                          {students.map((name,si)=><option key={si} value={si}>{name}</option>)}
+                        </select>
+                      </div>
+                      {/* Label */}
+                      <input value={item.label}
+                        onChange={e=>update(i,{label:e.target.value})}
+                        disabled={isDone||isUploading}
+                        placeholder="Label / caption (optional)"
+                        style={{fontSize:11,padding:'5px 9px',borderRadius:7,
+                          border:'1px solid var(--glass-border)',background:'var(--glass-bg)',
+                          color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',width:'100%'}}/>
+                      {isError&&<div style={{fontSize:10,color:'var(--coral)'}}>{item.errorMsg||'Upload failed'}</div>}
+                      {/* Apply to all below */}
+                      {!isDone&&!isUploading&&i<queue.length-1&&(
+                        <button onClick={()=>applyToAll(i)}
+                          style={{alignSelf:'flex-start',fontSize:9,fontWeight:700,padding:'2px 9px',
+                            borderRadius:6,border:'1px solid var(--glass-border2)',background:'transparent',
+                            color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                          Apply section & student to all below ↓
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Remove */}
+                    {!isDone&&!isUploading&&(
+                      <button onClick={()=>remove(i)}
+                        style={{background:'none',border:'none',color:'var(--tx3)',fontSize:16,cursor:'pointer',
+                          padding:'2px',flexShrink:0,lineHeight:1,marginTop:2}}>✕</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        {queue.length>0&&(
+          <div style={{padding:'14px 22px',borderTop:'1px solid var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+            <div style={{fontSize:11,color:'var(--tx3)'}}>
+              {doneCount>0&&!saving&&!hasErrors&&doneCount===queue.length
+                ?`All ${doneCount} photo${doneCount!==1?'s':''} saved ✓`
+                :saving?'Saving…'
+                :hasErrors?`${pendingCount} pending · some errors`
+                :`${pendingCount} photo${pendingCount!==1?'s':''} ready to save`}
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              {doneCount===queue.length&&!hasErrors?(
+                <button onClick={onClose}
+                  style={{fontSize:12,fontWeight:700,padding:'8px 22px',borderRadius:10,border:'none',
+                    background:'var(--teal)',color:'#fff',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                  Done
+                </button>
+              ):(
+                <>
+                  <button onClick={()=>{if(!saving)onClose();}}
+                    style={{fontSize:12,padding:'8px 16px',borderRadius:10,
+                      border:'1px solid var(--glass-border)',background:'transparent',
+                      color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                    Cancel
+                  </button>
+                  <button onClick={saveAll} disabled={saving||pendingCount===0}
+                    style={{fontSize:12,fontWeight:700,padding:'8px 22px',borderRadius:10,border:'none',
+                      background:saving||pendingCount===0?'var(--glass-bg2)':'var(--teal)',
+                      color:saving||pendingCount===0?'var(--tx3)':'#fff',
+                      cursor:saving||pendingCount===0?'default':'pointer',
+                      fontFamily:"'DM Sans',sans-serif",
+                      opacity:saving?0.7:1}}>
+                    {saving?'Saving…':`Save ${pendingCount} photo${pendingCount!==1?'s':''}`}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>,
+    document.body
+  );
+}
+
 // ── GALLERY VIEW — all sections portfolio feed ──
 function GalleryView(){
   const SECTION_IDS=G4_SECTIONS.map(s=>s.id);
@@ -9999,6 +10260,7 @@ function GalleryView(){
   const [filterLesson,setFilterLesson]=React.useState(null);
   const [filterTag,setFilterTag]=React.useState(null);
   const [showFilter,setShowFilter]=React.useState(false);
+  const [showUpload,setShowUpload]=React.useState(false);
   const [lightbox,setLightbox]=React.useState(null);
   const [lbFullscreen,setLbFullscreen]=React.useState(false);
   const [metaVisible,setMetaVisible]=React.useState(true);
@@ -10007,6 +10269,7 @@ function GalleryView(){
   const [lbPanY,setLbPanY]=React.useState(0);
   const [lbDragging,setLbDragging]=React.useState(false);
   const lbDragStart=React.useRef(null);
+  const {teacherMode}=React.useContext(KWContext);
   const allLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color})));
   const artworkTags=getArtworkTags();
   const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
@@ -10102,7 +10365,22 @@ function GalleryView(){
           <div style={{fontSize:22,fontWeight:800,fontFamily:"'Bricolage Grotesque',sans-serif",color:'var(--tx)'}}>Gallery</div>
           <div style={{fontSize:12,color:'var(--tx3)',marginTop:2}}>{filtered.length} photo{filtered.length!==1?'s':''} across all sections</div>
         </div>
-        {/* ⚙ Filter button */}
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          {/* Upload button — teacher only */}
+          {teacherMode&&(
+            <button onClick={()=>setShowUpload(true)}
+              style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,
+                padding:'7px 16px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                border:'1px solid var(--teal)',background:'rgba(59,191,160,0.12)',color:'var(--teal)'}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Upload
+            </button>
+          )}
+          {/* ⚙ Filter button */}
         <div style={{position:'relative'}}>
           <button onClick={()=>setShowFilter(v=>!v)}
             style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,padding:'7px 16px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
@@ -10195,9 +10473,15 @@ function GalleryView(){
             </div>
           )}
         </div>
+        </div>{/* end upload+filter flex row */}
       </div>
       {/* Click outside to close filter */}
       {showFilter&&<div style={{position:'fixed',inset:0,zIndex:499}} onClick={()=>setShowFilter(false)}/>}
+
+      {/* Gallery Upload Modal */}
+      {showUpload&&<GalleryUpload
+        onClose={()=>setShowUpload(false)}
+        onDone={()=>setShowUpload(false)}/>}
 
       {/* Grid */}
       {loading?(
