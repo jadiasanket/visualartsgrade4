@@ -3980,8 +3980,13 @@ function ResourceAdder({onAdd,addType,setAddType,textDraft,setTextDraft,urlDraft
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 function RefsPanel({refs,sessionKey}){
-  const [lbItems,setLbItems]=React.useState(null);
-  const [lbStart,setLbStart]=React.useState(0);
+  const [lbIdx,setLbIdx]=React.useState(null); // unified lightbox index
+  const [metaVisible,setMetaVisible]=React.useState(true);
+  const [zoom,setZoom]=React.useState(1);
+  const [panX,setPanX]=React.useState(0);
+  const [panY,setPanY]=React.useState(0);
+  const [dragging,setDragging]=React.useState(false);
+  const dragStart=React.useRef(null);
   const [uploads,setUploads]=useLocalStorage('uploads-'+sessionKey,[]);
   const [artistUploads,setArtistUploads]=useLocalStorage('artist-uploads-'+sessionKey,{});
   const [addType,setAddType]=React.useState(null);
@@ -3990,13 +3995,57 @@ function RefsPanel({refs,sessionKey}){
   const [urlLabel,setUrlLabel]=React.useState('');
   const {teacherMode}=React.useContext(KWContext);
 
+  // Build unified lightbox items from ALL refs (artist images + slides + user uploads)
+  const nonSlideRefs=(refs||[]).filter(r=>r.type!=='slide');
   const slideRefs=(refs||[]).filter(r=>r.type==='slide');
-  const allSlides=[
-    ...slideRefs.map((r,i)=>({src:r.embeddedSrc||(uploads[i]&&uploads[i].src)||null,caption:r.name,embedded:!!r.embeddedSrc})),
-    ...uploads.filter((_,i)=>i>=slideRefs.length).map(u=>({src:u.src,caption:u.name,embedded:false}))
-  ].filter(s=>s.src);
 
-  const openSlides=(startIdx)=>{setLbItems(allSlides.map(s=>({type:'image',src:s.src,caption:s.caption})));setLbStart(startIdx);};
+  const lbItems=React.useMemo(()=>{
+    const items=[];
+    // Artist refs first — image uploads or video thumbs
+    nonSlideRefs.forEach((r,i)=>{
+      const artImg=artistUploads[i]||null;
+      if(artImg){
+        items.push({type:'image',src:artImg.src,artist:r.name,work:r.work,why:r.why,refType:r.type});
+      } else if(r.videoUrl){
+        const vid=ytId(r.videoUrl);
+        if(vid) items.push({type:'video',src:`https://www.youtube.com/embed/${vid}`,artist:r.name,work:r.work,why:r.why,refType:'video',thumb:`https://img.youtube.com/vi/${vid}/mqdefault.jpg`});
+      }
+    });
+    // Slides
+    slideRefs.forEach((r,i)=>{
+      const src=r.embeddedSrc||(uploads[i]&&uploads[i].src)||null;
+      if(src) items.push({type:'image',src,artist:r.name,work:'',why:r.why,refType:'slide'});
+    });
+    // User uploads
+    uploads.filter((_,i)=>i>=slideRefs.length).forEach(u=>{
+      if(u.type==='image'&&u.src) items.push({type:'image',src:u.src,artist:u.name,work:'',why:'',refType:'resource'});
+    });
+    return items;
+  },[nonSlideRefs,slideRefs,artistUploads,uploads]);
+
+  // Keyboard nav
+  React.useEffect(()=>{
+    if(lbIdx===null) return;
+    const fn=(e)=>{
+      if(e.key==='Escape'){closeLb();}
+      if(e.key==='ArrowLeft') setLbIdx(i=>Math.max(0,i-1));
+      if(e.key==='ArrowRight') setLbIdx(i=>Math.min(lbItems.length-1,i+1));
+    };
+    window.addEventListener('keydown',fn);
+    return()=>window.removeEventListener('keydown',fn);
+  },[lbIdx,lbItems.length]);
+
+  function openLb(idx){setLbIdx(idx);setMetaVisible(true);setZoom(1);setPanX(0);setPanY(0);}
+  function closeLb(){setLbIdx(null);setZoom(1);setPanX(0);setPanY(0);}
+
+  const handleArtUpload=(i,e)=>{
+    const file=e.target.files[0];if(!file)return;
+    const rd=new FileReader();
+    rd.onload=ev=>setArtistUploads(prev=>({...prev,[i]:{src:ev.target.result,name:file.name}}));
+    rd.readAsDataURL(file);
+    e.target.value='';
+  };
+  const removeArtImg=(i)=>setArtistUploads(prev=>{const n={...prev};delete n[i];return n;});
 
   const handleImgUpload=(e)=>{
     Array.from(e.target.files).forEach(file=>{
@@ -4006,90 +4055,67 @@ function RefsPanel({refs,sessionKey}){
     });
     e.target.value='';
   };
-
   const addText=()=>{if(textDraft.trim()){setUploads(prev=>[...prev,{type:'text',content:textDraft.trim(),name:'Note'}]);setTextDraft('');setAddType(null);}};
   const addUrl=()=>{if(urlDraft.trim()){setUploads(prev=>[...prev,{type:'link',url:urlDraft.trim(),name:urlLabel||urlDraft.trim()}]);setUrlDraft('');setUrlLabel('');setAddType(null);}};
   const delUpload=(i)=>setUploads(prev=>prev.filter((_,idx)=>idx!==i));
 
-  const nonSlideRefs=(refs||[]).filter(r=>r.type!=='slide');
+  const curItem=lbIdx!==null?lbItems[lbIdx]:null;
+  const AMBER='rgba(245,158,11,0.9)';
 
   return(
     <div>
-      {/* SLIDES FILMSTRIP */}
-      {(allSlides.length>0||slideRefs.length>0)&&(
-        <div style={{marginBottom:14}}>
-          <div className="pl" style={{marginBottom:8}}>Presentation Slides</div>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-            {slideRefs.map((r,i)=>{
-              const src=r.embeddedSrc||(uploads[i]&&uploads[i].src)||null;
-              return(
-                <div key={i} onClick={()=>src&&openSlides(allSlides.findIndex(s=>s.src===src))}
-                  style={{width:90,height:68,borderRadius:8,border:`1px solid ${src?'var(--glass-border2)':'var(--glass-border)'}`,overflow:'hidden',cursor:src?'pointer':'default',background:'var(--glass-bg)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flex:'0 0 auto',transition:'border-color .15s'}}>
-                  {src?<img src={src} alt={r.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:
-                    <div style={{textAlign:'center',padding:4}}><div style={{marginBottom:2,display:"flex",justifyContent:"center"}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{color:"var(--tx3)"}}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div><div style={{fontSize:'9px',fontWeight:800,color:'var(--tx3)'}}>Upload below</div></div>}
-                  <div style={{position:'absolute',fontSize:'9px',fontWeight:800,background:'rgba(0,0,0,0.55)',color:'#fff',padding:'1px 4px',borderRadius:'0 0 4px 4px',bottom:0,left:0,right:0,textAlign:'center',pointerEvents:'none'}}>{r.name}</div>
-                </div>
-              );
-            })}
-          </div>
-          {allSlides.length>1&&<div style={{fontSize:'11px',color:'var(--tx3)',marginTop:5}}>Click any slide · use ← → to navigate</div>}
-          {allSlides.length===1&&<div style={{fontSize:'11px',color:'var(--tx3)',marginTop:5}}>Click to view full size</div>}
-        </div>
-      )}
 
-      {/* ARTIST REFS */}
+      {/* ARTIST REFS — full thumbnail grid */}
       {nonSlideRefs.length>0&&(
-        <div style={{marginBottom:12}}>
-          <div className="pl" style={{marginBottom:8}}>Artists & References</div>
+        <div style={{marginBottom:16}}>
+          <div className="pl" style={{marginBottom:10}}>Artists & References</div>
           {nonSlideRefs.map((r,i)=>{
             const isVid=!!r.videoUrl;
             const vid=isVid?ytId(r.videoUrl):null;
             const thumb=vid?`https://img.youtube.com/vi/${vid}/mqdefault.jpg`:null;
             const artImg=artistUploads[i]||null;
-            const handleArtUpload=(e)=>{
-              const file=e.target.files[0];if(!file)return;
-              const rd=new FileReader();
-              rd.onload=ev=>setArtistUploads(prev=>({...prev,[i]:{src:ev.target.result,name:file.name}}));
-              rd.readAsDataURL(file);
-              e.target.value='';
-            };
-            const removeArtImg=()=>setArtistUploads(prev=>{const n={...prev};delete n[i];return n;});
+            // Find this item's index in lbItems
+            const lbItemIdx=lbItems.findIndex(it=>it.artist===r.name&&it.work===r.work);
             return(
-              <div key={i} className="ref-card">
-                <div className="ref-top" style={{alignItems:'flex-start',gap:10}}>
+              <div key={i} className="ref-card" style={{marginBottom:12}}>
+                <div className="ref-top" style={{alignItems:'flex-start',gap:10,marginBottom:artImg||isVid?8:0}}>
                   <span className={`ref-type rt-${isVid?'video':r.type}`}>{isVid?'video':r.type}</span>
                   <div style={{flex:1,minWidth:0}}>
                     <div className="ref-name">{r.name}</div>
                     {r.work&&<div className="ref-work">{r.work}</div>}
                     <div className="ref-why" style={{marginTop:4}}>{r.why}</div>
-                    {isVid&&<div style={{fontSize:'11px',color:'var(--sky)',marginTop:5,fontWeight:600,cursor:'pointer'}}
-                      onClick={()=>{setLbItems([{type:'video',src:r.videoUrl,caption:`${r.name}${r.work?' — '+r.work:''}`}]);setLbStart(0);}}>▶ Click to watch</div>}
                   </div>
-                  {thumb&&(
-                    <div style={{width:64,height:44,borderRadius:6,overflow:'hidden',flexShrink:0,position:'relative',cursor:'pointer'}}
-                      onClick={()=>{setLbItems([{type:'video',src:r.videoUrl,caption:`${r.name}${r.work?' — '+r.work:''}`}]);setLbStart(0);}}>
-                      <img src={thumb} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.28)'}}>
-                        <div style={{width:20,height:20,borderRadius:'50%',background:'rgba(255,50,30,0.9)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'#fff',paddingLeft:2}}>▶</div>
-                      </div>
-                    </div>
-                  )}
                 </div>
-                {/* Per-artist image upload */}
-                {artImg?(
-                  <div style={{marginTop:8,position:'relative'}}>
-                    <img src={artImg.src} alt={artImg.name} onClick={()=>{setLbItems([{type:'image',src:artImg.src,caption:`${r.name}${r.work?' — '+r.work:''}`}]);setLbStart(0);}}
-                      style={{width:'100%',maxHeight:140,objectFit:'cover',borderRadius:6,cursor:'pointer',display:'block'}}/>
-                    {teacherMode&&<button onClick={removeArtImg}
-                      style={{position:'absolute',top:4,right:4,background:'rgba(0,0,0,0.55)',border:'none',borderRadius:'50%',width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'#fff',fontSize:10}}>✕</button>}
+                {/* Full image thumbnail — contain so full artwork visible */}
+                {artImg&&(
+                  <div style={{position:'relative',borderRadius:8,overflow:'hidden',background:'var(--glass-bg2)',cursor:'pointer',border:'1px solid var(--glass-border2)'}}
+                    onClick={()=>lbItemIdx>=0&&openLb(lbItemIdx)}>
+                    <img src={artImg.src} alt={artImg.name}
+                      style={{width:'100%',maxHeight:320,objectFit:'contain',display:'block',background:'#111'}}/>
+                    <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0)',transition:'background .15s'}}
+                      onMouseEnter={e=>e.currentTarget.style.background='rgba(0,0,0,0.12)'}
+                      onMouseLeave={e=>e.currentTarget.style.background='rgba(0,0,0,0)'}/>
+                    {teacherMode&&<button onClick={e=>{e.stopPropagation();removeArtImg(i);}}
+                      style={{position:'absolute',top:6,right:6,background:'rgba(0,0,0,0.6)',border:'none',borderRadius:'50%',width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'#fff',fontSize:11}}>✕</button>}
+                    <div style={{position:'absolute',bottom:6,right:8,fontSize:9,color:'rgba(255,255,255,0.5)',fontWeight:700,letterSpacing:'.05em',textShadow:'0 1px 4px rgba(0,0,0,0.8)'}}>click to view</div>
                   </div>
-                ):(
-                  teacherMode&&(
-                    <label style={{display:'inline-flex',alignItems:'center',gap:5,marginTop:8,fontSize:'11px',color:'var(--tx3)',cursor:'pointer',padding:'4px 8px',borderRadius:6,border:'1px dashed var(--glass-border2)',transition:'border-color .15s'}}>
-                      <span style={{fontSize:13}}>+</span> Add reference image
-                      <input type="file" accept="image/*" onChange={handleArtUpload} style={{display:'none'}}/>
-                    </label>
-                  )
+                )}
+                {/* Video thumb */}
+                {isVid&&!artImg&&thumb&&(
+                  <div style={{position:'relative',borderRadius:8,overflow:'hidden',cursor:'pointer'}}
+                    onClick={()=>lbItemIdx>=0&&openLb(lbItemIdx)}>
+                    <img src={thumb} alt="" style={{width:'100%',maxHeight:180,objectFit:'cover',display:'block'}}/>
+                    <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.25)'}}>
+                      <div style={{width:40,height:40,borderRadius:'50%',background:'rgba(255,50,30,0.9)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,color:'#fff',paddingLeft:3}}>▶</div>
+                    </div>
+                  </div>
+                )}
+                {/* Upload prompt */}
+                {!artImg&&!isVid&&teacherMode&&(
+                  <label style={{display:'inline-flex',alignItems:'center',gap:5,marginTop:4,fontSize:'11px',color:'var(--tx3)',cursor:'pointer',padding:'4px 8px',borderRadius:6,border:'1px dashed var(--glass-border2)'}}>
+                    <span style={{fontSize:13}}>+</span> Add reference image
+                    <input type="file" accept="image/*" onChange={e=>handleArtUpload(i,e)} style={{display:'none'}}/>
+                  </label>
                 )}
               </div>
             );
@@ -4097,306 +4123,182 @@ function RefsPanel({refs,sessionKey}){
         </div>
       )}
 
-      {/* MY RESOURCES — redesigned */}
-      <div style={{marginTop:4}}>
-        <div className="pl" style={{marginBottom:10}}>My Resources</div>
-        {teacherMode&&(
-          <ResourceAdder onAdd={(item)=>setUploads(prev=>[...prev,item])} addType={addType} setAddType={setAddType}
-            textDraft={textDraft} setTextDraft={setTextDraft} urlDraft={urlDraft} setUrlDraft={setUrlDraft}
-            urlLabel={urlLabel} setUrlLabel={setUrlLabel} addText={addText} addUrl={addUrl} handleImgUpload={handleImgUpload}/>
-        )}
-        {uploads.length>0?(
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:8,marginTop:teacherMode?10:0}}>
-            {uploads.map((u,i)=>(
-              <ResourceCard key={i} u={u} onDelete={teacherMode?()=>delUpload(i):null}
-                onView={()=>{
-                  const vid=u.type==='link'&&u.url?ytId(u.url):null;
-                  if(u.type==='image'){setLbItems([{type:'image',src:u.src,caption:u.name}]);setLbStart(0);}
-                  else if(vid){setLbItems([{type:'video',src:`https://www.youtube.com/embed/${vid}`,caption:u.name||u.url}]);setLbStart(0);}
-                }}/>
-            ))}
+      {/* SLIDES */}
+      {(slideRefs.length>0)&&(
+        <div style={{marginBottom:14}}>
+          <div className="pl" style={{marginBottom:8}}>Presentation Slides</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            {slideRefs.map((r,i)=>{
+              const src=r.embeddedSrc||(uploads[i]&&uploads[i].src)||null;
+              const lbItemIdx=lbItems.findIndex(it=>it.src===src);
+              return(
+                <div key={i} onClick={()=>src&&lbItemIdx>=0&&openLb(lbItemIdx)}
+                  style={{width:90,height:68,borderRadius:8,border:`1px solid ${src?'var(--glass-border2)':'var(--glass-border)'}`,overflow:'hidden',cursor:src?'pointer':'default',background:'var(--glass-bg)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flex:'0 0 auto'}}>
+                  {src?<img src={src} alt={r.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:
+                    <div style={{textAlign:'center',padding:4}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{color:'var(--tx3)'}}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><div style={{fontSize:'9px',fontWeight:800,color:'var(--tx3)',marginTop:2}}>Upload below</div></div>}
+                </div>
+              );
+            })}
           </div>
-        ):(
-          <div style={{fontSize:'12px',color:'var(--tx3)',marginTop:10,textAlign:'center',padding:'16px 0'}}>
-            {teacherMode?'No resources yet — drop files, paste a link, or use the buttons above.':'No resources added.'}
-          </div>
-        )}
-      </div>
-
-      {lbItems&&<Lightbox items={lbItems} startIndex={lbStart} onClose={()=>setLbItems(null)}/>}
-    </div>
-  );
-}
-
-function NotesTab({noteKey}){
-  const [draft,setDraft]=React.useState('');
-  const [entries,add,del]=useNoteLog(noteKey);
-  const {teacherMode}=React.useContext(KWContext);
-  return(
-    <div>
-      {teacherMode&&(
-        <>
-          <div className="pl">Add a note</div>
-          <textarea className="notes-area" value={draft} onChange={e=>setDraft(e.target.value)}
-            placeholder="What worked? What didn't? What would you change next time? Any observations about student responses..."
-            rows={4}/>
-          <button className="notes-save-btn" onClick={()=>{add(draft);setDraft('');}}>Post</button>
-        </>
+        </div>
       )}
-      {entries.length>0&&(
-        <div className="notes-log" style={{marginTop:teacherMode?12:0}}>
-          <div className="notes-log-label">Saved notes ({entries.length})</div>
-          {entries.map((e,i)=>(
-            <div key={i} className="notes-entry">
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div className="ne-time">{e.time}</div>
-                {teacherMode&&<button onClick={()=>del(i)} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:'11px',fontWeight:800}}>delete</button>}
-              </div>
-              <div className="ne-text">{e.text}</div>
+
+      {/* MY RESOURCES */}
+      {(() => {
+        const userUploads=uploads.filter((_,i)=>i>=slideRefs.length);
+        return(
+          <div style={{marginTop:8}}>
+            <div className="pl" style={{marginBottom:8}}>My Resources</div>
+            <div style={{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap'}}>
+              {['Image','Link','Note'].map(t=>(
+                <button key={t} onClick={()=>setAddType(addType===t.toLowerCase()?null:t.toLowerCase())}
+                  className={`sc-tab${addType===t.toLowerCase()?' active':''}`} style={{fontSize:11,padding:'4px 12px'}}>
+                  {t}
+                </button>
+              ))}
+              <span style={{fontSize:11,color:'var(--tx3)',alignSelf:'center',marginLeft:4}}>or drag &amp; drop · paste image/link</span>
             </div>
-          ))}
-        </div>
-      )}
-      {!teacherMode&&entries.length===0&&(
-        <div style={{fontSize:'12px',color:'var(--tx3)',padding:'8px 0'}}>No notes yet.</div>
-      )}
-    </div>
-  );
-}
-
-/* ── STEP LIGHTBOX COMPONENT ── */
-function StepLightbox({steps,startIndex,pm,tickedSteps,onTick,onClose}){
-  const [idx,setIdx]=React.useState(startIndex||0);
-  const step=steps[idx];
-  const isTicked=!!tickedSteps[idx];
-  const prev=()=>setIdx(i=>Math.max(0,i-1));
-  const next=()=>setIdx(i=>Math.min(steps.length-1,i+1));
-
-  React.useEffect(()=>{
-    const handle=(e)=>{
-      if(e.key==='Escape') onClose();
-      if(e.key==='ArrowLeft') prev();
-      if(e.key==='ArrowRight') next();
-    };
-    window.addEventListener('keydown',handle);
-    return()=>window.removeEventListener('keydown',handle);
-  },[onClose]);
-
-  if(!step) return null;
-  return(
-    <div className="slb-overlay" onClick={onClose}>
-      <div className="slb-card" onClick={e=>e.stopPropagation()}>
-        <div className="slb-meta">
-          <div className="slb-num" style={{background:pm.s,color:pm.l}}>{idx+1}</div>
-          <span className="slb-of">Step {idx+1} of {steps.length}</span>
-        </div>
-        {step.t&&<div className="slb-title">{step.t}</div>}
-        <div className="slb-text">{step.s}</div>
-        <div className="slb-tick-row">
-          <button className={`slb-tick-btn ${isTicked?'ticked':'unticked'}`} onClick={()=>onTick(idx)}
-            style={{
-              width:36,height:36,borderRadius:'50%',padding:0,
-              display:'flex',alignItems:'center',justifyContent:'center',
-              border:`2px solid ${isTicked?'var(--teal)':'var(--glass-border2)'}`,
-              background:isTicked?'transparent':'var(--glass-bg)',
-              position:'relative',flexShrink:0,
-            }}>
-            {isTicked&&<div style={{width:14,height:14,borderRadius:'50%',background:'var(--teal)',boxShadow:'0 0 8px rgba(59,191,160,0.6)'}}/>}
-          </button>
-          <span style={{fontSize:'12px',fontWeight:700,color:isTicked?'var(--teal)':'var(--tx3)'}}>
-            {isTicked?'Done':'Mark done'}
-          </span>
-        </div>
-        <div className="slb-nav-row">
-          <button className="slb-nav-btn" onClick={prev} disabled={idx===0}>← Previous</button>
-          <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600}}>{idx+1} / {steps.length}</span>
-          <button className="slb-nav-btn" onClick={next} disabled={idx===steps.length-1}>Next →</button>
-        </div>
-      </div>
-      <button className="slb-close" onClick={onClose} style={{display:"flex",alignItems:"center",justifyContent:"center"}}>{IC.close}</button>
-    </div>
-  );
-}
-
-function SessionCard({s,color,phaseId,progress,toggle,classView,openSession,setOpenSession,isVisitor}){
-  const open=openSession===s.n;
-  const setOpen=(val)=>setOpenSession(val?s.n:null);
-  const [tab,setTab]=React.useState('overview');
-  const isDone=!!progress[phaseId+':'+s.n];
-  const pm=PM[color];
-  const {teacherMode}=React.useContext(KWContext);
-  const slideRefs=s.refs?s.refs.filter(r=>r.type==='slide'):[];
-  let slideCount=0;
-
-  // Per-step tick state persisted in localStorage
-  const stepKey='steps-'+phaseId+'-'+s.n;
-  const [tickedSteps,setTickedSteps]=useLocalStorage(stepKey,{});
-  const [slbOpen,setSlbOpen]=React.useState(false);
-  const [slbStart,setSlbStart]=React.useState(0);
-
-  const toggleStepTick=React.useCallback((i)=>{
-    setTickedSteps(prev=>({...prev,[i]:!prev[i]}));
-  },[setTickedSteps]);
-  const tickAll=()=>setTickedSteps(Object.fromEntries(s.activity.map((_,i)=>[i,true])));
-  const uncheckAll=()=>setTickedSteps({});
-  const allDone=s.activity.every((_,i)=>tickedSteps[i]);
-  const anyDone=s.activity.some((_,i)=>tickedSteps[i]);
-
-  // In class view, auto-open and default to activity tab
-  React.useEffect(()=>{if(classView){setTab('activity');}else{setTab('overview');}},[classView]);
-
-  const visibleTabs=classView
-    ?[{id:'activity',label:'Activity'},{id:'overview',label:'Lesson Info'},{id:'references',label:'References'}]
-    :[{id:'overview',label:'Overview'},{id:'activity',label:'Activity'},{id:'references',label:'References'},{id:'notes',label:'My Notes'}];
-
-  return(
-    <div className={`sc ${isDone?'done':''} ${open?'open-card':''}`} style={{background:isDone&&!open?'rgba(59,191,160,0.03)':''}}>
-      {s.cluster&&(
-        <div style={{padding:'5px 15px 0',fontSize:'10px',fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',color:pm.l,opacity:.7}}>
-          {s.cluster}
-        </div>
-      )}
-      <div className="sc-hdr" onClick={()=>setOpen(!open)}>
-        <div className="sc-num" style={{background:isDone?'rgba(59,191,160,0.15)':pm.s,color:isDone?'var(--teal)':pm.l}}>
-          {s.n}
-        </div>
-        <div className="sc-info">
-          <div className="sc-title-row">
-            <span className="sc-title">{s.title}</span>
+            {addType==='image'&&<label style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,color:'var(--tx2)',cursor:'pointer',padding:'6px 12px',borderRadius:8,border:'1px dashed var(--glass-border2)',marginBottom:10}}>
+              <span>+</span> Choose image
+              <input type="file" accept="image/*" multiple onChange={handleImgUpload} style={{display:'none'}}/>
+            </label>}
+            {addType==='link'&&<div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
+              <input value={urlDraft} onChange={e=>setUrlDraft(e.target.value)} placeholder="https://..." style={{flex:1,minWidth:160,fontSize:11,padding:'5px 8px',borderRadius:6,border:'1px solid var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx)'}}/>
+              <input value={urlLabel} onChange={e=>setUrlLabel(e.target.value)} placeholder="Label (optional)" style={{flex:1,minWidth:100,fontSize:11,padding:'5px 8px',borderRadius:6,border:'1px solid var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx)'}}/>
+              <button onClick={addUrl} style={{fontSize:11,padding:'5px 12px',borderRadius:6,border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Add</button>
+            </div>}
+            {addType==='note'&&<div style={{display:'flex',gap:6,marginBottom:10}}>
+              <textarea value={textDraft} onChange={e=>setTextDraft(e.target.value)} placeholder="Add a note, reminder or resource description..." rows={3}
+                style={{flex:1,fontSize:11,padding:'6px 8px',borderRadius:6,border:'1px solid var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx)',resize:'vertical',fontFamily:"'DM Sans',sans-serif"}}/>
+              <button onClick={addText} style={{fontSize:11,padding:'5px 12px',borderRadius:6,border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer',alignSelf:'flex-start',fontFamily:"'DM Sans',sans-serif"}}>Add</button>
+            </div>}
+            {userUploads.length===0&&<div style={{fontSize:11,color:'var(--tx3)',padding:'20px 0',textAlign:'center'}}>No resources yet — drop files, paste a link, or use the buttons above.</div>}
+            <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+              {userUploads.map((u,i)=>{
+                const realIdx=slideRefs.length+i;
+                if(u.type==='image'&&u.src){
+                  const lbItemIdx=lbItems.findIndex(it=>it.src===u.src);
+                  return(
+                    <div key={i} style={{position:'relative',width:80,height:80,borderRadius:8,overflow:'hidden',cursor:'pointer',border:'1px solid var(--glass-border2)'}}
+                      onClick={()=>lbItemIdx>=0&&openLb(lbItemIdx)}>
+                      <img src={u.src} alt={u.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                      {teacherMode&&<button onClick={e=>{e.stopPropagation();delUpload(realIdx);}}
+                        style={{position:'absolute',top:2,right:2,background:'rgba(0,0,0,0.6)',border:'none',borderRadius:'50%',width:18,height:18,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'#fff',fontSize:10}}>✕</button>}
+                    </div>
+                  );
+                }
+                if(u.type==='link') return(
+                  <a key={i} href={u.url} target="_blank" rel="noreferrer"
+                    style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11,color:'var(--sky)',padding:'5px 10px',borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg)',textDecoration:'none',position:'relative'}}>
+                    🔗 {u.name}
+                    {teacherMode&&<span onClick={e=>{e.preventDefault();delUpload(realIdx);}} style={{marginLeft:4,cursor:'pointer',color:'var(--coral)',fontSize:12}}>✕</span>}
+                  </a>
+                );
+                if(u.type==='text') return(
+                  <div key={i} style={{fontSize:11,color:'var(--tx2)',padding:'6px 10px',borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg)',maxWidth:240,lineHeight:1.5,position:'relative'}}>
+                    {u.content}
+                    {teacherMode&&<span onClick={()=>delUpload(realIdx)} style={{position:'absolute',top:3,right:5,cursor:'pointer',color:'var(--coral)',fontSize:11}}>✕</span>}
+                  </div>
+                );
+                return null;
+              })}
+            </div>
           </div>
-          <div className="sc-tags">
-            {s.tags.map((tg,i)=><TagPill key={i} label={tg.l} colorClass={TM[tg.c]||'t-sky'}/>)}
-            <span className="time-tag">⏱ {s.dur}</span>
-          </div>
-        </div>
-        <div className="sc-right">
-          {!classView&&(
-            <button
-              onClick={e=>{e.stopPropagation();generateSessionPDF(s,color);}}
-              title="Download session as PDF"
-              style={{
-                background:'var(--glass-bg)',border:'1px solid var(--glass-border)',
-                borderRadius:8,color:'var(--tx3)',fontFamily:"'DM Sans',sans-serif",
-                fontSize:'10px',fontWeight:800,padding:'4px 9px',cursor:'pointer',
-                transition:'all .15s',flexShrink:0
-              }}
-              onMouseEnter={e=>{e.currentTarget.style.background='var(--glass-bg2)';e.currentTarget.style.color='var(--tx)';}}
-              onMouseLeave={e=>{e.currentTarget.style.background='var(--glass-bg)';e.currentTarget.style.color='var(--tx3)';}}>
-              ⤓ PDF
+        );
+      })()}
+
+      {/* UNIFIED LIGHTBOX */}
+      {lbIdx!==null&&curItem&&ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:5000,background:'rgba(6,6,6,0.95)',backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={closeLb}
+          onWheel={e=>{if(curItem.type!=='video'){e.preventDefault();setZoom(z=>{const n=+(Math.min(4,Math.max(1,z-(e.deltaY>0?0.06:-0.06))).toFixed(2));if(n===1){setPanX(0);setPanY(0);}return n;});}}}>
+
+          {/* Image */}
+          {curItem.type==='image'&&(
+            <img src={curItem.src} alt=""
+              draggable={false}
+              onClick={e=>{e.stopPropagation();setMetaVisible(v=>!v);}}
+              onMouseDown={e=>{if(zoom>1){e.preventDefault();e.stopPropagation();setDragging(true);dragStart.current={x:e.clientX-panX,y:e.clientY-panY,moved:false};}}}
+              onMouseMove={e=>{if(!dragging||!dragStart.current)return;const dx=e.clientX-dragStart.current.x-panX,dy=e.clientY-dragStart.current.y-panY;if(Math.abs(dx)>3||Math.abs(dy)>3)dragStart.current.moved=true;setPanX(e.clientX-dragStart.current.x);setPanY(e.clientY-dragStart.current.y);}}
+              onMouseUp={()=>{setDragging(false);setTimeout(()=>{if(dragStart.current)dragStart.current.moved=false;},50);}}
+              style={{maxWidth:'90vw',maxHeight:'90vh',objectFit:'contain',display:'block',
+                transform:`scale(${zoom}) translate(${panX/zoom}px,${panY/zoom}px)`,
+                transition:dragging?'none':'transform .12s ease',
+                cursor:zoom>1?(dragging?'grabbing':'grab'):'pointer',
+                userSelect:'none',imageRendering:'high-quality'}}/>
+          )}
+
+          {/* Video */}
+          {curItem.type==='video'&&(
+            <div style={{width:'min(820px,90vw)',aspectRatio:'16/9'}} onClick={e=>e.stopPropagation()}>
+              <iframe src={curItem.src+'?autoplay=1'} allow="autoplay;encrypted-media" allowFullScreen title={curItem.artist}
+                style={{width:'100%',height:'100%',border:'none',borderRadius:8}}/>
+            </div>
+          )}
+
+          {/* Info overlay — slides in from bottom on click */}
+          {curItem.type==='image'&&(
+            <div style={{position:'absolute',bottom:0,left:0,right:0,pointerEvents:'none',
+              transform:metaVisible?'translateY(0)':'translateY(100%)',
+              transition:'transform .3s cubic-bezier(.4,0,.2,1)'}}>
+              <div style={{background:'linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.7) 60%,transparent 100%)',padding:'40px 24px 28px'}}>
+                {curItem.artist&&<div style={{fontSize:15,fontWeight:700,color:'#fff',fontFamily:"'Fraunces',serif",marginBottom:3}}>{curItem.artist}</div>}
+                {curItem.work&&<div style={{fontSize:12,color:'rgba(255,255,255,0.6)',fontStyle:'italic',marginBottom:4}}>{curItem.work}</div>}
+                {curItem.why&&<div style={{fontSize:11,color:'rgba(255,255,255,0.5)',lineHeight:1.5}}>{curItem.why}</div>}
+                <div style={{marginTop:6,display:'inline-block',fontSize:8,fontWeight:700,padding:'2px 8px',borderRadius:6,
+                  background:'rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.4)',letterSpacing:'.06em',textTransform:'uppercase'}}>
+                  {curItem.refType}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ⓘ toggle */}
+          {curItem.type==='image'&&(
+            <button onClick={e=>{e.stopPropagation();setMetaVisible(v=>!v);}}
+              style={{position:'absolute',bottom:16,right:16,background:'none',border:'none',cursor:'pointer',padding:4,
+                opacity:metaVisible?0.9:0.35,transition:'opacity .25s'}}>
+              <svg width="22" height="22" viewBox="0 0 20 20" fill="white">
+                <circle cx="10" cy="10" r="9" fill="rgba(0,0,0,0.4)" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/>
+                <text x="10" y="14.5" textAnchor="middle" fontSize="11" fontWeight="700" fontFamily="serif" fill="white">i</text>
+              </svg>
             </button>
           )}
-          {!classView&&<div className={`sc-chk ${isDone?'checked':''}`} onClick={e=>{e.stopPropagation();if(!isVisitor)toggle(phaseId,s.n);}} title={isVisitor?'Sign in to mark sessions':isDone?'Mark incomplete':'Mark complete'} style={isVisitor?{opacity:0.4,cursor:'not-allowed'}:{}}>{isDone?'✓':''}</div>}
-          <span className={`sc-chev ${open?'open':''}`}>▼</span>
-        </div>
-      </div>
 
-      {!open&&s.objective&&!classView&&(
-        <div className="sc-obj-strip">
-          <span className="sc-obj-label">Objective</span>
-          <span className="sc-obj-text">{s.objective}</span>
-        </div>
-      )}
+          {/* Close */}
+          <button onClick={e=>{e.stopPropagation();closeLb();}}
+            style={{position:'absolute',top:14,right:14,background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',fontSize:13,padding:'0 14px',height:32,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>✕</button>
 
-      {open&&(
-        <div className="sc-body open">
-          <div className="sc-tabs">
-            {visibleTabs.map(tb=>(
-              <button key={tb.id} className={`sc-tab ${tab===tb.id?'active':''}`}
-                style={tab===tb.id?{color:pm.l,borderBottomColor:pm.l}:{}}
-                onClick={()=>setTab(tb.id)}>
-                {tb.label}
-              </button>
-            ))}
-          </div>
+          {/* Arrow nav */}
+          {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLbIdx(i=>i-1);setZoom(1);setPanX(0);setPanY(0);setMetaVisible(true);}}
+            style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:'pointer'}}>&#8249;</button>}
+          {lbIdx<lbItems.length-1&&<button onClick={e=>{e.stopPropagation();setLbIdx(i=>i+1);setZoom(1);setPanX(0);setPanY(0);setMetaVisible(true);}}
+            style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
 
-          {tab==='overview'&&(
-            <div className="sc-panel active">
-              {s.recap&&(
-                <div className="recap-box">
-                  <div className="recap-lbl">🔁 Recap from last class</div>
-                  <div className="recap-tx">{s.recap}</div>
-                </div>
-              )}
-              <div className="pl">About this session</div>
-              <div className="pt">{s.overview}</div>
-              <div className="pgrid">
-                <div className="pbox">
-                  <div className="pl">Learning Objective</div>
-                  <div className="pt" style={{fontSize:'12px'}}>{s.objective}</div>
-                </div>
-                <div className="pbox">
-                  <div className="pl">Materials</div>
-                  <ul className="mat-list">{s.mats.map((m,i)=><li key={i}>{m}</li>)}</ul>
-                </div>
-                <div className="pbox full">
-                  <div className="pl">Big Questions</div>
-                  <ul className="bq-list">{s.bigQ.map((q,i)=><li key={i}>{q}</li>)}</ul>
-                </div>
-                <div className="pbox full">
-                  <div className="pl">Key Words — click any word to see its meaning</div>
-                  <div className="kw-mini-wrap">
-                    {s.kws.map((k,i)=>{
-                      const kobj=KWS.find(kw=>kw.w===k);
-                      return kobj?<KWPill key={i} {...kobj} size="small"/>:<span key={i} style={{padding:'3px 9px',borderRadius:'6px',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',fontSize:'11px',fontWeight:700,color:'var(--tx2)'}}>{k}</span>;
-                    })}
-                  </div>
-                </div>
-              </div>
-              {s.tn&&!classView&&(
-                <div className="tn" style={{background:pm.s,borderLeftColor:pm.l}}>
-                  <div className="tn-lbl" style={{color:pm.l}}>📋 Teacher Note</div>
-                  <div className="tn-tx">{s.tn}</div>
-                </div>
-              )}
-              {s.bridge&&!classView&&(
-                <div className="tn" style={{background:'rgba(91,174,232,0.08)',borderLeftColor:'var(--sky)',marginTop:8}}>
-                  <div className="tn-lbl" style={{color:'var(--sky)'}}>↪ Bridge to next class</div>
-                  <div className="tn-tx">{s.bridge}</div>
-                </div>
-              )}
+          {/* Counter */}
+          {lbItems.length>1&&<div style={{position:'absolute',top:14,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,0.5)',color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 14px',borderRadius:12,pointerEvents:'none'}}>
+            {lbIdx+1} / {lbItems.length}
+          </div>}
+
+          {/* Zoom slider — right edge, only for images */}
+          {curItem.type==='image'&&(
+            <div style={{position:'absolute',right:18,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',alignItems:'center',gap:6}}
+              onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+              <span style={{color:'rgba(255,255,255,0.4)',fontSize:9}}>4×</span>
+              <input type="range" min={100} max={400} step={5} value={Math.round(zoom*100)}
+                onChange={e=>{const v=Number(e.target.value)/100;setZoom(v);if(v===1){setPanX(0);setPanY(0);}}}
+                style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',height:140,accentColor:'rgba(255,255,255,0.7)',cursor:'pointer'}}/>
+              <span style={{color:'rgba(255,255,255,0.4)',fontSize:9}}>1×</span>
             </div>
           )}
-
-          {tab==='activity'&&(
-            <div className="sc-panel active">
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-                <div className="pl" style={{margin:0}}>Step by Step — click any step to expand</div>
-                <div className="step-controls">
-                  {anyDone&&<button className="step-ctrl-btn" onClick={uncheckAll}>Uncheck all</button>}
-                  {!allDone&&<button className="step-ctrl-btn" onClick={tickAll}>Tick all</button>}
-                </div>
-              </div>
-              {s.activity.map((step,i)=>(
-                <div key={i} className={`step ${tickedSteps[i]?'step-done':''}`}
-                  onClick={()=>{setSlbStart(i);setSlbOpen(true);}}>
-                  <span className="step-n" style={{background:pm.s,color:pm.l}}>{i+1}</span>
-                  <div style={{flex:1,minWidth:0}}>
-                    {step.t&&<div style={{fontSize:'12px',fontWeight:800,color:tickedSteps[i]?'var(--teal)':'var(--tx)',marginBottom:'3px'}}>{step.t}</div>}
-                    <span className="step-t">{step.s}</span>
-                  </div>
-                  <div className="step-tick"/>
-                </div>
-              ))}
-              {slbOpen&&<StepLightbox steps={s.activity} startIndex={slbStart} pm={pm} tickedSteps={tickedSteps} onTick={toggleStepTick} onClose={()=>setSlbOpen(false)}/>}
-            </div>
-          )}
-
-          {tab==='references'&&(
-            <div className="sc-panel active">
-              <RefsPanel refs={s.refs} sessionKey={phaseId+'-'+s.n}/>
-            </div>
-          )}
-
-          {tab==='notes'&&!classView&&(
-            <div className="sc-panel active">
-              <NotesTab noteKey={'notes-'+phaseId+'-'+s.n}/>
-            </div>
-          )}
-        </div>
+          {zoom>1&&<div style={{position:'absolute',bottom:48,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,0.6)',color:'rgba(255,255,255,0.55)',fontSize:10,padding:'3px 12px',borderRadius:10,pointerEvents:'none'}}>{Math.round(zoom*100)}% · drag to pan</div>}
+        </div>,
+        document.body
       )}
     </div>
   );
 }
+
 
 function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,totalDone,totalSessions,theme,setTheme,classView,setClassView,subSectionId,user,onSignOut,onSignIn,isVisitor,onExportData,onImportData}){
   const [collapsed,setCollapsed]=useLocalStorage('sb-collapsed',false);
