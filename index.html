@@ -3978,6 +3978,82 @@ function ResourceAdder({onAdd,addType,setAddType,textDraft,setTextDraft,urlDraft
   );
 }
 
+// ── Compress a ref image to max 1200px, returns a Blob ──
+function compressRefImage(file){
+  return new Promise((resolve,reject)=>{
+    const isPng=file.type==='image/png';
+    const img=new Image();
+    const objectUrl=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(objectUrl);
+      const MAX=1200;
+      let w=img.width,h=img.height;
+      if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}
+      else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext('2d');
+      ctx.clearRect(0,0,w,h);
+      ctx.drawImage(img,0,0,w,h);
+      const mime=isPng?'image/png':'image/jpeg';
+      canvas.toBlob(b=>b?resolve(b):reject(new Error('toBlob failed')),mime,isPng?1:0.88);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(objectUrl);reject(new Error('Could not read image'));};
+    img.src=objectUrl;
+  });
+}
+
+// ── Firestore hook for refs panel data (artist uploads + manual cards) ──
+// Stores {artistUploads:{}, manualCards:[]} in refs/{sessionKey} Firestore doc.
+// All image sources are https:// Firebase Storage URLs — never base64.
+function useRefsFirestore(sessionKey){
+  const INIT={artistUploads:{},manualCards:[]};
+  const [val,setVal]=React.useState(INIT);
+  const saveTimerRef=React.useRef(null);
+  const latestRef=React.useRef(null);
+
+  React.useEffect(()=>{
+    if(!sessionKey)return;
+    const db=window._db;
+    const docRef=db.collection('refs').doc(sessionKey);
+    const unsub=docRef.onSnapshot(snap=>{
+      if(snap.exists){
+        setVal(snap.data()||INIT);
+      } else {
+        setVal(INIT);
+      }
+    },()=>{setVal(INIT);});
+    return()=>unsub();
+  },[sessionKey]);
+
+  const set=React.useCallback(updater=>{
+    setVal(prev=>{
+      const next=typeof updater==='function'?updater(prev):updater;
+      latestRef.current=next;
+      if(saveTimerRef.current)clearTimeout(saveTimerRef.current);
+      saveTimerRef.current=setTimeout(()=>{
+        const toSave=latestRef.current;
+        if(!toSave)return;
+        window._db.collection('refs').doc(sessionKey).set(toSave).catch(e=>console.warn('refs save failed',e));
+      },800);
+      return next;
+    });
+  },[sessionKey]);
+
+  return[val,set];
+}
+
+// ── Upload a ref image to Firebase Storage, return https URL ──
+// Uses compressRefImage first so large phone photos are handled.
+async function uploadRefImage(file,sessionKey,name){
+  const blob=await compressRefImage(file);
+  const ext=file.type==='image/png'?'png':'jpg';
+  const ts=Date.now();
+  const ref=window._storage.ref('refs/'+sessionKey+'/'+name+'_'+ts+'.'+ext);
+  await ref.put(blob,{contentType:file.type==='image/png'?'image/png':'image/jpeg'});
+  return await ref.getDownloadURL();
+}
+
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 // ── Individual reference card ──
 function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,onSaveEdit,onCancelEdit}){
@@ -4169,9 +4245,22 @@ function RefsPanel({refs,sessionKey}){
   const carouselRef=React.useRef(null);
   const scrollAccum=React.useRef(0);
 
-  // ── Storage ──
-  const [artistUploads,setArtistUploads]=useLocalStorage('artist-uploads-'+sessionKey,{});
-  const [manualCards,setManualCards]=useLocalStorage('manual-cards-'+sessionKey,[]);
+  // ── Storage — Firestore-backed so images survive refresh & sync across browsers ──
+  const [refsData,setRefsData]=useRefsFirestore(sessionKey);
+  const artistUploads=refsData.artistUploads||{};
+  const manualCards=refsData.manualCards||[];
+  const setArtistUploads=React.useCallback(updater=>{
+    setRefsData(prev=>{
+      const next=typeof updater==='function'?updater(prev.artistUploads||{}):updater;
+      return{...prev,artistUploads:next};
+    });
+  },[setRefsData]);
+  const setManualCards=React.useCallback(updater=>{
+    setRefsData(prev=>{
+      const next=typeof updater==='function'?updater(prev.manualCards||[]):updater;
+      return{...prev,manualCards:next};
+    });
+  },[setRefsData]);
   const [uploads]=useLocalStorage('uploads-'+sessionKey,[]);
 
   // ── Add card ──
@@ -4245,17 +4334,22 @@ function RefsPanel({refs,sessionKey}){
     return()=>window.removeEventListener('keydown',fn);
   },[lbIdx,lbItems.length]);
 
-  // ── Carousel scroll handler ──
+  // ── Carousel scroll handler — RAF-throttled ──
+  const rafRef=React.useRef(null);
   function handleCarouselWheel(e){
     e.preventDefault();
     scrollAccum.current+=(e.deltaX||e.deltaY);
     const threshold=60;
     if(scrollAccum.current>threshold){
-      setActiveIdx(i=>Math.min(n-1,i+1));
-      scrollAccum.current=0;
+      if(!rafRef.current)rafRef.current=requestAnimationFrame(()=>{
+        setActiveIdx(i=>Math.min(n-1,i+1));
+        scrollAccum.current=0;rafRef.current=null;
+      });
     } else if(scrollAccum.current<-threshold){
-      setActiveIdx(i=>Math.max(0,i-1));
-      scrollAccum.current=0;
+      if(!rafRef.current)rafRef.current=requestAnimationFrame(()=>{
+        setActiveIdx(i=>Math.max(0,i-1));
+        scrollAccum.current=0;rafRef.current=null;
+      });
     }
   }
 
@@ -4287,16 +4381,10 @@ function RefsPanel({refs,sessionKey}){
     const file=e.target.files[0];if(!file)return;
     e.target.value='';
     try{
-      const ts=Date.now();
-      const ext=file.name.split('.').pop()||'jpg';
-      const ref=window._storage.ref('refs/'+sessionKey+'/'+i+'_'+ts+'.'+ext);
-      await ref.put(file);
-      const url=await ref.getDownloadURL();
+      const url=await uploadRefImage(file,sessionKey,'art'+i);
       setArtistUploads(prev=>({...prev,[i]:{src:url,name:file.name}}));
-    }catch{
-      const rd=new FileReader();
-      rd.onload=ev=>setArtistUploads(prev=>({...prev,[i]:{src:ev.target.result,name:file.name}}));
-      rd.readAsDataURL(file);
+    }catch(err){
+      alert('Image upload failed. Please check your internet connection and try again.\n\n'+err.message);
     }
   };
   const removeArtImg=i=>setArtistUploads(prev=>{const n={...prev};delete n[i];return n;});
@@ -4306,27 +4394,15 @@ function RefsPanel({refs,sessionKey}){
     const file=e.target.files[0];if(!file)return;
     e.target.value='';
     try{
-      const ts=Date.now();
-      const ext=file.name.split('.').pop()||'jpg';
-      const ref=window._storage.ref('refs/'+sessionKey+'/'+(card.isCurriculum?card.curriculumIdx:'manual_r'+card.manualIdx)+'_'+ts+'.'+ext);
-      await ref.put(file);
-      const url=await ref.getDownloadURL();
+      const name=card.isCurriculum?('art'+card.curriculumIdx):('manual_r'+card.manualIdx);
+      const url=await uploadRefImage(file,sessionKey,name);
       if(card.isCurriculum){
         setArtistUploads(prev=>({...prev,[card.curriculumIdx]:{src:url,name:file.name}}));
       } else {
         setManualCards(prev=>prev.map((c,i)=>i===card.manualIdx?{...c,src:url}:c));
       }
-    }catch{
-      if(file.size>400000){
-        alert('Upload to cloud failed. The image is too large to save locally — it will disappear on refresh.\n\nTip: resize the image to under 400 KB before uploading, or check your internet connection and try again.');
-        return;
-      }
-      const rd=new FileReader();
-      rd.onload=ev=>{
-        if(card.isCurriculum) setArtistUploads(prev=>({...prev,[card.curriculumIdx]:{src:ev.target.result,name:file.name}}));
-        else setManualCards(prev=>prev.map((c,i)=>i===card.manualIdx?{...c,src:ev.target.result}:c));
-      };
-      rd.readAsDataURL(file);
+    }catch(err){
+      alert('Image upload failed. Please check your internet connection and try again.\n\n'+err.message);
     }
   };
 
@@ -4343,23 +4419,10 @@ function RefsPanel({refs,sessionKey}){
     if(!pendingFile||uploadingCard) return;
     setUploadingCard(true);
     try{
-      const ts=Date.now();
-      const ext=pendingFile.file.name.split('.').pop()||'jpg';
-      const ref=window._storage.ref('refs/'+sessionKey+'/manual_'+ts+'.'+ext);
-      await ref.put(pendingFile.file);
-      const url=await ref.getDownloadURL();
+      const url=await uploadRefImage(pendingFile.file,sessionKey,'manual');
       setManualCards(prev=>[...prev,{src:url,title:skip?'':cardTitle.trim(),subtitle:skip?'':cardSubtitle.trim()}]);
-    }catch{
-      if(pendingFile.file.size>400000){
-        setUploadingCard(false);setAddingCard(false);setPendingFile(null);
-        alert('Upload to cloud failed. The image is too large to save locally — it will disappear on refresh.\n\nTip: resize the image to under 400 KB and try again.');
-        return;
-      }
-      await new Promise(resolve=>{
-        const rd=new FileReader();
-        rd.onload=ev=>{setManualCards(prev=>[...prev,{src:ev.target.result,title:skip?'':cardTitle.trim(),subtitle:skip?'':cardSubtitle.trim()}]);resolve();};
-        rd.readAsDataURL(pendingFile.file);
-      });
+    }catch(err){
+      alert('Image upload failed. Please check your internet connection and try again.\n\n'+err.message);
     }
     setUploadingCard(false);setAddingCard(false);
     setPendingFile(null);setCardTitle('');setCardSubtitle('');
@@ -4543,16 +4606,17 @@ function RefsPanel({refs,sessionKey}){
 
       {/* ── LIGHTBOX ── */}
       {lbIdx!==null&&curItem&&ReactDOM.createPortal(
-        <div style={{position:'fixed',inset:0,zIndex:5000,background:'rgba(6,6,6,0.95)',
+        <div style={{position:'fixed',inset:0,zIndex:5000,background:'rgba(6,6,6,0.97)',
           backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center'}}
           onClick={closeLb}
           onWheel={e=>{if(curItem.type!=='video'){e.preventDefault();
-            setZoom(z=>{const nz=+(Math.min(4,Math.max(1,z-(e.deltaY>0?0.06:-0.06))).toFixed(2));
+            const delta=e.deltaY>0?-0.08:0.08;
+            setZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));
               if(nz===1){setPanX(0);setPanY(0);}return nz;});}}}>
 
           {curItem.type==='image'&&(
-            <div style={{position:'relative',width:'min(88vw,920px)',height:'min(82vh,700px)',
-              display:'flex',alignItems:'center',justifyContent:'center'}}
+            <div style={{position:'relative',width:'min(92vw,1200px)',height:'min(88vh,910px)',
+              display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}
               onClick={e=>e.stopPropagation()}>
               <img src={curItem.src} alt="" draggable={false}
                 onMouseDown={e=>{if(zoom>1){e.preventDefault();
@@ -4567,31 +4631,36 @@ function RefsPanel({refs,sessionKey}){
                   setTimeout(()=>{if(dragStart.current)dragStart.current.moved=false;},50);}}
                 style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
                   transform:`scale(${zoom}) translate(${panX/zoom}px,${panY/zoom}px)`,
-                  transition:dragging?'none':'transform .12s ease',
+                  transition:dragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1)',
+                  willChange:'transform',
                   cursor:zoom>1?(dragging?'grabbing':'grab'):'default',
                   userSelect:'none',imageRendering:'high-quality'}}/>
-              {/* Bottom gradient info — click to toggle */}
-              <div onClick={()=>setMetaVisible(v=>!v)}
-                style={{position:'absolute',bottom:0,left:0,right:0,cursor:'pointer',
-                  background:metaVisible
-                    ?'linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.6) 45%,transparent 100%)'
-                    :'transparent',
-                  padding:metaVisible?'44px 20px 18px':'0',
-                  transition:'background .25s, padding .25s',pointerEvents:'auto'}}>
+            </div>
+          )}
+
+          {/* Info overlay — fixed at bottom, always outside image, click to toggle */}
+          {curItem.type==='image'&&(
+            <div onClick={e=>{e.stopPropagation();setMetaVisible(v=>!v);}}
+              style={{position:'fixed',bottom:0,left:0,right:0,cursor:'pointer',zIndex:5010,
+                background:metaVisible
+                  ?'linear-gradient(to top,rgba(0,0,0,0.95) 0%,rgba(0,0,0,0.7) 55%,transparent 100%)'
+                  :'transparent',
+                padding:metaVisible?'60px 32px 24px':'0',
+                transition:'background .25s, padding .25s',pointerEvents:'auto'}}>
+              <div style={{maxWidth:900,margin:'0 auto'}}>
                 <div style={{opacity:metaVisible?1:0,transition:'opacity .25s'}}>
-                  {curItem.title&&<div style={{fontSize:17,fontWeight:700,color:'#fff',
-                    fontFamily:"'Fraunces',serif",marginBottom:4}}>{curItem.title}</div>}
-                  {curItem.subtitle&&<div style={{fontSize:13,color:'rgba(255,255,255,0.7)',
-                    fontStyle:'italic',marginBottom:6}}>{curItem.subtitle}</div>}
-                  {curItem.why&&<div style={{fontSize:12,color:'rgba(255,255,255,0.55)',
+                  {curItem.title&&<div style={{fontSize:20,fontWeight:700,color:'#fff',
+                    fontFamily:"'Fraunces',serif",marginBottom:5}}>{curItem.title}</div>}
+                  {curItem.subtitle&&<div style={{fontSize:16,color:'rgba(255,255,255,0.7)',
+                    fontStyle:'italic',marginBottom:7}}>{curItem.subtitle}</div>}
+                  {curItem.why&&<div style={{fontSize:15,color:'rgba(255,255,255,0.55)',
                     lineHeight:1.6}}>{curItem.why}</div>}
-                  {curItem.badge&&<div style={{marginTop:8,display:'inline-block',fontSize:9,
-                    fontWeight:700,padding:'2px 8px',borderRadius:5,
+                  {curItem.badge&&<div style={{marginTop:9,display:'inline-block',fontSize:10,
+                    fontWeight:700,padding:'3px 9px',borderRadius:5,
                     background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.5)',
                     letterSpacing:'.07em',textTransform:'uppercase'}}>{curItem.badge}</div>}
                 </div>
-                {/* ⓘ hint always visible */}
-                <div style={{position:'absolute',bottom:14,right:14,
+                <div style={{position:'absolute',bottom:20,right:28,
                   opacity:metaVisible?0.7:0.3,transition:'opacity .25s'}}>
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="white">
                     <circle cx="10" cy="10" r="9" fill="rgba(0,0,0,0.35)"
