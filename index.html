@@ -4607,68 +4607,70 @@ function RefsPanel({refs,sessionKey}){
       {/* ── LIGHTBOX ── */}
       {lbIdx!==null&&curItem&&ReactDOM.createPortal(
         <div style={{position:'fixed',inset:0,zIndex:5000,background:'rgba(6,6,6,0.97)',
-          backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center'}}
+          backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center',
+          overflow:'hidden'}}
           onClick={closeLb}
+          onMouseMove={e=>{if(!dragging||!dragStart.current)return;
+            const dx=e.clientX-dragStart.current.x-panX;
+            const dy=e.clientY-dragStart.current.y-panY;
+            if(Math.abs(dx)>3||Math.abs(dy)>3)dragStart.current.moved=true;
+            setPanX(e.clientX-dragStart.current.x);
+            setPanY(e.clientY-dragStart.current.y);}}
+          onMouseUp={()=>{setDragging(false);
+            setTimeout(()=>{if(dragStart.current)dragStart.current.moved=false;},50);}}
           onWheel={e=>{if(curItem.type!=='video'){e.preventDefault();
             const delta=e.deltaY>0?-0.08:0.08;
             setZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));
               if(nz===1){setPanX(0);setPanY(0);}return nz;});}}}>
 
           {curItem.type==='image'&&(
-            <div style={{position:'relative',width:'min(92vw,1200px)',height:'min(88vh,910px)',
-              display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}
-              onClick={e=>e.stopPropagation()}>
-              <img src={curItem.src} alt="" draggable={false}
-                onMouseDown={e=>{if(zoom>1){e.preventDefault();
-                  setDragging(true);dragStart.current={x:e.clientX-panX,y:e.clientY-panY,moved:false};}}}
-                onMouseMove={e=>{if(!dragging||!dragStart.current)return;
-                  const dx=e.clientX-dragStart.current.x-panX;
-                  const dy=e.clientY-dragStart.current.y-panY;
-                  if(Math.abs(dx)>3||Math.abs(dy)>3)dragStart.current.moved=true;
-                  setPanX(e.clientX-dragStart.current.x);
-                  setPanY(e.clientY-dragStart.current.y);}}
-                onMouseUp={()=>{setDragging(false);
-                  setTimeout(()=>{if(dragStart.current)dragStart.current.moved=false;},50);}}
-                style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
-                  transform:`scale(${zoom}) translate(${panX/zoom}px,${panY/zoom}px)`,
-                  transition:dragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1)',
-                  willChange:'transform',
-                  cursor:zoom>1?(dragging?'grabbing':'grab'):'default',
-                  userSelect:'none',imageRendering:'high-quality'}}/>
-            </div>
+            <img src={curItem.src} alt="" draggable={false}
+              onClick={e=>e.stopPropagation()}
+              onMouseDown={e=>{e.stopPropagation();if(zoom>1){e.preventDefault();
+                setDragging(true);dragStart.current={x:e.clientX-panX,y:e.clientY-panY,moved:false};}}}
+              style={{
+                maxWidth:'100vw',maxHeight:'100vh',
+                objectFit:'contain',display:'block',
+                transform:`scale(${zoom}) translate(${panX/zoom}px,${panY/zoom}px)`,
+                transition:dragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1)',
+                willChange:'transform',
+                cursor:zoom>1?(dragging?'grabbing':'grab'):'default',
+                userSelect:'none',imageRendering:'high-quality',
+                position:'relative',zIndex:1}}/>
           )}
 
-          {/* Info overlay — fixed at bottom, always outside image, click to toggle */}
-          {curItem.type==='image'&&(
+          {/* Info overlay — centred on screen, subtle translucent card, click to toggle */}
+          {curItem.type==='image'&&(curItem.title||curItem.subtitle||curItem.why)&&(
             <div onClick={e=>{e.stopPropagation();setMetaVisible(v=>!v);}}
-              style={{position:'fixed',bottom:0,left:0,right:0,cursor:'pointer',zIndex:5010,
-                background:metaVisible
-                  ?'linear-gradient(to top,rgba(0,0,0,0.95) 0%,rgba(0,0,0,0.7) 55%,transparent 100%)'
-                  :'transparent',
-                padding:metaVisible?'60px 32px 24px':'0',
-                transition:'background .25s, padding .25s',pointerEvents:'auto'}}>
-              <div style={{maxWidth:900,margin:'0 auto'}}>
-                <div style={{opacity:metaVisible?1:0,transition:'opacity .25s'}}>
-                  {curItem.title&&<div style={{fontSize:20,fontWeight:700,color:'#fff',
-                    fontFamily:"'Fraunces',serif",marginBottom:5}}>{curItem.title}</div>}
-                  {curItem.subtitle&&<div style={{fontSize:16,color:'rgba(255,255,255,0.7)',
-                    fontStyle:'italic',marginBottom:7}}>{curItem.subtitle}</div>}
-                  {curItem.why&&<div style={{fontSize:15,color:'rgba(255,255,255,0.55)',
-                    lineHeight:1.6}}>{curItem.why}</div>}
-                  {curItem.badge&&<div style={{marginTop:9,display:'inline-block',fontSize:10,
-                    fontWeight:700,padding:'3px 9px',borderRadius:5,
-                    background:'rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.5)',
-                    letterSpacing:'.07em',textTransform:'uppercase'}}>{curItem.badge}</div>}
-                </div>
-                <div style={{position:'absolute',bottom:20,right:28,
-                  opacity:metaVisible?0.7:0.3,transition:'opacity .25s'}}>
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="white">
-                    <circle cx="10" cy="10" r="9" fill="rgba(0,0,0,0.35)"
-                      stroke="rgba(255,255,255,0.4)" strokeWidth="1"/>
-                    <text x="10" y="14.5" textAnchor="middle" fontSize="11"
-                      fontWeight="700" fontFamily="serif" fill="white">i</text>
-                  </svg>
-                </div>
+              style={{position:'fixed',bottom:28,left:'50%',transform:'translateX(-50%)',
+                zIndex:5010,cursor:'pointer',
+                maxWidth:560,width:'calc(100vw - 48px)',
+                pointerEvents:'auto'}}>
+              <div style={{
+                background:'rgba(0,0,0,0.52)',
+                backdropFilter:'blur(14px)',
+                WebkitBackdropFilter:'blur(14px)',
+                border:'1px solid rgba(255,255,255,0.12)',
+                borderRadius:14,
+                padding:metaVisible?'16px 20px':'10px 20px',
+                transition:'opacity .25s, padding .2s',
+                opacity:metaVisible?1:0.45}}>
+                {metaVisible&&(
+                  <>
+                    {curItem.title&&<div style={{fontSize:17,fontWeight:700,color:'#fff',
+                      fontFamily:"'DM Sans',sans-serif",marginBottom:3,letterSpacing:'-.01em'}}>{curItem.title}</div>}
+                    {curItem.subtitle&&<div style={{fontSize:13,color:'rgba(255,255,255,0.72)',
+                      fontFamily:"'DM Sans',sans-serif",marginBottom:curItem.why?5:0}}>{curItem.subtitle}</div>}
+                    {curItem.why&&<div style={{fontSize:12,color:'rgba(255,255,255,0.52)',
+                      fontFamily:"'DM Sans',sans-serif",lineHeight:1.55}}>{curItem.why}</div>}
+                    {curItem.badge&&<div style={{marginTop:8,display:'inline-block',fontSize:9,
+                      fontWeight:700,padding:'2px 8px',borderRadius:5,
+                      background:'rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.5)',
+                      letterSpacing:'.07em',textTransform:'uppercase',fontFamily:"'DM Sans',sans-serif"}}>{curItem.badge}</div>}
+                  </>
+                )}
+                {!metaVisible&&<div style={{fontSize:11,color:'rgba(255,255,255,0.5)',
+                  textAlign:'center',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.04em'}}>tap to show info</div>}
               </div>
             </div>
           )}
@@ -4723,10 +4725,10 @@ function RefsPanel({refs,sessionKey}){
               <span style={{color:'rgba(255,255,255,0.4)',fontSize:9}}>1×</span>
             </div>
           )}
-          {zoom>1&&<div style={{position:'absolute',bottom:48,left:'50%',
-            transform:'translateX(-50%)',background:'rgba(0,0,0,0.6)',
-            color:'rgba(255,255,255,0.55)',fontSize:10,padding:'3px 12px',
-            borderRadius:10,pointerEvents:'none'}}>{Math.round(zoom*100)}% · drag to pan</div>}
+          {zoom>1&&<div style={{position:'fixed',bottom:120,left:'50%',
+            transform:'translateX(-50%)',background:'rgba(0,0,0,0.55)',
+            color:'rgba(255,255,255,0.5)',fontSize:10,padding:'3px 12px',
+            borderRadius:10,pointerEvents:'none',zIndex:5011}}>{Math.round(zoom*100)}% · drag to pan</div>}
         </div>,
         document.body
       )}
