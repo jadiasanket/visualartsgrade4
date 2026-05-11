@@ -9327,16 +9327,40 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const [logRating,setLogRating]=React.useState(0);
   const [logHover,setLogHover]=React.useState(0);
   const [logNote,setLogNote]=React.useState('');
+  const [logPhotos,setLogPhotos]=React.useState([]); // [{file,localUrl,remember,uploading}]
+  const [logLessonKey,setLogLessonKey]=React.useState('');
+  const [logUploading,setLogUploading]=React.useState(false);
+  const [customLessonsLog]=useCustomLessons();
+  const allPhaseLessonsLog=PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`})));
 
   function getAvgRating(){
     const logs=(data.classLogs||[]).filter(l=>l.rating>0);
     if(!logs.length) return 0;
     return(logs.reduce((a,l)=>a+l.rating,0)/logs.length).toFixed(1);
   }
-  function saveClassLog(){
+  async function saveClassLog(){
+    setLogUploading(true);
     const today=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
-    updateData(d=>{if(!d.classLogs)d.classLogs=[];d.classLogs.push({date:today,rating:logRating,note:logNote.trim()});});
-    setLogRating(0);setLogNote('');setClassLogOpen(false);
+    const uploadedPhotos=[];
+    for(const p of logPhotos){
+      try{
+        const url=await uploadPortfolioPhoto(p.file,section.id,0);
+        uploadedPhotos.push({url,remember:p.remember});
+        // If "remember" is checked, also save to portfolio of student 0 as documentation
+        if(p.remember){
+          updateData(d=>{
+            if(!d.students[0].portfolio) d.students[0].portfolio=[];
+            d.students[0].portfolio.push({url,date:today,caption:logNote.trim()||'',type:'documentation',lessons:logLessonKey?[logLessonKey]:[],artTags:[],review:''});
+          });
+        }
+      }catch(e){/* skip failed photos */}
+    }
+    updateData(d=>{
+      if(!d.classLogs)d.classLogs=[];
+      d.classLogs.push({date:today,rating:logRating,note:logNote.trim(),photos:uploadedPhotos,lessonKey:logLessonKey||null});
+    });
+    setLogRating(0);setLogNote('');setLogPhotos([]);setLogLessonKey('');setClassLogOpen(false);
+    setLogUploading(false);
   }
   function deleteClassLog(i){updateData(d=>{d.classLogs.splice(i,1);});}
 
@@ -9929,27 +9953,95 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                   })}
                 </div>
               </div>
-              <textarea className="sec-note-input" style={{width:'100%',boxSizing:'border-box',minHeight:72,marginBottom:10,fontSize:13}}
+              {/* Lesson picker */}
+              <select value={logLessonKey} onChange={e=>setLogLessonKey(e.target.value)}
+                style={{width:'100%',fontSize:11,padding:'6px 9px',borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',marginBottom:8}}>
+                <option value="">— link to a lesson (optional) —</option>
+                {allPhaseLessonsLog.map(l=><option key={l.key} value={l.key}>{l.label}</option>)}
+                {customLessonsLog.length>0&&<option disabled>── My lessons ──</option>}
+                {customLessonsLog.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
+              </select>
+              <textarea className="sec-note-input" style={{width:'100%',boxSizing:'border-box',minHeight:72,marginBottom:8,fontSize:13}}
                 placeholder="Class note..."
                 value={logNote} onChange={e=>setLogNote(e.target.value)}/>
-              <button className="obs-save-btn" onClick={saveClassLog} style={{width:'100%',justifyContent:'center'}}>Post</button>
+              {/* Photo upload strip */}
+              <div style={{marginBottom:10}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                  <div style={{fontSize:10,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--tx3)'}}>Photos</div>
+                  <label style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:7,border:'1px dashed var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                    + Add
+                    <input type="file" accept="image/*" multiple style={{display:'none'}}
+                      onChange={e=>{
+                        const files=Array.from(e.target.files||[]);
+                        setLogPhotos(prev=>[...prev,...files.map(f=>({file:f,localUrl:URL.createObjectURL(f),remember:false}))]);
+                        e.target.value='';
+                      }}/>
+                  </label>
+                </div>
+                {logPhotos.length>0&&(
+                  <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                    {logPhotos.map((p,i)=>(
+                      <div key={i} style={{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                        <div style={{width:64,height:64,borderRadius:8,overflow:'hidden',position:'relative'}}>
+                          <img src={p.localUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                          <button onClick={()=>setLogPhotos(prev=>prev.filter((_,idx)=>idx!==i))}
+                            style={{position:'absolute',top:2,right:2,background:'rgba(0,0,0,0.6)',border:'none',color:'#fff',fontSize:9,cursor:'pointer',padding:'1px 4px',borderRadius:3}}>✕</button>
+                        </div>
+                        <label style={{display:'flex',alignItems:'center',gap:3,cursor:'pointer',fontSize:9,color:'var(--tx3)',fontFamily:"'DM Sans',sans-serif"}}>
+                          <input type="checkbox" checked={p.remember} onChange={e=>setLogPhotos(prev=>prev.map((ph,idx)=>idx===i?{...ph,remember:e.target.checked}:ph))}
+                            style={{width:10,height:10,accentColor:'var(--teal)',cursor:'pointer'}}/>
+                          Remember
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button className="obs-save-btn" onClick={saveClassLog} disabled={logUploading} style={{width:'100%',justifyContent:'center',opacity:logUploading?0.6:1}}>
+                {logUploading?'Saving…':'Post'}
+              </button>
             </div>
             {/* Past logs */}
-            <div style={{display:'flex',flexDirection:'column',gap:7,maxHeight:260,overflowY:'auto'}}>
+            <div style={{display:'flex',flexDirection:'column',gap:7,maxHeight:320,overflowY:'auto'}}>
               {(data.classLogs||[]).length===0&&<div style={{fontSize:12,color:'var(--tx3)',textAlign:'center',padding:'12px 0'}}>No class logs yet.</div>}
               {[...(data.classLogs||[])].reverse().map((l,i)=>{
                 const realIdx=(data.classLogs||[]).length-1-i;
+                let lessonLabel='';
+                if(l.lessonKey){
+                  if(l.lessonKey.startsWith('custom:')){
+                    const cl=getCustomLessons().find(x=>x.id===l.lessonKey.replace('custom:',''));
+                    lessonLabel=cl?('★ '+cl.label):l.lessonKey;
+                  } else {
+                    const parts=l.lessonKey.split(':');
+                    const ph=PHASES.find(x=>x.id===parts[0]);
+                    const sess=ph&&ph.sessions.find(s=>String(s.n)===parts[1]);
+                    lessonLabel=sess?`S${sess.n}: ${sess.title}`:l.lessonKey;
+                  }
+                }
                 return(
                   <div key={i} style={{background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:9,padding:'9px 12px'}}>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                      <span style={{fontSize:10,color:'var(--tx3)',fontWeight:600}}>{l.date}</span>
+                      <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                        <span style={{fontSize:10,color:'var(--tx3)',fontWeight:600}}>{l.date}</span>
+                        {lessonLabel&&<span style={{fontSize:9,padding:'1px 6px',borderRadius:5,background:'rgba(59,191,160,0.12)',border:'1px solid rgba(59,191,160,0.25)',color:'var(--teal)'}}>{lessonLabel}</span>}
+                      </div>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
                         {l.rating>0&&<span style={{fontSize:12,color:l.rating<=2?'var(--coral)':l.rating===3?'var(--yellow)':'var(--teal)',fontWeight:700}}>{'★'.repeat(l.rating)}</span>}
                         <button onClick={()=>deleteClassLog(realIdx)}
                           style={{fontSize:10,padding:'2px 6px',borderRadius:5,background:'rgba(232,112,90,0.1)',border:'1px solid rgba(232,112,90,0.25)',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
                       </div>
                     </div>
-                    {l.note&&<div style={{fontSize:12,color:'var(--tx2)',lineHeight:1.5}}>{l.note}</div>}
+                    {l.note&&<div style={{fontSize:12,color:'var(--tx2)',lineHeight:1.5,marginBottom:(l.photos&&l.photos.length>0)?6:0}}>{l.note}</div>}
+                    {(l.photos||[]).length>0&&(
+                      <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:4}}>
+                        {l.photos.map((ph,pi)=>(
+                          <div key={pi} style={{position:'relative'}}>
+                            <img src={ph.url} alt="" style={{width:52,height:52,borderRadius:6,objectFit:'cover',display:'block'}}/>
+                            {ph.remember&&<span style={{position:'absolute',bottom:2,right:2,fontSize:7,background:'rgba(59,191,160,0.8)',color:'#fff',padding:'1px 3px',borderRadius:3,fontWeight:700}}>✓</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -10388,13 +10480,33 @@ function GalleryView(){
 
   const allPhotos=React.useMemo(()=>{
     const photos=[];
+    const customLessons=getCustomLessons();
     SECTION_IDS.forEach(sid=>{
       const sec=G4_SECTIONS.find(s=>s.id===sid);
       const data=allData[sid];
       if(!data||!data.students) return;
       data.students.forEach((st,idx)=>{
         (st.portfolio||[]).forEach(p=>{
-          photos.push({...p,studentName:st.name,studentIdx:idx,sectionId:sid,sectionName:sec?sec.name:sid});
+          // For documentation: resolve a display name from the lesson key
+          let displayName=st.name;
+          let resolvedLesson='';
+          if(p.type==='documentation'&&(p.lessons||[]).length>0){
+            const lk=p.lessons[0];
+            if(lk.startsWith('custom:')){
+              const cl=customLessons.find(l=>l.id===lk.replace('custom:',''));
+              resolvedLesson=cl?cl.label:lk;
+            } else {
+              // phase lesson — find from PHASES
+              const parts=lk.split(':');
+              if(parts.length===2){
+                const ph=PHASES.find(x=>x.id===parts[0]);
+                const sess=ph&&ph.sessions.find(s=>String(s.n)===parts[1]);
+                resolvedLesson=sess?`S${sess.n}: ${sess.title}`:lk;
+              }
+            }
+            displayName=resolvedLesson||'Documentation';
+          }
+          photos.push({...p,studentName:st.name,displayName,resolvedLesson,studentIdx:idx,sectionId:sid,sectionName:sec?sec.name:sid});
         });
       });
     });
@@ -10599,8 +10711,8 @@ function GalleryView(){
               <div style={{position:'absolute',inset:0,background:'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 45%, transparent 70%)',pointerEvents:'none'}}/>
               {/* Name + Section on gradient */}
               <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none'}}>
-                <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.studentName}</div>
-                <div style={{fontSize:9,color:'rgba(255,255,255,0.7)',marginTop:1}}>{p.sectionName}</div>
+                <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.displayName||p.studentName}</div>
+                <div style={{fontSize:9,color:'rgba(255,255,255,0.7)',marginTop:1}}>{p.sectionName}{p.type==='documentation'?' · 📸':''}</div>
               </div>
             </div>
           ))}
@@ -10650,13 +10762,28 @@ function GalleryView(){
                   pointerEvents:'none'}}>
                   <div style={{display:'flex',flexDirection:'column',gap:6}}>
                     <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                      <span style={{fontSize:14,fontWeight:700,fontFamily:"'Fraunces',serif",color:'#fff'}}>{lightbox.studentName}</span>
+                      <span style={{fontSize:14,fontWeight:700,fontFamily:"'DM Sans',sans-serif",color:'#fff'}}>
+                        {lightbox.type==='documentation'?(lightbox.resolvedLesson||lightbox.displayName||lightbox.studentName):lightbox.studentName}
+                      </span>
                       <span style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>{lightbox.sectionName} · {lightbox.date}</span>
                       <span style={{fontSize:8,fontWeight:700,padding:'2px 7px',borderRadius:7,background:(lightbox.type||'artwork')==='documentation'?'rgba(155,127,232,0.35)':'rgba(59,191,160,0.35)',color:(lightbox.type||'artwork')==='documentation'?'#c4a8f8':'#7ee8cb'}}>{(lightbox.type||'artwork')==='documentation'?'DOCS':'ARTWORK'}</span>
                     </div>
+                    {lightbox.type==='documentation'&&lightbox.studentName&&(
+                      <div style={{fontSize:10,color:'rgba(255,255,255,0.45)'}}>📸 {lightbox.sectionName}</div>
+                    )}
                     {(lightbox.lessons||[]).length>0&&(
                       <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                        {(lightbox.lessons||[]).map(ln=>{const l=allLessons.find(x=>x.n===ln);return<span key={ln} style={{fontSize:9,padding:'2px 7px',borderRadius:7,background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.18)',color:l?phaseColors[l.color]:'rgba(255,255,255,0.6)'}}>L{ln}{l?' · '+l.title.slice(0,14):''}</span>;})}
+                        {(lightbox.lessons||[]).map(ln=>{
+                          let label='';
+                          if(ln.startsWith('custom:')){
+                            const cl=getCustomLessons().find(l=>l.id===ln.replace('custom:',''));
+                            label=cl?('★ '+cl.label):'Custom lesson';
+                          } else {
+                            const l=allLessons.find(x=>x.n===parseInt(ln.split(':')[1]));
+                            label=l?('L'+l.n+' · '+l.title.slice(0,18)):ln;
+                          }
+                          return<span key={ln} style={{fontSize:9,padding:'2px 7px',borderRadius:7,background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.18)',color:'rgba(255,255,255,0.8)'}}>{label}</span>;
+                        })}
                       </div>
                     )}
                     {(lightbox.artTags||[]).length>0&&(
