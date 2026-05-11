@@ -4006,7 +4006,8 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,onRepla
         border:`1px solid ${isActive?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.07)'}`,
         boxShadow:'none',
         transform:`translateX(calc(${xOffset}px - 50%)) translateY(-50%) scale(${scale})`,
-        transition:'transform .32s cubic-bezier(.4,0,.2,1), box-shadow .32s',
+        transition:'transform .42s cubic-bezier(.25,0.1,.25,1), box-shadow .42s, filter .42s',
+        willChange:'transform',
         zIndex:zIdx,
         cursor:'pointer',
         filter:absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)',
@@ -4015,8 +4016,8 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,onRepla
       {/* Image — subtle zoom when active */}
       {card.src&&<img src={card.src} alt={card.title}
         style={{width:'100%',height:'100%',objectFit:'cover',display:'block',pointerEvents:'none',
-          transform:isActive?'scale(1.07)':'scale(1)',
-          transition:'transform .45s cubic-bezier(.4,0,.2,1)',
+          transform:isActive?'scale(1.13)':'scale(1)',
+          transition:'transform .45s cubic-bezier(.25,0.1,.25,1)',
           transformOrigin:'center center'}}/>}
 
       {/* Placeholder */}
@@ -4106,8 +4107,10 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,onRepla
           title="Replace image">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
             stroke="rgba(255,255,255,0.85)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
-            <circle cx="12" cy="13" r="4"/>
+            <path d="M1 4v6h6"/>
+            <path d="M23 20v-6h-6"/>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"/>
+            <path d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"/>
           </svg>
           <input type="file" accept="image/*"
             onChange={e=>onReplaceImg(card,e)} style={{display:'none'}}/>
@@ -4314,6 +4317,10 @@ function RefsPanel({refs,sessionKey}){
         setManualCards(prev=>prev.map((c,i)=>i===card.manualIdx?{...c,src:url}:c));
       }
     }catch{
+      if(file.size>400000){
+        alert('Upload to cloud failed. The image is too large to save locally — it will disappear on refresh.\n\nTip: resize the image to under 400 KB before uploading, or check your internet connection and try again.');
+        return;
+      }
       const rd=new FileReader();
       rd.onload=ev=>{
         if(card.isCurriculum) setArtistUploads(prev=>({...prev,[card.curriculumIdx]:{src:ev.target.result,name:file.name}}));
@@ -4343,6 +4350,11 @@ function RefsPanel({refs,sessionKey}){
       const url=await ref.getDownloadURL();
       setManualCards(prev=>[...prev,{src:url,title:skip?'':cardTitle.trim(),subtitle:skip?'':cardSubtitle.trim()}]);
     }catch{
+      if(pendingFile.file.size>400000){
+        setUploadingCard(false);setAddingCard(false);setPendingFile(null);
+        alert('Upload to cloud failed. The image is too large to save locally — it will disappear on refresh.\n\nTip: resize the image to under 400 KB and try again.');
+        return;
+      }
       await new Promise(resolve=>{
         const rd=new FileReader();
         rd.onload=ev=>{setManualCards(prev=>[...prev,{src:ev.target.result,title:skip?'':cardTitle.trim(),subtitle:skip?'':cardSubtitle.trim()}]);resolve();};
@@ -4539,7 +4551,7 @@ function RefsPanel({refs,sessionKey}){
               if(nz===1){setPanX(0);setPanY(0);}return nz;});}}}>
 
           {curItem.type==='image'&&(
-            <div style={{position:'relative',maxWidth:'90vw',maxHeight:'90vh',
+            <div style={{position:'relative',width:'min(88vw,920px)',height:'min(82vh,700px)',
               display:'flex',alignItems:'center',justifyContent:'center'}}
               onClick={e=>e.stopPropagation()}>
               <img src={curItem.src} alt="" draggable={false}
@@ -4553,7 +4565,7 @@ function RefsPanel({refs,sessionKey}){
                   setPanY(e.clientY-dragStart.current.y);}}
                 onMouseUp={()=>{setDragging(false);
                   setTimeout(()=>{if(dragStart.current)dragStart.current.moved=false;},50);}}
-                style={{maxWidth:'90vw',maxHeight:'90vh',objectFit:'contain',display:'block',
+                style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
                   transform:`scale(${zoom}) translate(${panX/zoom}px,${panY/zoom}px)`,
                   transition:dragging?'none':'transform .12s ease',
                   cursor:zoom>1?(dragging?'grabbing':'grab'):'default',
