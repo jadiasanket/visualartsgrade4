@@ -4300,6 +4300,276 @@ function RefsPanel({refs,sessionKey}){
 }
 
 
+function NotesTab({noteKey}){
+  const [draft,setDraft]=React.useState('');
+  const [entries,add,del]=useNoteLog(noteKey);
+  const {teacherMode}=React.useContext(KWContext);
+  return(
+    <div>
+      {teacherMode&&(
+        <>
+          <div className="pl">Add a note</div>
+          <textarea className="notes-area" value={draft} onChange={e=>setDraft(e.target.value)}
+            placeholder="What worked? What didn't? What would you change next time? Any observations about student responses..."
+            rows={4}/>
+          <button className="notes-save-btn" onClick={()=>{add(draft);setDraft('');}}>Post</button>
+        </>
+      )}
+      {entries.length>0&&(
+        <div className="notes-log" style={{marginTop:teacherMode?12:0}}>
+          <div className="notes-log-label">Saved notes ({entries.length})</div>
+          {entries.map((e,i)=>(
+            <div key={i} className="notes-entry">
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div className="ne-time">{e.time}</div>
+                {teacherMode&&<button onClick={()=>del(i)} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:'11px',fontWeight:800}}>delete</button>}
+              </div>
+              <div className="ne-text">{e.text}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {!teacherMode&&entries.length===0&&(
+        <div style={{fontSize:'12px',color:'var(--tx3)',padding:'8px 0'}}>No notes yet.</div>
+      )}
+    </div>
+  );
+}
+
+/* ── STEP LIGHTBOX COMPONENT ── */
+function StepLightbox({steps,startIndex,pm,tickedSteps,onTick,onClose}){
+  const [idx,setIdx]=React.useState(startIndex||0);
+  const step=steps[idx];
+  const isTicked=!!tickedSteps[idx];
+  const prev=()=>setIdx(i=>Math.max(0,i-1));
+  const next=()=>setIdx(i=>Math.min(steps.length-1,i+1));
+
+  React.useEffect(()=>{
+    const handle=(e)=>{
+      if(e.key==='Escape') onClose();
+      if(e.key==='ArrowLeft') prev();
+      if(e.key==='ArrowRight') next();
+    };
+    window.addEventListener('keydown',handle);
+    return()=>window.removeEventListener('keydown',handle);
+  },[onClose]);
+
+  if(!step) return null;
+  return(
+    <div className="slb-overlay" onClick={onClose}>
+      <div className="slb-card" onClick={e=>e.stopPropagation()}>
+        <div className="slb-meta">
+          <div className="slb-num" style={{background:pm.s,color:pm.l}}>{idx+1}</div>
+          <span className="slb-of">Step {idx+1} of {steps.length}</span>
+        </div>
+        {step.t&&<div className="slb-title">{step.t}</div>}
+        <div className="slb-text">{step.s}</div>
+        <div className="slb-tick-row">
+          <button className={`slb-tick-btn ${isTicked?'ticked':'unticked'}`} onClick={()=>onTick(idx)}
+            style={{
+              width:36,height:36,borderRadius:'50%',padding:0,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              border:`2px solid ${isTicked?'var(--teal)':'var(--glass-border2)'}`,
+              background:isTicked?'transparent':'var(--glass-bg)',
+              position:'relative',flexShrink:0,
+            }}>
+            {isTicked&&<div style={{width:14,height:14,borderRadius:'50%',background:'var(--teal)',boxShadow:'0 0 8px rgba(59,191,160,0.6)'}}/>}
+          </button>
+          <span style={{fontSize:'12px',fontWeight:700,color:isTicked?'var(--teal)':'var(--tx3)'}}>
+            {isTicked?'Done':'Mark done'}
+          </span>
+        </div>
+        <div className="slb-nav-row">
+          <button className="slb-nav-btn" onClick={prev} disabled={idx===0}>← Previous</button>
+          <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600}}>{idx+1} / {steps.length}</span>
+          <button className="slb-nav-btn" onClick={next} disabled={idx===steps.length-1}>Next →</button>
+        </div>
+      </div>
+      <button className="slb-close" onClick={onClose} style={{display:"flex",alignItems:"center",justifyContent:"center"}}>{IC.close}</button>
+    </div>
+  );
+}
+
+function SessionCard({s,color,phaseId,progress,toggle,classView,openSession,setOpenSession,isVisitor}){
+  const open=openSession===s.n;
+  const setOpen=(val)=>setOpenSession(val?s.n:null);
+  const [tab,setTab]=React.useState('overview');
+  const isDone=!!progress[phaseId+':'+s.n];
+  const pm=PM[color];
+  const {teacherMode}=React.useContext(KWContext);
+  const slideRefs=s.refs?s.refs.filter(r=>r.type==='slide'):[];
+  let slideCount=0;
+
+  // Per-step tick state persisted in localStorage
+  const stepKey='steps-'+phaseId+'-'+s.n;
+  const [tickedSteps,setTickedSteps]=useLocalStorage(stepKey,{});
+  const [slbOpen,setSlbOpen]=React.useState(false);
+  const [slbStart,setSlbStart]=React.useState(0);
+
+  const toggleStepTick=React.useCallback((i)=>{
+    setTickedSteps(prev=>({...prev,[i]:!prev[i]}));
+  },[setTickedSteps]);
+  const tickAll=()=>setTickedSteps(Object.fromEntries(s.activity.map((_,i)=>[i,true])));
+  const uncheckAll=()=>setTickedSteps({});
+  const allDone=s.activity.every((_,i)=>tickedSteps[i]);
+  const anyDone=s.activity.some((_,i)=>tickedSteps[i]);
+
+  // In class view, auto-open and default to activity tab
+  React.useEffect(()=>{if(classView){setTab('activity');}else{setTab('overview');}},[classView]);
+
+  const visibleTabs=classView
+    ?[{id:'activity',label:'Activity'},{id:'overview',label:'Lesson Info'},{id:'references',label:'References'}]
+    :[{id:'overview',label:'Overview'},{id:'activity',label:'Activity'},{id:'references',label:'References'},{id:'notes',label:'My Notes'}];
+
+  return(
+    <div className={`sc ${isDone?'done':''} ${open?'open-card':''}`} style={{background:isDone&&!open?'rgba(59,191,160,0.03)':''}}>
+      {s.cluster&&(
+        <div style={{padding:'5px 15px 0',fontSize:'10px',fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',color:pm.l,opacity:.7}}>
+          {s.cluster}
+        </div>
+      )}
+      <div className="sc-hdr" onClick={()=>setOpen(!open)}>
+        <div className="sc-num" style={{background:isDone?'rgba(59,191,160,0.15)':pm.s,color:isDone?'var(--teal)':pm.l}}>
+          {s.n}
+        </div>
+        <div className="sc-info">
+          <div className="sc-title-row">
+            <span className="sc-title">{s.title}</span>
+          </div>
+          <div className="sc-tags">
+            {s.tags.map((tg,i)=><TagPill key={i} label={tg.l} colorClass={TM[tg.c]||'t-sky'}/>)}
+            <span className="time-tag">⏱ {s.dur}</span>
+          </div>
+        </div>
+        <div className="sc-right">
+          {!classView&&(
+            <button
+              onClick={e=>{e.stopPropagation();generateSessionPDF(s,color);}}
+              title="Download session as PDF"
+              style={{
+                background:'var(--glass-bg)',border:'1px solid var(--glass-border)',
+                borderRadius:8,color:'var(--tx3)',fontFamily:"'DM Sans',sans-serif",
+                fontSize:'10px',fontWeight:800,padding:'4px 9px',cursor:'pointer',
+                transition:'all .15s',flexShrink:0
+              }}
+              onMouseEnter={e=>{e.currentTarget.style.background='var(--glass-bg2)';e.currentTarget.style.color='var(--tx)';}}
+              onMouseLeave={e=>{e.currentTarget.style.background='var(--glass-bg)';e.currentTarget.style.color='var(--tx3)';}}>
+              ⤓ PDF
+            </button>
+          )}
+          {!classView&&<div className={`sc-chk ${isDone?'checked':''}`} onClick={e=>{e.stopPropagation();if(!isVisitor)toggle(phaseId,s.n);}} title={isVisitor?'Sign in to mark sessions':isDone?'Mark incomplete':'Mark complete'} style={isVisitor?{opacity:0.4,cursor:'not-allowed'}:{}}>{isDone?'✓':''}</div>}
+          <span className={`sc-chev ${open?'open':''}`}>▼</span>
+        </div>
+      </div>
+
+      {!open&&s.objective&&!classView&&(
+        <div className="sc-obj-strip">
+          <span className="sc-obj-label">Objective</span>
+          <span className="sc-obj-text">{s.objective}</span>
+        </div>
+      )}
+
+      {open&&(
+        <div className="sc-body open">
+          <div className="sc-tabs">
+            {visibleTabs.map(tb=>(
+              <button key={tb.id} className={`sc-tab ${tab===tb.id?'active':''}`}
+                style={tab===tb.id?{color:pm.l,borderBottomColor:pm.l}:{}}
+                onClick={()=>setTab(tb.id)}>
+                {tb.label}
+              </button>
+            ))}
+          </div>
+
+          {tab==='overview'&&(
+            <div className="sc-panel active">
+              {s.recap&&(
+                <div className="recap-box">
+                  <div className="recap-lbl">🔁 Recap from last class</div>
+                  <div className="recap-tx">{s.recap}</div>
+                </div>
+              )}
+              <div className="pl">About this session</div>
+              <div className="pt">{s.overview}</div>
+              <div className="pgrid">
+                <div className="pbox">
+                  <div className="pl">Learning Objective</div>
+                  <div className="pt" style={{fontSize:'12px'}}>{s.objective}</div>
+                </div>
+                <div className="pbox">
+                  <div className="pl">Materials</div>
+                  <ul className="mat-list">{s.mats.map((m,i)=><li key={i}>{m}</li>)}</ul>
+                </div>
+                <div className="pbox full">
+                  <div className="pl">Big Questions</div>
+                  <ul className="bq-list">{s.bigQ.map((q,i)=><li key={i}>{q}</li>)}</ul>
+                </div>
+                <div className="pbox full">
+                  <div className="pl">Key Words — click any word to see its meaning</div>
+                  <div className="kw-mini-wrap">
+                    {s.kws.map((k,i)=>{
+                      const kobj=KWS.find(kw=>kw.w===k);
+                      return kobj?<KWPill key={i} {...kobj} size="small"/>:<span key={i} style={{padding:'3px 9px',borderRadius:'6px',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',fontSize:'11px',fontWeight:700,color:'var(--tx2)'}}>{k}</span>;
+                    })}
+                  </div>
+                </div>
+              </div>
+              {s.tn&&!classView&&(
+                <div className="tn" style={{background:pm.s,borderLeftColor:pm.l}}>
+                  <div className="tn-lbl" style={{color:pm.l}}>📋 Teacher Note</div>
+                  <div className="tn-tx">{s.tn}</div>
+                </div>
+              )}
+              {s.bridge&&!classView&&(
+                <div className="tn" style={{background:'rgba(91,174,232,0.08)',borderLeftColor:'var(--sky)',marginTop:8}}>
+                  <div className="tn-lbl" style={{color:'var(--sky)'}}>↪ Bridge to next class</div>
+                  <div className="tn-tx">{s.bridge}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab==='activity'&&(
+            <div className="sc-panel active">
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                <div className="pl" style={{margin:0}}>Step by Step — click any step to expand</div>
+                <div className="step-controls">
+                  {anyDone&&<button className="step-ctrl-btn" onClick={uncheckAll}>Uncheck all</button>}
+                  {!allDone&&<button className="step-ctrl-btn" onClick={tickAll}>Tick all</button>}
+                </div>
+              </div>
+              {s.activity.map((step,i)=>(
+                <div key={i} className={`step ${tickedSteps[i]?'step-done':''}`}
+                  onClick={()=>{setSlbStart(i);setSlbOpen(true);}}>
+                  <span className="step-n" style={{background:pm.s,color:pm.l}}>{i+1}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    {step.t&&<div style={{fontSize:'12px',fontWeight:800,color:tickedSteps[i]?'var(--teal)':'var(--tx)',marginBottom:'3px'}}>{step.t}</div>}
+                    <span className="step-t">{step.s}</span>
+                  </div>
+                  <div className="step-tick"/>
+                </div>
+              ))}
+              {slbOpen&&<StepLightbox steps={s.activity} startIndex={slbStart} pm={pm} tickedSteps={tickedSteps} onTick={toggleStepTick} onClose={()=>setSlbOpen(false)}/>}
+            </div>
+          )}
+
+          {tab==='references'&&(
+            <div className="sc-panel active">
+              <RefsPanel refs={s.refs} sessionKey={phaseId+'-'+s.n}/>
+            </div>
+          )}
+
+          {tab==='notes'&&!classView&&(
+            <div className="sc-panel active">
+              <NotesTab noteKey={'notes-'+phaseId+'-'+s.n}/>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,totalDone,totalSessions,theme,setTheme,classView,setClassView,subSectionId,user,onSignOut,onSignIn,isVisitor,onExportData,onImportData}){
   const [collapsed,setCollapsed]=useLocalStorage('sb-collapsed',false);
   const {teacherMode,setTeacherMode}=React.useContext(KWContext);
