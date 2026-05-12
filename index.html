@@ -4078,7 +4078,7 @@ async function uploadRefImage(file,sessionKey,name){
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 // ── Individual reference card ──
-function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,onSaveEdit,onCancelEdit}){
+function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,onSaveEdit,onCancelEdit}){
   const CARD=350;
   const dist=i-activeIdx; // signed distance from active card
   const absDist=Math.abs(dist);
@@ -4170,11 +4170,16 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
               border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.08)',
               color:'#fff',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
           <input value={editSubtitle} onChange={e=>setEditSubtitle(e.target.value)}
-            placeholder="Subtitle"
-            onKeyDown={e=>{if(e.key==='Enter') onSaveEdit();}}
+            placeholder="Subtitle / Work"
             style={{fontSize:12,padding:'7px 10px',borderRadius:7,
               border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.08)',
               color:'rgba(255,255,255,0.8)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
+          <textarea value={editWhy} onChange={e=>setEditWhy(e.target.value)}
+            placeholder="Note / description (why this reference?)"
+            rows={3}
+            style={{fontSize:11,padding:'7px 10px',borderRadius:7,resize:'none',
+              border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.06)',
+              color:'rgba(255,255,255,0.65)',fontFamily:"'DM Sans',sans-serif",outline:'none',lineHeight:1.5}}/>
           <div style={{display:'flex',gap:7,marginTop:2}}>
             <button onClick={e=>{e.stopPropagation();onSaveEdit(card);}}
               style={{flex:1,fontSize:11,fontWeight:700,padding:'6px 0',borderRadius:7,
@@ -4303,6 +4308,7 @@ function RefsPanel({refs,sessionKey}){
   const [editingCard,setEditingCard]=React.useState(null); // stores manualIdx
   const [editTitle,setEditTitle]=React.useState('');
   const [editSubtitle,setEditSubtitle]=React.useState('');
+  const [editWhy,setEditWhy]=React.useState('');
 
   const {teacherMode}=React.useContext(KWContext);
   const slideRefs=(refs||[]).filter(r=>r.type==='slide');
@@ -4320,7 +4326,7 @@ function RefsPanel({refs,sessionKey}){
         src:artImg?artImg.src:(thumb||null),
         title:ov.title!==undefined?ov.title:r.name,
         subtitle:ov.subtitle!==undefined?ov.subtitle:(r.work||''),
-        why:r.why||'',
+        why:ov.why!==undefined?ov.why:(r.why||''),
         badge:r.videoUrl?'video':r.type,
         isVideo:!!r.videoUrl&&!artImg,
         isCurriculum:true,curriculumIdx:i,manualIdx:null,
@@ -4470,23 +4476,25 @@ function RefsPanel({refs,sessionKey}){
   function startEdit(key,card){
     setEditingCard(key);
     if(card.isCurriculum){
-      setEditTitle(nonSlideRefs[card.curriculumIdx]?.name||card.title||'');
-      setEditSubtitle(nonSlideRefs[card.curriculumIdx]?.work||card.subtitle||'');
+      const ov=curriculumOverrides[card.curriculumIdx]||{};
+      setEditTitle(ov.title!==undefined?ov.title:(nonSlideRefs[card.curriculumIdx]?.name||card.title||''));
+      setEditSubtitle(ov.subtitle!==undefined?ov.subtitle:(nonSlideRefs[card.curriculumIdx]?.work||card.subtitle||''));
+      setEditWhy(ov.why!==undefined?ov.why:(nonSlideRefs[card.curriculumIdx]?.why||card.why||''));
     } else {
       setEditTitle(manualCards[card.manualIdx]?.title||'');
       setEditSubtitle(manualCards[card.manualIdx]?.subtitle||'');
+      setEditWhy(manualCards[card.manualIdx]?.why||'');
     }
   }
   function saveEdit(card){
     if(card&&card.isCurriculum){
-      // Curriculum card edit: stored in a separate override map in Firestore
       setRefsData(prev=>{
         const overrides={...(prev.curriculumOverrides||{})};
-        overrides[card.curriculumIdx]={title:editTitle,subtitle:editSubtitle};
+        overrides[card.curriculumIdx]={title:editTitle,subtitle:editSubtitle,why:editWhy};
         return{...prev,curriculumOverrides:overrides};
       });
     } else {
-      setManualCards(prev=>prev.map((c,i)=>i===editingCard?{...c,title:editTitle,subtitle:editSubtitle}:c));
+      setManualCards(prev=>prev.map((c,i)=>i===editingCard?{...c,title:editTitle,subtitle:editSubtitle,why:editWhy}:c));
     }
     setEditingCard(null);
   }
@@ -4520,6 +4528,7 @@ function RefsPanel({refs,sessionKey}){
                 editingCard={editingCard}
                 editTitle={editTitle} setEditTitle={setEditTitle}
                 editSubtitle={editSubtitle} setEditSubtitle={setEditSubtitle}
+                editWhy={editWhy} setEditWhy={setEditWhy}
                 onSaveEdit={saveEdit}
                 onCancelEdit={()=>setEditingCard(null)}
               />
@@ -9355,7 +9364,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const [logPhotos,setLogPhotos]=React.useState([]); // [{file,localUrl,remember,uploading}]
   const [logLessonKey,setLogLessonKey]=React.useState('');
   const [logUploading,setLogUploading]=React.useState(false);
-  const [logLightbox,setLogLightbox]=React.useState(null); // {url} for class log photo lightbox
+  const [logLightbox,setLogLightbox]=React.useState(null); // {photos:[url,...], idx:N}
   const [customLessonsLog]=useCustomLessons();
   const allPhaseLessonsLog=PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`})));
 
@@ -9737,13 +9746,12 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                           </span>
                         )}
                         {/* Linked session name shown below date */}
-                        {!editingDateIdx===si&&sess.linkedSession&&(
+                        {editingDateIdx!==si&&sess.linkedSession&&(
                           <div style={{fontSize:8,fontWeight:700,color:sess.linkedSession.isCustom?'var(--teal)':'var(--yellow)',
                             marginTop:2,textAlign:'center',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',
                             maxWidth:72,lineHeight:1.2}}>
                             {sess.linkedSession.isCustom?'★ '+sess.linkedSession.label.slice(0,9):('S'+sess.linkedSession.sessionN)}
                           </div>
-                        )}
                         )}
                         {teacherMode&&editMode&&(
                           <>
@@ -10079,12 +10087,12 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                     {l.note&&<div style={{fontSize:12,color:'var(--tx2)',lineHeight:1.5,marginBottom:(l.photos&&l.photos.length>0)?6:0}}>{l.note}</div>}
                     {(l.photos||[]).length>0&&(
                       <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:4}}>
-                        {(l.photos||[]).filter(ph=>ph.remember).map((ph,pi)=>(
-                          <div key={pi} style={{position:'relative',cursor:'pointer'}} onClick={()=>setLogLightbox(ph.url)}>
+                        {(()=>{const pinned=(l.photos||[]).filter(ph=>ph.remember);return pinned.map((ph,pi)=>(
+                          <div key={pi} style={{position:'relative',cursor:'pointer'}} onClick={()=>setLogLightbox({photos:pinned.map(p=>p.url),idx:pi})}>
                             <img src={ph.url} alt="" style={{width:72,height:72,borderRadius:7,objectFit:'cover',display:'block'}}/>
                             <span style={{position:'absolute',bottom:2,right:2,fontSize:7,background:'rgba(59,191,160,0.8)',color:'#fff',padding:'1px 3px',borderRadius:3,fontWeight:700}}>📌</span>
                           </div>
-                        ))}
+                        ));})()}
                       </div>
                     )}
                   </div>
@@ -10100,8 +10108,34 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
       {logLightbox&&ReactDOM.createPortal(
         <div style={{position:'fixed',inset:0,zIndex:9000,background:'rgba(6,6,6,0.95)',backdropFilter:'blur(16px)',display:'flex',alignItems:'center',justifyContent:'center'}}
           onClick={()=>setLogLightbox(null)}>
-          <img src={logLightbox} alt="" style={{maxWidth:'90vw',maxHeight:'90vh',objectFit:'contain',borderRadius:10,boxShadow:'0 24px 64px rgba(0,0,0,0.7)'}} onClick={e=>e.stopPropagation()}/>
-          <button onClick={()=>setLogLightbox(null)} style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',fontSize:18,padding:'4px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
+          <img src={logLightbox.photos[logLightbox.idx]} alt=""
+            style={{maxWidth:'86vw',maxHeight:'88vh',objectFit:'contain',borderRadius:10,boxShadow:'0 24px 64px rgba(0,0,0,0.7)'}}
+            onClick={e=>e.stopPropagation()}/>
+          {/* Prev */}
+          {logLightbox.idx>0&&(
+            <button onClick={e=>{e.stopPropagation();setLogLightbox(lb=>({...lb,idx:lb.idx-1}));}}
+              style={{position:'absolute',left:20,top:'50%',transform:'translateY(-50%)',
+                background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',
+                borderRadius:10,color:'#fff',fontSize:22,padding:'8px 14px',cursor:'pointer'}}>‹</button>
+          )}
+          {/* Next */}
+          {logLightbox.idx<logLightbox.photos.length-1&&(
+            <button onClick={e=>{e.stopPropagation();setLogLightbox(lb=>({...lb,idx:lb.idx+1}));}}
+              style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',
+                background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.2)',
+                borderRadius:10,color:'#fff',fontSize:22,padding:'8px 14px',cursor:'pointer'}}>›</button>
+          )}
+          {/* Counter */}
+          {logLightbox.photos.length>1&&(
+            <div style={{position:'absolute',bottom:24,left:'50%',transform:'translateX(-50%)',
+              fontSize:11,color:'rgba(255,255,255,0.5)',fontFamily:"'DM Sans',sans-serif"}}>
+              {logLightbox.idx+1} / {logLightbox.photos.length}
+            </div>
+          )}
+          <button onClick={()=>setLogLightbox(null)}
+            style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,0.1)',
+              border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',
+              fontSize:18,padding:'4px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
         </div>,
         document.body
       )}
@@ -10200,12 +10234,17 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                         {cmd:'bold',label:'B',style:{fontWeight:900}},
                         {cmd:'italic',label:'I',style:{fontStyle:'italic'}},
                         {cmd:'underline',label:'U',style:{textDecoration:'underline'}},
-                        {cmd:'strikethrough',label:'S',style:{textDecoration:'line-through'}},
+                        {cmd:'strikethrough',label:'S̶',style:{}},
                         {cmd:'insertUnorderedList',label:'• List',style:{}},
                         {cmd:'insertOrderedList',label:'1. List',style:{}},
+                        {cmd:'undo',label:'↩',style:{}},
+                        {cmd:'redo',label:'↪',style:{}},
                       ].map(({cmd,label,style})=>(
                         <button key={cmd}
-                          onMouseDown={e=>{e.preventDefault();document.execCommand(cmd,false,null);}}
+                          onMouseDown={e=>{
+                            e.preventDefault();
+                            document.execCommand(cmd,false,null);
+                          }}
                           style={{fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:5,
                             border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',
                             color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",...style}}>
@@ -10213,23 +10252,42 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                         </button>
                       ))}
                     </div>
-                    {/* Editable div */}
-                    <div
-                      contentEditable
-                      suppressContentEditableWarning
-                      id={'manual-activity-editor-'+manualSlideIdx}
-                      dangerouslySetInnerHTML={{__html:manualDraftActivity||''}}
-                      onInput={e=>setManualDraftActivity(e.currentTarget.innerHTML)}
-                      style={{minHeight:120,padding:'10px 13px',fontSize:12,color:'var(--tx2)',
-                        lineHeight:1.6,outline:'none',fontFamily:"'DM Sans',sans-serif",
-                        overflowY:'auto',maxHeight:320}}
-                      data-placeholder="What did / will students do? Notes for yourself…"
-                    />
+                    {/* Editable div — init via useEffect to prevent cursor jump */}
+                    {(()=>{
+                      const editorRef=React.useRef(null);
+                      React.useEffect(()=>{
+                        if(editorRef.current){
+                          editorRef.current.innerHTML=manualDraftActivity||'';
+                          // Place cursor at end
+                          const range=document.createRange();
+                          const sel=window.getSelection();
+                          range.selectNodeContents(editorRef.current);
+                          range.collapse(false);
+                          sel.removeAllRanges();
+                          sel.addRange(range);
+                          editorRef.current.focus();
+                        }
+                      // eslint-disable-next-line react-hooks/exhaustive-deps
+                      },[]);// run only on mount
+                      return(
+                        <div
+                          ref={editorRef}
+                          contentEditable
+                          suppressContentEditableWarning
+                          onInput={e=>setManualDraftActivity(e.currentTarget.innerHTML)}
+                          style={{minHeight:120,padding:'10px 13px',fontSize:12,
+                            lineHeight:1.6,outline:'none',fontFamily:"'DM Sans',sans-serif",
+                            overflowY:'auto',maxHeight:320,color:'var(--tx2)'}}
+                          data-placeholder="What did / will students do? Notes for yourself…"
+                        />
+                      );
+                    })()}
                     <style>{`
-                      [id^="manual-activity-editor-"]:empty:before{content:attr(data-placeholder);color:var(--tx3);pointer-events:none;}
-                      [id^="manual-activity-editor-"] ul{margin:4px 0 4px 18px;padding:0;}
-                      [id^="manual-activity-editor-"] ol{margin:4px 0 4px 18px;padding:0;}
-                      [id^="manual-activity-editor-"] li{margin-bottom:2px;}
+                      [data-placeholder]:empty:before{content:attr(data-placeholder);color:var(--tx3);pointer-events:none;}
+                      .manual-editor-wrap *{color:inherit!important;}
+                      .manual-editor-wrap ul{margin:4px 0 4px 18px;padding:0;}
+                      .manual-editor-wrap ol{margin:4px 0 4px 18px;padding:0;}
+                      .manual-editor-wrap li{margin-bottom:2px;}
                     `}</style>
                   </div>
                 ):(
@@ -10807,8 +10865,8 @@ function GalleryView({isVisitor}){
                   ))}
                 </div>
               </div>
-              {/* Assessment */}
-              {filterType!=='documentation'&&(
+              {/* Assessment — hidden for visitors */}
+              {filterType!=='documentation'&&!isVisitor&&(
                 <div>
                   <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Assessment</div>
                   <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
@@ -10859,9 +10917,8 @@ function GalleryView({isVisitor}){
               <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none'}}>
                 {p.type==='documentation'?(
                   <>
-                    <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.docTitle||p.resolvedLesson||'Documentation'}</div>
+                    <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.resolvedLesson||'Documentation'}</div>
                     <div style={{fontSize:9,color:'rgba(255,255,255,0.65)',marginTop:1}}>{p.sectionName} · 📸</div>
-                    {p.resolvedLesson&&p.resolvedLesson!==(p.docTitle||'')&&<div style={{fontSize:9,color:'rgba(255,255,255,0.5)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.resolvedLesson}</div>}
                   </>
                 ):(
                   <>
@@ -10920,7 +10977,7 @@ function GalleryView({isVisitor}){
                     <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
                       <span style={{fontSize:14,fontWeight:700,fontFamily:"'DM Sans',sans-serif",color:'#fff'}}>
                         {lightbox.type==='documentation'
-                          ?(lightbox.docTitle||lightbox.resolvedLesson||'Documentation')
+                          ?(lightbox.resolvedLesson||'Documentation')
                           :lightbox.studentName}
                       </span>
                       <span style={{fontSize:8,fontWeight:700,padding:'2px 7px',borderRadius:7,background:(lightbox.type||'artwork')==='documentation'?'rgba(155,127,232,0.35)':'rgba(59,191,160,0.35)',color:(lightbox.type||'artwork')==='documentation'?'#c4a8f8':'#7ee8cb'}}>{(lightbox.type||'artwork')==='documentation'?'DOCS':'ARTWORK'}</span>
@@ -10928,24 +10985,6 @@ function GalleryView({isVisitor}){
                     <div style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>
                       {lightbox.sectionName} · {lightbox.date}
                     </div>
-                    {lightbox.type==='documentation'&&lightbox.resolvedLesson&&lightbox.resolvedLesson!==(lightbox.docTitle||'')&&(
-                      <div style={{fontSize:10,color:'rgba(255,255,255,0.45)'}}>📸 {lightbox.resolvedLesson}</div>
-                    )}
-                    {(lightbox.lessons||[]).length>0&&(
-                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                        {(lightbox.lessons||[]).map(ln=>{
-                          let label='';
-                          if(ln.startsWith('custom:')){
-                            const cl=getCustomLessons().find(l=>l.id===ln.replace('custom:',''));
-                            label=cl?('★ '+cl.label):'Custom lesson';
-                          } else {
-                            const l=allLessons.find(x=>x.n===parseInt(ln.split(':')[1]));
-                            label=l?('L'+l.n+' · '+l.title.slice(0,18)):ln;
-                          }
-                          return<span key={ln} style={{fontSize:9,padding:'2px 7px',borderRadius:7,background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.18)',color:'rgba(255,255,255,0.8)'}}>{label}</span>;
-                        })}
-                      </div>
-                    )}
                     {(lightbox.artTags||[]).length>0&&(
                       <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
                         {(lightbox.artTags||[]).map(t=>{const td=artworkTags.find(x=>x.label===t);return<span key={t} style={{fontSize:9,padding:'2px 7px',borderRadius:7,background:'rgba(255,255,255,0.08)',border:`1px solid ${td?tagColors[td.color]:'rgba(255,255,255,0.18)'}`,color:td?tagColors[td.color]:'rgba(255,255,255,0.6)'}}>{t}</span>;})}
