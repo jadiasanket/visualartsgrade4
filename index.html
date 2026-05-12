@@ -4333,6 +4333,8 @@ function RefsPanel({refs,sessionKey}){
     dragCardIdx.current=null;dragOverIdx.current=null;
   }
 
+  // ── Add card state ──
+  const [addingCard,setAddingCard]=React.useState(false);
   // ── Add link / YouTube card ──
   const [addType,setAddType]=React.useState(null); // null | 'image' | 'link' | 'video'
   const [linkUrl,setLinkUrl]=React.useState('');
