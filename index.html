@@ -9745,14 +9745,6 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                             {sess.sessType!=='manual'&&sess.linkedSession&&sess.linkedSession.isCustom&&<sup title={'Custom lesson: '+sess.linkedSession.label} style={{fontSize:7,color:'var(--teal)',fontWeight:700,verticalAlign:'super',lineHeight:0,marginLeft:1,cursor:'pointer'}}>●</sup>}
                           </span>
                         )}
-                        {/* Linked session name shown below date */}
-                        {editingDateIdx!==si&&sess.linkedSession&&(
-                          <div style={{fontSize:8,fontWeight:700,color:sess.linkedSession.isCustom?'var(--teal)':'var(--yellow)',
-                            marginTop:2,textAlign:'center',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',
-                            maxWidth:72,lineHeight:1.2}}>
-                            {sess.linkedSession.isCustom?'★ '+sess.linkedSession.label.slice(0,9):('S'+sess.linkedSession.sessionN)}
-                          </div>
-                        )}
                         {teacherMode&&editMode&&(
                           <>
                             <span title="Delete column" style={{fontSize:9,color:'var(--coral)',cursor:'pointer',opacity:0.7,display:'block',textAlign:'center',marginTop:2}}
@@ -10227,69 +10219,10 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
 
                 {/* Rich text edit mode */}
                 {manualEditMode?(
-                  <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border2)',borderRadius:9,overflow:'hidden',marginBottom:14}}>
-                    {/* Toolbar */}
-                    <div style={{display:'flex',gap:2,padding:'6px 8px',borderBottom:'1px solid var(--glass-border)',flexWrap:'wrap'}}>
-                      {[
-                        {cmd:'bold',label:'B',style:{fontWeight:900}},
-                        {cmd:'italic',label:'I',style:{fontStyle:'italic'}},
-                        {cmd:'underline',label:'U',style:{textDecoration:'underline'}},
-                        {cmd:'strikethrough',label:'S̶',style:{}},
-                        {cmd:'insertUnorderedList',label:'• List',style:{}},
-                        {cmd:'insertOrderedList',label:'1. List',style:{}},
-                        {cmd:'undo',label:'↩',style:{}},
-                        {cmd:'redo',label:'↪',style:{}},
-                      ].map(({cmd,label,style})=>(
-                        <button key={cmd}
-                          onMouseDown={e=>{
-                            e.preventDefault();
-                            document.execCommand(cmd,false,null);
-                          }}
-                          style={{fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:5,
-                            border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',
-                            color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",...style}}>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Editable div — init via useEffect to prevent cursor jump */}
-                    {(()=>{
-                      const editorRef=React.useRef(null);
-                      React.useEffect(()=>{
-                        if(editorRef.current){
-                          editorRef.current.innerHTML=manualDraftActivity||'';
-                          // Place cursor at end
-                          const range=document.createRange();
-                          const sel=window.getSelection();
-                          range.selectNodeContents(editorRef.current);
-                          range.collapse(false);
-                          sel.removeAllRanges();
-                          sel.addRange(range);
-                          editorRef.current.focus();
-                        }
-                      // eslint-disable-next-line react-hooks/exhaustive-deps
-                      },[]);// run only on mount
-                      return(
-                        <div
-                          ref={editorRef}
-                          contentEditable
-                          suppressContentEditableWarning
-                          onInput={e=>setManualDraftActivity(e.currentTarget.innerHTML)}
-                          style={{minHeight:120,padding:'10px 13px',fontSize:12,
-                            lineHeight:1.6,outline:'none',fontFamily:"'DM Sans',sans-serif",
-                            overflowY:'auto',maxHeight:320,color:'var(--tx2)'}}
-                          data-placeholder="What did / will students do? Notes for yourself…"
-                        />
-                      );
-                    })()}
-                    <style>{`
-                      [data-placeholder]:empty:before{content:attr(data-placeholder);color:var(--tx3);pointer-events:none;}
-                      .manual-editor-wrap *{color:inherit!important;}
-                      .manual-editor-wrap ul{margin:4px 0 4px 18px;padding:0;}
-                      .manual-editor-wrap ol{margin:4px 0 4px 18px;padding:0;}
-                      .manual-editor-wrap li{margin-bottom:2px;}
-                    `}</style>
-                  </div>
+                  <RichTextEditor_
+                    initialHtml={manualDraftActivity}
+                    onChange={setManualDraftActivity}
+                  />
                 ):(
                   /* Read-only view — renders saved HTML */
                   <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',
@@ -10635,6 +10568,75 @@ function GalleryUpload({onClose,onDone}){
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>,
     document.body
+  );
+}
+
+// ── RICH TEXT EDITOR — standalone component to safely use hooks ──
+function RichTextEditor_({initialHtml,onChange}){
+  const ref=React.useRef(null);
+  React.useEffect(()=>{
+    if(ref.current){
+      ref.current.innerHTML=initialHtml||'';
+      // Place cursor at end
+      try{
+        const range=document.createRange();
+        const sel=window.getSelection();
+        range.selectNodeContents(ref.current);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        ref.current.focus();
+      }catch(e){}
+    }
+  // Only run on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+  return(
+    <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border2)',borderRadius:9,overflow:'hidden',marginBottom:14}}>
+      {/* Toolbar */}
+      <div style={{display:'flex',gap:2,padding:'6px 8px',borderBottom:'1px solid var(--glass-border)',flexWrap:'wrap'}}>
+        {[
+          {cmd:'bold',label:'B',style:{fontWeight:900}},
+          {cmd:'italic',label:'I',style:{fontStyle:'italic'}},
+          {cmd:'underline',label:'U',style:{textDecoration:'underline'}},
+          {cmd:'strikethrough',label:'S̶',style:{}},
+          {cmd:'insertUnorderedList',label:'• List',style:{}},
+          {cmd:'insertOrderedList',label:'1. List',style:{}},
+          {cmd:'undo',label:'↩',style:{}},
+          {cmd:'redo',label:'↪',style:{}},
+        ].map(({cmd,label,style})=>(
+          <button key={cmd}
+            onMouseDown={e=>{
+              e.preventDefault();
+              document.execCommand(cmd,false,null);
+              if(ref.current) onChange(ref.current.innerHTML);
+            }}
+            style={{fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:5,
+              border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',
+              color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",...style}}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {/* Editable area */}
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={e=>onChange(e.currentTarget.innerHTML)}
+        style={{minHeight:120,padding:'10px 13px',fontSize:12,color:'var(--tx2)',
+          lineHeight:1.6,outline:'none',fontFamily:"'DM Sans',sans-serif",
+          overflowY:'auto',maxHeight:320}}
+        data-placeholder="What did / will students do? Notes for yourself…"
+      />
+      <style>{`
+        [data-placeholder]:empty:before{content:attr(data-placeholder);color:var(--tx3);pointer-events:none;}
+        div[contenteditable] *{color:inherit!important;}
+        div[contenteditable] ul{margin:4px 0 4px 18px;padding:0;}
+        div[contenteditable] ol{margin:4px 0 4px 18px;padding:0;}
+        div[contenteditable] li{margin-bottom:2px;}
+      `}</style>
+    </div>
   );
 }
 
