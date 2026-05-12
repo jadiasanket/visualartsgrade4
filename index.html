@@ -10227,7 +10227,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                   /* Read-only view — renders saved HTML */
                   <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',
                     borderRadius:9,padding:'10px 13px',marginBottom:14,
-                    fontSize:12,color:'var(--tx2)',lineHeight:1.65,minHeight:60,overflowY:'auto',maxHeight:400}}
+                    fontSize:12,color:'var(--tx2)',lineHeight:1.65,minHeight:60,overflowY:'auto',maxHeight:400,WebkitTextFillColor:'var(--tx2)'}}
                     dangerouslySetInnerHTML={{__html:
                       data.sessions[manualSlideIdx].manualActivityHtml||
                       (data.sessions[manualSlideIdx].manualActivity
