@@ -4078,7 +4078,7 @@ async function uploadRefImage(file,sessionKey,name){
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 // ── Individual reference card ──
-function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,onSaveEdit,onCancelEdit}){
+function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,onSaveEdit,onCancelEdit,onDragStart,onDragOver,onDrop}){
   const CARD=350;
   const dist=i-activeIdx; // signed distance from active card
   const absDist=Math.abs(dist);
@@ -4092,9 +4092,14 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
 
   return(
     <div
+      draggable={teacherMode&&!isEditing}
+      onDragStart={e=>{e.stopPropagation();onDragStart&&onDragStart();}}
+      onDragOver={e=>{e.stopPropagation();onDragOver&&onDragOver(e);}}
+      onDrop={e=>{e.stopPropagation();onDrop&&onDrop();}}
       onClick={()=>{
         if(isEditing) return;
         if(!isActive){onSetActive(i);return;}
+        if(card.isLink&&card.linkUrl){window.open(card.linkUrl,'_blank');return;}
         if(card.src) onOpen(i);
       }}
       style={{
@@ -4122,6 +4127,18 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
           transform:isActive?'scale(1.13)':'scale(1)',
           transition:'transform .45s cubic-bezier(.25,0.1,.25,1)',
           transformOrigin:'center center'}}/>}
+
+      {/* Link card placeholder */}
+      {card.isLink&&!card.src&&(
+        <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',
+          alignItems:'center',justifyContent:'center',gap:8,padding:24,
+          background:'linear-gradient(135deg,rgba(59,130,246,0.18),rgba(99,102,241,0.12))'}}>
+          <div style={{fontSize:36}}>🔗</div>
+          <div style={{fontSize:12,fontWeight:700,color:'#fff',textAlign:'center',wordBreak:'break-all'}}>{card.title||card.linkUrl}</div>
+          {card.subtitle&&<div style={{fontSize:10,color:'rgba(255,255,255,0.6)',textAlign:'center'}}>{card.subtitle}</div>}
+          <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',textAlign:'center',wordBreak:'break-all',marginTop:4}}>{card.linkUrl}</div>
+        </div>
+      )}
 
       {/* Placeholder */}
       {!card.src&&(
@@ -4297,8 +4314,45 @@ function RefsPanel({refs,sessionKey}){
   },[setRefsData]);
   const [uploads]=useLocalStorage('uploads-'+sessionKey,[]);
 
-  // ── Add card ──
-  const [addingCard,setAddingCard]=React.useState(false);
+  // ── Drag to reorder ──
+  const dragCardIdx=React.useRef(null);
+  const dragOverIdx=React.useRef(null);
+  function onCardDragStart(i){dragCardIdx.current=i;}
+  function onCardDragOver(e,i){e.preventDefault();dragOverIdx.current=i;}
+  function onCardDrop(){
+    const from=dragCardIdx.current;
+    const to=dragOverIdx.current;
+    if(from===null||to===null||from===to){dragCardIdx.current=null;dragOverIdx.current=null;return;}
+    // Reorder in Firestore: curriculum cards can't be reordered (they come from curriculum), only the manualCards array order
+    // Strategy: reorder the full fanCards list, then split back into manualCards
+    const reordered=[...fanCards];
+    const [moved]=reordered.splice(from,1);
+    reordered.splice(to,0,moved);
+    const newManual=reordered.filter(c=>!c.isCurriculum).map(c=>manualCards[c.manualIdx]);
+    setManualCards(newManual);
+    dragCardIdx.current=null;dragOverIdx.current=null;
+  }
+
+  // ── Add link / YouTube card ──
+  const [addType,setAddType]=React.useState(null); // null | 'image' | 'link' | 'video'
+  const [linkUrl,setLinkUrl]=React.useState('');
+  const [linkTitle,setLinkTitle]=React.useState('');
+  const [linkSubtitle,setLinkSubtitle]=React.useState('');
+  const [videoUrl,setVideoUrl]=React.useState('');
+  const [videoTitle,setVideoTitle]=React.useState('');
+
+  function submitLinkCard(){
+    if(!linkUrl.trim()) return;
+    setManualCards(prev=>[...prev,{src:null,title:linkTitle.trim()||linkUrl.trim(),subtitle:linkSubtitle.trim(),why:'',isLink:true,linkUrl:linkUrl.trim()}]);
+    setLinkUrl('');setLinkTitle('');setLinkSubtitle('');setAddType(null);
+  }
+  function submitVideoCard(){
+    const vid=ytId(videoUrl.trim());
+    if(!vid) return alert('Please enter a valid YouTube URL');
+    const thumb=`https://img.youtube.com/vi/${vid}/mqdefault.jpg`;
+    setManualCards(prev=>[...prev,{src:thumb,title:videoTitle.trim()||'Video',subtitle:'',why:'',isVideo:true,videoUrl:videoUrl.trim()}]);
+    setVideoUrl('');setVideoTitle('');setAddType(null);
+  }
   const [pendingFile,setPendingFile]=React.useState(null);
   const [cardTitle,setCardTitle]=React.useState('');
   const [cardSubtitle,setCardSubtitle]=React.useState('');
@@ -4333,10 +4387,14 @@ function RefsPanel({refs,sessionKey}){
       });
     });
     manualCards.forEach((c,i)=>{
+      const isVid=!!(c.isVideo&&c.videoUrl);
+      const vidSrc=isVid?`https://www.youtube.com/embed/${ytId(c.videoUrl||'')}`:null;
       cards.push({
-        src:c.src||null,title:c.title||'',subtitle:c.subtitle||'',why:'',
-        badge:'added',isVideo:false,isCurriculum:false,
-        curriculumIdx:null,manualIdx:i,
+        src:c.src||null,title:c.title||'',subtitle:c.subtitle||'',why:c.why||'',
+        badge:isVid?'video':c.isLink?'link':'added',
+        isVideo:isVid,videoSrc:vidSrc,
+        isLink:!!(c.isLink),linkUrl:c.linkUrl||'',
+        isCurriculum:false,curriculumIdx:null,manualIdx:i,
       });
     });
     return cards;
@@ -4351,13 +4409,20 @@ function RefsPanel({refs,sessionKey}){
 
   // ── Lightbox items (only cards with images) ──
   const lbItems=React.useMemo(()=>
-    fanCards.filter(c=>c.src).map(c=>({
-      type:c.isVideo?'video':'image',
-      src:c.isVideo&&c.curriculumIdx!=null
-        ?`https://www.youtube.com/embed/${ytId(nonSlideRefs[c.curriculumIdx]?.videoUrl||'')}`
-        :c.src,
-      title:c.title,subtitle:c.subtitle,why:c.why,badge:c.badge,
-    }))
+    fanCards.filter(c=>c.src).map(c=>{
+      const isVid=c.isVideo;
+      const videoSrc=isVid
+        ?(c.videoSrc||( c.curriculumIdx!=null
+            ?`https://www.youtube.com/embed/${ytId(nonSlideRefs[c.curriculumIdx]?.videoUrl||'')}`
+            :null))
+        :null;
+      return{
+        type:isVid?'video':'image',
+        src:isVid?videoSrc:c.src,
+        thumb:c.src,
+        title:c.title,subtitle:c.subtitle,why:c.why,badge:c.badge,
+      };
+    })
   ,[fanCards]);
 
   // ── Keyboard nav ──
@@ -4462,7 +4527,7 @@ function RefsPanel({refs,sessionKey}){
     }catch(err){
       alert('Image upload failed. Please check your internet connection and try again.\n\n'+err.message);
     }
-    setUploadingCard(false);setAddingCard(false);
+    setUploadingCard(false);setAddingCard(false);setAddType(null);
     setPendingFile(null);setCardTitle('');setCardSubtitle('');
   }
 
@@ -4531,6 +4596,9 @@ function RefsPanel({refs,sessionKey}){
                 editWhy={editWhy} setEditWhy={setEditWhy}
                 onSaveEdit={saveEdit}
                 onCancelEdit={()=>setEditingCard(null)}
+                onDragStart={()=>onCardDragStart(i)}
+                onDragOver={e=>onCardDragOver(e,i)}
+                onDrop={onCardDrop}
               />
             ))}
             {/* Left arrow */}
@@ -4570,20 +4638,33 @@ function RefsPanel({refs,sessionKey}){
       {/* ── ADD CARD ── */}
       {teacherMode&&(
         <div style={{marginBottom:20}}>
-          {!addingCard&&(
-            <label style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,
-              fontWeight:700,color:'var(--tx2)',cursor:'pointer',padding:'7px 14px',
-              borderRadius:8,border:'1px dashed var(--glass-border2)',background:'var(--glass-bg)'}}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Add reference image
-              <input type="file" accept="image/*" onChange={onAddFileChange} style={{display:'none'}}/>
-            </label>
+          {/* Option picker */}
+          {!addType&&!addingCard&&(
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <label style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,
+                fontWeight:700,color:'var(--tx2)',cursor:'pointer',padding:'7px 14px',
+                borderRadius:8,border:'1px dashed var(--glass-border2)',background:'var(--glass-bg)'}}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Image
+                <input type="file" accept="image/*" onChange={e=>{setAddType('image');onAddFileChange(e);}} style={{display:'none'}}/>
+              </label>
+              <button onClick={()=>{setAddType('link');setLinkUrl('');setLinkTitle('');setLinkSubtitle('');}}
+                style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,
+                  fontWeight:700,color:'var(--tx2)',cursor:'pointer',padding:'7px 14px',
+                  borderRadius:8,border:'1px dashed var(--glass-border2)',background:'var(--glass-bg)'}}>
+                🔗 Link
+              </button>
+              <button onClick={()=>{setAddType('video');setVideoUrl('');setVideoTitle('');}}
+                style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,
+                  fontWeight:700,color:'var(--tx2)',cursor:'pointer',padding:'7px 14px',
+                  borderRadius:8,border:'1px dashed var(--glass-border2)',background:'var(--glass-bg)'}}>
+                ▶ YouTube
+              </button>
+            </div>
           )}
-          {addingCard&&pendingFile&&(
+
+          {/* Image card form */}
+          {addingCard&&addType==='image'&&pendingFile&&(
             <div style={{display:'flex',gap:10,alignItems:'flex-start',flexWrap:'wrap',
               background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',
               borderRadius:10,padding:'12px 14px',maxWidth:500}}>
@@ -4612,10 +4693,53 @@ function RefsPanel({refs,sessionKey}){
                     style={{fontSize:11,padding:'5px 12px',borderRadius:6,
                       border:'1px solid var(--glass-border2)',background:'transparent',
                       color:'var(--tx3)',cursor:'pointer'}}>Skip info</button>
-                  <button onClick={()=>{setAddingCard(false);setPendingFile(null);}}
+                  <button onClick={()=>{setAddingCard(false);setPendingFile(null);setAddType(null);}}
                     style={{fontSize:11,padding:'5px 10px',borderRadius:6,border:'none',
                       background:'transparent',color:'var(--tx3)',cursor:'pointer'}}>Cancel</button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Link card form */}
+          {addType==='link'&&(
+            <div style={{background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',borderRadius:10,padding:'12px 14px',maxWidth:500,display:'flex',flexDirection:'column',gap:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:'var(--teal)'}}>🔗 Add a link card</div>
+              <input value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}
+                placeholder="URL — e.g. https://www.moma.org/..." autoFocus
+                style={{fontSize:12,padding:'6px 9px',borderRadius:6,border:'1px solid var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
+              <input value={linkTitle} onChange={e=>setLinkTitle(e.target.value)}
+                placeholder="Title (optional)"
+                style={{fontSize:11,padding:'6px 9px',borderRadius:6,border:'1px solid var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
+              <input value={linkSubtitle} onChange={e=>setLinkSubtitle(e.target.value)}
+                placeholder="Subtitle / note (optional)"
+                onKeyDown={e=>{if(e.key==='Enter')submitLinkCard();}}
+                style={{fontSize:11,padding:'6px 9px',borderRadius:6,border:'1px solid var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
+              <div style={{display:'flex',gap:6}}>
+                <button onClick={submitLinkCard}
+                  style={{fontSize:11,fontWeight:700,padding:'5px 12px',borderRadius:6,border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer'}}>Add card</button>
+                <button onClick={()=>setAddType(null)}
+                  style={{fontSize:11,padding:'5px 10px',borderRadius:6,border:'none',background:'transparent',color:'var(--tx3)',cursor:'pointer'}}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* YouTube card form */}
+          {addType==='video'&&(
+            <div style={{background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',borderRadius:10,padding:'12px 14px',maxWidth:500,display:'flex',flexDirection:'column',gap:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:'var(--coral)'}}>▶ Add a YouTube card</div>
+              <input value={videoUrl} onChange={e=>setVideoUrl(e.target.value)}
+                placeholder="YouTube URL — e.g. https://youtu.be/abc123" autoFocus
+                style={{fontSize:12,padding:'6px 9px',borderRadius:6,border:'1px solid var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
+              <input value={videoTitle} onChange={e=>setVideoTitle(e.target.value)}
+                placeholder="Title (optional)"
+                onKeyDown={e=>{if(e.key==='Enter')submitVideoCard();}}
+                style={{fontSize:11,padding:'6px 9px',borderRadius:6,border:'1px solid var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
+              <div style={{display:'flex',gap:6}}>
+                <button onClick={submitVideoCard}
+                  style={{fontSize:11,fontWeight:700,padding:'5px 12px',borderRadius:6,border:'none',background:'var(--coral)',color:'#fff',cursor:'pointer'}}>Add card</button>
+                <button onClick={()=>setAddType(null)}
+                  style={{fontSize:11,padding:'5px 10px',borderRadius:6,border:'none',background:'transparent',color:'var(--tx3)',cursor:'pointer'}}>Cancel</button>
               </div>
             </div>
           )}
@@ -9364,6 +9488,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const [logPhotos,setLogPhotos]=React.useState([]); // [{file,localUrl,remember,uploading}]
   const [logLessonKey,setLogLessonKey]=React.useState('');
   const [logUploading,setLogUploading]=React.useState(false);
+  const [logGalleryUploadOpen,setLogGalleryUploadOpen]=React.useState(false);
   const [logLightbox,setLogLightbox]=React.useState(null); // {photos:[url,...], idx:N}
   const [customLessonsLog]=useCustomLessons();
   const allPhaseLessonsLog=PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`})));
@@ -9376,23 +9501,11 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   async function saveClassLog(){
     setLogUploading(true);
     const today=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
-    const uploadedPhotos=[];
-    for(const p of logPhotos){
-      try{
-        const url=await uploadPortfolioPhoto(p.file,section.id,0);
-        uploadedPhotos.push({url,remember:p.remember});
-        // All photos save to gallery as documentation
-        updateData(d=>{
-          if(!d.students[0].portfolio) d.students[0].portfolio=[];
-          d.students[0].portfolio.push({url,date:today,caption:logNote.trim()||'',type:'documentation',lessons:logLessonKey?[logLessonKey]:[],artTags:[],review:''});
-        });
-      }catch(e){/* skip failed photos */}
-    }
     updateData(d=>{
       if(!d.classLogs)d.classLogs=[];
-      d.classLogs.push({date:today,rating:logRating,note:logNote.trim(),photos:uploadedPhotos,lessonKey:logLessonKey||null});
+      d.classLogs.push({date:today,rating:logRating,note:logNote.trim(),photos:[],lessonKey:logLessonKey||null});
     });
-    setLogRating(0);setLogNote('');setLogPhotos([]);setLogLessonKey('');setClassLogOpen(false);
+    setLogRating(0);setLogNote('');setLogLessonKey('');setClassLogOpen(false);
     setLogUploading(false);
   }
   function deleteClassLog(i){updateData(d=>{d.classLogs.splice(i,1);});}
@@ -9996,52 +10109,25 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
               <textarea className="sec-note-input" style={{width:'100%',boxSizing:'border-box',minHeight:72,marginBottom:8,fontSize:13}}
                 placeholder="Class note..."
                 value={logNote} onChange={e=>setLogNote(e.target.value)}/>
-              {/* Photo upload strip */}
+              {/* Photo upload — opens Gallery Upload modal pre-set to Documentation */}
               <div style={{marginBottom:10}}>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
                   <div style={{fontSize:10,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--tx3)'}}>Photos</div>
-                  <label style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:7,border:'1px dashed var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                    + Add
-                    <input type="file" accept="image/*" multiple style={{display:'none'}}
-                      onChange={e=>{
-                        const files=Array.from(e.target.files||[]);
-                        setLogPhotos(prev=>[...prev,...files.map(f=>({file:f,localUrl:URL.createObjectURL(f),remember:true}))]);
-                        e.target.value='';
-                      }}/>
-                  </label>
-                  <span style={{fontSize:9,color:'var(--tx3)'}}>or drag & drop below</span>
+                  <button onClick={()=>setLogGalleryUploadOpen(true)}
+                    style={{fontSize:10,fontWeight:700,padding:'3px 12px',borderRadius:7,
+                      border:'1px solid var(--teal)',background:'rgba(59,191,160,0.1)',
+                      color:'var(--teal)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                    + Add photos
+                  </button>
                 </div>
-                <div
-                  onDragOver={e=>e.preventDefault()}
-                  onDrop={e=>{
-                    e.preventDefault();
-                    const files=Array.from(e.dataTransfer.files||[]).filter(f=>f.type.startsWith('image/'));
-                    if(files.length) setLogPhotos(prev=>[...prev,...files.map(f=>({file:f,localUrl:URL.createObjectURL(f),remember:true}))]);
-                  }}
-                  style={{minHeight:logPhotos.length>0?0:42,borderRadius:8,border:'1px dashed var(--glass-border)',background:'var(--glass-bg)',padding:logPhotos.length>0?0:8,
-                    display:'flex',alignItems:'center',justifyContent:logPhotos.length>0?'flex-start':'center',flexWrap:'wrap',gap:8}}>
-                {logPhotos.length===0&&<span style={{fontSize:9,color:'var(--tx3)'}}>Drop images here</span>}
-                {logPhotos.length>0&&(
-                  <div style={{display:'flex',gap:8,flexWrap:'wrap',padding:6}}>
-                    {logPhotos.map((p,i)=>(
-                      <div key={i} style={{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-                        <div style={{width:80,height:80,borderRadius:8,overflow:'hidden',position:'relative'}}>
-                          <img src={p.localUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                          <button onClick={()=>setLogPhotos(prev=>prev.filter((_,idx)=>idx!==i))}
-                            style={{position:'absolute',top:2,right:2,background:'rgba(0,0,0,0.6)',border:'none',color:'#fff',fontSize:9,cursor:'pointer',padding:'1px 4px',borderRadius:3}}>✕</button>
-                        </div>
-                        <label style={{display:'flex',alignItems:'center',gap:3,cursor:'pointer',fontSize:9,color:'var(--tx3)',fontFamily:"'DM Sans',sans-serif"}}>
-                          <input type="checkbox" checked={p.remember} onChange={e=>setLogPhotos(prev=>prev.map((ph,idx)=>idx===i?{...ph,remember:e.target.checked}:ph))}
-                            style={{width:10,height:10,accentColor:'var(--teal)',cursor:'pointer'}}/>
-                          Pin to log
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                </div>
-                {logPhotos.length>0&&<div style={{fontSize:9,color:'var(--tx3)',marginTop:4}}>All photos save to Gallery. ✓ "Pin to log" keeps them visible here.</div>}
+                <div style={{fontSize:9,color:'var(--tx3)'}}>Photos added here save directly to Gallery as Documentation.</div>
               </div>
+              {logGalleryUploadOpen&&<GalleryUpload
+                initialType="documentation"
+                initialLesson={logLessonKey||''}
+                initialSection={section.id}
+                onClose={()=>setLogGalleryUploadOpen(false)}
+                onDone={()=>setLogGalleryUploadOpen(false)}/>}
               <button className="obs-save-btn" onClick={saveClassLog} disabled={logUploading} style={{width:'100%',justifyContent:'center',opacity:logUploading?0.6:1}}>
                 {logUploading?'Saving…':'Post'}
               </button>
@@ -10227,7 +10313,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                   /* Read-only view — renders saved HTML */
                   <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',
                     borderRadius:9,padding:'10px 13px',marginBottom:14,
-                    fontSize:12,color:'var(--tx2)',lineHeight:1.65,minHeight:60,overflowY:'auto',maxHeight:400,WebkitTextFillColor:'var(--tx2)'}}
+                    fontSize:12,color:'var(--tx2)',lineHeight:1.65,minHeight:60,overflowY:'auto',maxHeight:400}}
                     dangerouslySetInnerHTML={{__html:
                       data.sessions[manualSlideIdx].manualActivityHtml||
                       (data.sessions[manualSlideIdx].manualActivity
@@ -10353,13 +10439,13 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
 }
 
 // ── GALLERY UPLOAD MODAL ──
-function GalleryUpload({onClose,onDone}){
+function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}){
   const [queue,setQueue]=React.useState([]);
   const [saving,setSaving]=React.useState(false);
   // Global options — apply to all
-  const [globalType,setGlobalType]=React.useState('artwork'); // 'artwork' | 'documentation'
-  const [globalSectionId,setGlobalSectionId]=React.useState(G4_SECTIONS[0].id);
-  const [globalLessonKey,setGlobalLessonKey]=React.useState('');
+  const [globalType,setGlobalType]=React.useState(initialType||'artwork');
+  const [globalSectionId,setGlobalSectionId]=React.useState(initialSection||G4_SECTIONS[0].id);
+  const [globalLessonKey,setGlobalLessonKey]=React.useState(initialLesson||'');
   const [customLessons]=useCustomLessons();
   const allPhaseLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`})));
   const globalSection=G4_SECTIONS.find(s=>s.id===globalSectionId)||G4_SECTIONS[0];
@@ -10648,6 +10734,15 @@ function GalleryView({isVisitor}){
   const [filterType,setFilterType]=React.useState('all');
   // Visitors can only see artworks — force filter
   const effectiveFilterType=isVisitor?'artwork':filterType;
+
+  // ── Gallery edit mode ──
+  const [galleryEditMode,setGalleryEditMode]=React.useState(false);
+  const [editingPhoto,setEditingPhoto]=React.useState(null); // {photo, sectionIdx, studentIdx, photoIdx}
+  const [editPhotoType,setEditPhotoType]=React.useState('artwork');
+  const [editPhotoLesson,setEditPhotoLesson]=React.useState('');
+  const [editPhotoSection,setEditPhotoSection]=React.useState('');
+  const [editPhotoCaption,setEditPhotoCaption]=React.useState('');
+  const [editPhotoSaving,setEditPhotoSaving]=React.useState(false);
   const [filterSection,setFilterSection]=React.useState('all');
   const [filterLesson,setFilterLesson]=React.useState(null);
   const [filterTag,setFilterTag]=React.useState(null);
@@ -10690,7 +10785,7 @@ function GalleryView({isVisitor}){
       const data=allData[sid];
       if(!data||!data.students) return;
       data.students.forEach((st,idx)=>{
-        (st.portfolio||[]).forEach(p=>{
+        (st.portfolio||[]).forEach((p,pIdx)=>{
           // For documentation: resolve a display name from the lesson key
           let displayName=st.name;
           let resolvedLesson='';
@@ -10712,7 +10807,7 @@ function GalleryView({isVisitor}){
             }
             displayName=resolvedLesson||'Documentation';
           }
-          photos.push({...p,studentName:st.name,displayName,resolvedLesson,studentIdx:idx,sectionId:sid,sectionName:sec?sec.name:sid});
+          photos.push({...p,studentName:st.name,displayName,resolvedLesson,studentIdx:idx,photoIdx:pIdx,sectionId:sid,sectionName:sec?sec.name:sid});
         });
       });
     });
@@ -10731,6 +10826,53 @@ function GalleryView({isVisitor}){
 
   const activeFilterCount=[filterType!=='all',filterSection!=='all',filterLesson!==null,filterTag!==null].filter(Boolean).length;
   const clearFilters=()=>{setFilterType('all');setFilterSection('all');setFilterLesson(null);setFilterTag(null);};
+
+  // ── Gallery edit helpers ──
+  function openPhotoEdit(p){
+    setEditingPhoto(p);
+    setEditPhotoType(p.type||'artwork');
+    setEditPhotoLesson((p.lessons||[])[0]||'');
+    setEditPhotoSection(p.sectionId||'');
+    setEditPhotoCaption(p.caption||'');
+  }
+  async function savePhotoEdit(){
+    if(!editingPhoto||editPhotoSaving) return;
+    setEditPhotoSaving(true);
+    try{
+      const sid=editingPhoto.sectionId;
+      const snap=await window._db.collection('sections').doc('shared-'+sid).get();
+      if(snap.exists){
+        const d=snap.data();
+        const port=d.students[editingPhoto.studentIdx].portfolio||[];
+        if(port[editingPhoto.photoIdx]){
+          port[editingPhoto.photoIdx]={
+            ...port[editingPhoto.photoIdx],
+            type:editPhotoType,
+            lessons:editPhotoLesson?[editPhotoLesson]:[],
+            caption:editPhotoCaption,
+          };
+          d.students[editingPhoto.studentIdx].portfolio=port;
+          await window._db.collection('sections').doc('shared-'+sid).set(d);
+        }
+      }
+    }catch(e){alert('Save failed: '+e.message);}
+    setEditPhotoSaving(false);
+    setEditingPhoto(null);
+  }
+  async function deletePhoto(p){
+    if(!window.confirm('Delete this photo? This cannot be undone.')) return;
+    try{
+      const sid=p.sectionId;
+      const snap=await window._db.collection('sections').doc('shared-'+sid).get();
+      if(snap.exists){
+        const d=snap.data();
+        const port=d.students[p.studentIdx].portfolio||[];
+        port.splice(p.photoIdx,1);
+        d.students[p.studentIdx].portfolio=port;
+        await window._db.collection('sections').doc('shared-'+sid).set(d);
+      }
+    }catch(e){alert('Delete failed: '+e.message);}
+  }
 
   // Lightbox keyboard nav
   const filteredRef=React.useRef(filtered);
@@ -10792,6 +10934,17 @@ function GalleryView({isVisitor}){
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
               Upload
+            </button>
+          )}
+          {/* Edit mode toggle — teacher only */}
+          {teacherMode&&!isVisitor&&(
+            <button onClick={()=>setGalleryEditMode(v=>!v)}
+              style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,
+                padding:'7px 16px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                border:galleryEditMode?'1px solid var(--yellow)':'1px solid var(--glass-border)',
+                background:galleryEditMode?'rgba(251,191,36,0.15)':'var(--glass-bg)',
+                color:galleryEditMode?'var(--yellow)':'var(--tx2)'}}>
+              {galleryEditMode?'✓ Done':'✏ Edit'}
             </button>
           )}
           {/* ⚙ Filter button */}
@@ -10908,12 +11061,13 @@ function GalleryView({isVisitor}){
       ):(
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:12}}>
           {filtered.map((p,i)=>(
-            <div key={i} onClick={()=>setLightbox(p)}
+            <div key={i}
+              onClick={()=>{if(!galleryEditMode)setLightbox(p);}}
               style={{borderRadius:12,overflow:'hidden',cursor:'pointer',position:'relative',transition:'transform .15s,box-shadow .15s',aspectRatio:'1'}}
-              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.4)';}}
+              onMouseEnter={e=>{if(!galleryEditMode){e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.4)';}}}
               onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='';}}>
-              <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
-              {/* Gradient overlay — always visible */}
+              <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',filter:galleryEditMode?'brightness(0.7)':'none',transition:'filter .2s'}}/>
+              {/* Gradient overlay */}
               <div style={{position:'absolute',inset:0,background:'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 45%, transparent 70%)',pointerEvents:'none'}}/>
               {/* Name + Section on gradient */}
               <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none'}}>
@@ -10929,9 +11083,84 @@ function GalleryView({isVisitor}){
                   </>
                 )}
               </div>
+              {/* Edit mode overlays */}
+              {galleryEditMode&&(
+                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',gap:10}}>
+                  <button onClick={e=>{e.stopPropagation();openPhotoEdit(p);}}
+                    style={{width:38,height:38,borderRadius:10,border:'1px solid rgba(255,255,255,0.3)',
+                      background:'rgba(245,158,11,0.85)',color:'#000',fontSize:16,cursor:'pointer',
+                      display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>✏</button>
+                  <button onClick={e=>{e.stopPropagation();deletePhoto(p);}}
+                    style={{width:38,height:38,borderRadius:10,border:'1px solid rgba(255,255,255,0.3)',
+                      background:'rgba(232,112,90,0.85)',color:'#fff',fontSize:16,cursor:'pointer',
+                      display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>🗑</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
+      )}
+
+      {/* Photo edit panel */}
+      {editingPhoto&&ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:6500,background:'rgba(6,8,16,0.7)',backdropFilter:'blur(8px)',display:'flex',alignItems:'flex-end',justifyContent:'center'}}
+          onClick={()=>setEditingPhoto(null)}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{width:'min(540px,100vw)',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',
+              borderRadius:'20px 20px 0 0',boxShadow:'0 -12px 48px rgba(0,0,0,0.5)',
+              padding:'20px 24px 32px',display:'flex',flexDirection:'column',gap:14}}>
+            {/* Handle */}
+            <div style={{width:40,height:4,borderRadius:2,background:'var(--glass-border2)',margin:'0 auto 4px'}}/>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{fontSize:14,fontWeight:800,color:'var(--tx)',fontFamily:"'DM Sans',sans-serif"}}>Edit photo details</div>
+              <button onClick={()=>setEditingPhoto(null)} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:18,cursor:'pointer'}}>✕</button>
+            </div>
+            {/* Preview */}
+            <img src={editingPhoto.url} alt="" style={{width:'100%',maxHeight:180,objectFit:'cover',borderRadius:10}}/>
+            {/* Type */}
+            <div>
+              <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase',marginBottom:6}}>Type</div>
+              <div style={{display:'flex',gap:6}}>
+                {[['artwork','🎨 Artwork'],['documentation','📸 Documentation']].map(([v,l])=>(
+                  <button key={v} onClick={()=>setEditPhotoType(v)}
+                    style={{flex:1,fontSize:11,fontWeight:700,height:32,borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                      border:`1px solid ${editPhotoType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--glass-border)'}`,
+                      background:editPhotoType===v?v==='artwork'?'rgba(59,191,160,0.15)':'rgba(155,127,232,0.15)':'var(--glass-bg)',
+                      color:editPhotoType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--tx3)'}}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Lesson */}
+            <div>
+              <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
+              <select value={editPhotoLesson} onChange={e=>setEditPhotoLesson(e.target.value)}
+                style={{width:'100%',fontSize:12,height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',padding:'0 10px',cursor:'pointer'}}>
+                <option value="">— no lesson —</option>
+                {(()=>{const ll=[];PHASES.forEach(p=>p.sessions.forEach(s=>ll.push({key:p.id+':'+s.n,label:'S'+s.n+': '+s.title})));return ll.map((l,i)=><option key={i} value={l.key}>{l.label}</option>);})()}
+                {getCustomLessons().length>0&&<option disabled>── My lessons ──</option>}
+                {getCustomLessons().map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
+              </select>
+            </div>
+            {/* Caption */}
+            <div>
+              <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase',marginBottom:6}}>Caption</div>
+              <input value={editPhotoCaption} onChange={e=>setEditPhotoCaption(e.target.value)}
+                placeholder="Optional caption…"
+                style={{width:'100%',fontSize:12,height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',padding:'0 10px'}}/>
+            </div>
+            {/* Save */}
+            <button onClick={savePhotoEdit} disabled={editPhotoSaving}
+              style={{width:'100%',height:40,borderRadius:10,border:'none',
+                background:'var(--teal)',color:'#fff',fontSize:13,fontWeight:700,
+                cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                opacity:editPhotoSaving?0.6:1}}>
+              {editPhotoSaving?'Saving…':'Save changes'}
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Lightbox — popup box, meta overlaid on image */}
