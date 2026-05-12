@@ -4078,7 +4078,7 @@ async function uploadRefImage(file,sessionKey,name){
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 // ── Individual reference card ──
-function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,onSaveEdit,onCancelEdit}){
+function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,onSaveEdit,onCancelEdit}){
   const CARD=350;
   const dist=i-activeIdx; // signed distance from active card
   const absDist=Math.abs(dist);
@@ -4087,11 +4087,16 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,onRepla
   const xOffset=dist*Math.round(CARD*0.42); // 42% of card = ~147px spacing
   const zIdx=100-absDist*10;
   const isActive=i===activeIdx;
-  const isEditing=!card.isCurriculum&&editingCard===card.manualIdx;
+  const editKey=card.isCurriculum?('curriculum:'+card.curriculumIdx):card.manualIdx;
+  const isEditing=editingCard===editKey;
 
   return(
     <div
-      onClick={()=>{if(!isEditing){if(isActive&&card.src) onOpen(i); else onOpen(i);}}}
+      onClick={()=>{
+        if(isEditing) return;
+        if(!isActive){onSetActive(i);return;}
+        if(card.src) onOpen(i);
+      }}
       style={{
         position:'absolute',
         left:'50%',
@@ -4171,7 +4176,7 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,onRepla
               border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.08)',
               color:'rgba(255,255,255,0.8)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
           <div style={{display:'flex',gap:7,marginTop:2}}>
-            <button onClick={e=>{e.stopPropagation();onSaveEdit();}}
+            <button onClick={e=>{e.stopPropagation();onSaveEdit(card);}}
               style={{flex:1,fontSize:11,fontWeight:700,padding:'6px 0',borderRadius:7,
                 border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer'}}>Save</button>
             <button onClick={e=>{e.stopPropagation();onCancelEdit();}}
@@ -4182,12 +4187,12 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,onRepla
         </div>
       )}
 
-      {/* Curriculum: upload prompt if no image */}
+      {/* Curriculum: upload prompt if no image — centred */}
       {card.isCurriculum&&!card.src&&teacherMode&&(
-        <label style={{position:'absolute',bottom:14,left:'50%',transform:'translateX(-50%)',
-          background:'rgba(0,0,0,0.65)',borderRadius:8,padding:'5px 14px',
-          fontSize:10,color:'rgba(255,255,255,0.8)',fontWeight:700,cursor:'pointer',
-          whiteSpace:'nowrap',zIndex:2}}
+        <label style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
+          background:'rgba(0,0,0,0.65)',borderRadius:8,padding:'8px 18px',
+          fontSize:10,color:'rgba(255,255,255,0.85)',fontWeight:700,cursor:'pointer',
+          whiteSpace:'nowrap',zIndex:2,textAlign:'center'}}
           onClick={e=>e.stopPropagation()}>
           + Add image
           <input type="file" accept="image/*"
@@ -4218,23 +4223,24 @@ function RefCard_({card,i,activeIdx,n,onOpen,onEdit,onDelete,onArtUpload,onRepla
       {teacherMode&&isActive&&!isEditing&&(
         <div style={{position:'absolute',top:8,right:8,display:'flex',gap:5,zIndex:10}}
           onClick={e=>e.stopPropagation()}>
-          {!card.isCurriculum&&(
-            <button onClick={e=>{e.stopPropagation();onEdit(card.manualIdx);}}
-              style={{width:28,height:28,borderRadius:7,border:'none',
-                background:'rgba(245,158,11,0.9)',cursor:'pointer',
-                display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                stroke="#060606" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-            </button>
-          )}
-          <button onClick={e=>{e.stopPropagation();onDelete(card);}}
+          {/* Edit button — both manual and curriculum cards */}
+          <button onClick={e=>{e.stopPropagation();onEdit(card.isCurriculum?('curriculum:'+card.curriculumIdx):card.manualIdx,card);}}
             style={{width:28,height:28,borderRadius:7,border:'none',
-              background:'rgba(232,112,90,0.9)',color:'#fff',cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center',
-              fontSize:14,fontWeight:800}}>✕</button>
+              background:'rgba(245,158,11,0.9)',cursor:'pointer',
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="#060606" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          {!card.isCurriculum&&(
+            <button onClick={e=>{e.stopPropagation();onDelete(card);}}
+              style={{width:28,height:28,borderRadius:7,border:'none',
+                background:'rgba(232,112,90,0.9)',color:'#fff',cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:14,fontWeight:800}}>✕</button>
+          )}
         </div>
       )}
 
@@ -4271,6 +4277,7 @@ function RefsPanel({refs,sessionKey}){
   const [refsData,setRefsData]=useRefsFirestore(sessionKey);
   const artistUploads=refsData.artistUploads||{};
   const manualCards=refsData.manualCards||[];
+  const curriculumOverrides=refsData.curriculumOverrides||{};
   const setArtistUploads=React.useCallback(updater=>{
     setRefsData(prev=>{
       const next=typeof updater==='function'?updater(prev.artistUploads||{}):updater;
@@ -4308,9 +4315,12 @@ function RefsPanel({refs,sessionKey}){
       const artImg=artistUploads[i]||null;
       const vid=r.videoUrl?ytId(r.videoUrl):null;
       const thumb=vid?`https://img.youtube.com/vi/${vid}/mqdefault.jpg`:null;
+      const ov=curriculumOverrides[i]||{};
       cards.push({
         src:artImg?artImg.src:(thumb||null),
-        title:r.name,subtitle:r.work||'',why:r.why||'',
+        title:ov.title!==undefined?ov.title:r.name,
+        subtitle:ov.subtitle!==undefined?ov.subtitle:(r.work||''),
+        why:r.why||'',
         badge:r.videoUrl?'video':r.type,
         isVideo:!!r.videoUrl&&!artImg,
         isCurriculum:true,curriculumIdx:i,manualIdx:null,
@@ -4324,7 +4334,7 @@ function RefsPanel({refs,sessionKey}){
       });
     });
     return cards;
-  },[nonSlideRefs,artistUploads,manualCards]);
+  },[nonSlideRefs,artistUploads,manualCards,curriculumOverrides]);
 
   const n=fanCards.length;
 
@@ -4361,7 +4371,7 @@ function RefsPanel({refs,sessionKey}){
   function handleCarouselWheel(e){
     e.preventDefault();
     scrollAccum.current+=(e.deltaX||e.deltaY);
-    const threshold=60;
+    const threshold=35;
     if(scrollAccum.current>threshold){
       if(!rafRef.current)rafRef.current=requestAnimationFrame(()=>{
         setActiveIdx(i=>Math.min(n-1,i+1));
@@ -4456,14 +4466,28 @@ function RefsPanel({refs,sessionKey}){
     else removeManualCard(card.manualIdx);
   }
 
-  // Fix: use manualIdx directly
-  function startEdit(manualIdx){
-    setEditingCard(manualIdx);
-    setEditTitle(manualCards[manualIdx]?.title||'');
-    setEditSubtitle(manualCards[manualIdx]?.subtitle||'');
+  // Fix: use manualIdx directly; also supports curriculum cards via 'curriculum:N' key
+  function startEdit(key,card){
+    setEditingCard(key);
+    if(card.isCurriculum){
+      setEditTitle(nonSlideRefs[card.curriculumIdx]?.name||card.title||'');
+      setEditSubtitle(nonSlideRefs[card.curriculumIdx]?.work||card.subtitle||'');
+    } else {
+      setEditTitle(manualCards[card.manualIdx]?.title||'');
+      setEditSubtitle(manualCards[card.manualIdx]?.subtitle||'');
+    }
   }
-  function saveEdit(){
-    setManualCards(prev=>prev.map((c,i)=>i===editingCard?{...c,title:editTitle,subtitle:editSubtitle}:c));
+  function saveEdit(card){
+    if(card&&card.isCurriculum){
+      // Curriculum card edit: stored in a separate override map in Firestore
+      setRefsData(prev=>{
+        const overrides={...(prev.curriculumOverrides||{})};
+        overrides[card.curriculumIdx]={title:editTitle,subtitle:editSubtitle};
+        return{...prev,curriculumOverrides:overrides};
+      });
+    } else {
+      setManualCards(prev=>prev.map((c,i)=>i===editingCard?{...c,title:editTitle,subtitle:editSubtitle}:c));
+    }
     setEditingCard(null);
   }
 
@@ -4487,6 +4511,7 @@ function RefsPanel({refs,sessionKey}){
               <RefCard_
                 key={i} card={card} i={i} activeIdx={activeIdx} n={n}
                 onOpen={openLb}
+                onSetActive={setActiveIdx}
                 onEdit={startEdit}
                 onDelete={handleDelete}
                 onArtUpload={handleArtUpload}
@@ -5070,7 +5095,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
           {[{id:'annual',icon:IC.home,name:'Unit Overview'},
             {id:'months',icon:IC.calendar,name:'Monthly Summaries'},
             ...(!isVisitor?[{id:'notes',icon:IC.notes,name:'Unit Notes'}]:[]),
-            ...(!isVisitor?[{id:'gallery',icon:'🎨',name:'Gallery'}]:[])].map(item=>(
+            {id:'gallery',icon:'🎨',name:'Gallery'}].map(item=>(
             <button key={item.id} className={`nb ${view===item.id?'active':''}`}
               title={collapsed?item.name:''}
               onClick={()=>onNav(item.id)}>
@@ -9330,6 +9355,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const [logPhotos,setLogPhotos]=React.useState([]); // [{file,localUrl,remember,uploading}]
   const [logLessonKey,setLogLessonKey]=React.useState('');
   const [logUploading,setLogUploading]=React.useState(false);
+  const [logLightbox,setLogLightbox]=React.useState(null); // {url} for class log photo lightbox
   const [customLessonsLog]=useCustomLessons();
   const allPhaseLessonsLog=PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`})));
 
@@ -9346,13 +9372,11 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
       try{
         const url=await uploadPortfolioPhoto(p.file,section.id,0);
         uploadedPhotos.push({url,remember:p.remember});
-        // If "remember" is checked, also save to portfolio of student 0 as documentation
-        if(p.remember){
-          updateData(d=>{
-            if(!d.students[0].portfolio) d.students[0].portfolio=[];
-            d.students[0].portfolio.push({url,date:today,caption:logNote.trim()||'',type:'documentation',lessons:logLessonKey?[logLessonKey]:[],artTags:[],review:''});
-          });
-        }
+        // All photos save to gallery as documentation
+        updateData(d=>{
+          if(!d.students[0].portfolio) d.students[0].portfolio=[];
+          d.students[0].portfolio.push({url,date:today,caption:logNote.trim()||'',type:'documentation',lessons:logLessonKey?[logLessonKey]:[],artTags:[],review:''});
+        });
       }catch(e){/* skip failed photos */}
     }
     updateData(d=>{
@@ -9378,6 +9402,9 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const [slideExpanded,setSlideExpanded]=React.useState(false);
   const [slideSession,setSlideSession]=React.useState(null);
   const [manualSlideOpen,setManualSlideOpen]=React.useState(false);
+  const [manualEditMode,setManualEditMode]=React.useState(false);
+  const [manualDraftTitle,setManualDraftTitle]=React.useState('');
+  const [manualDraftActivity,setManualDraftActivity]=React.useState('');
   const [manualSlideIdx,setManualSlideIdx]=React.useState(null);
   const [sortBy,setSortBy]=React.useState('alpha-asc');
   const [editMode,setEditMode]=React.useState(false);
@@ -9709,6 +9736,15 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                             {sess.sessType!=='manual'&&sess.linkedSession&&sess.linkedSession.isCustom&&<sup title={'Custom lesson: '+sess.linkedSession.label} style={{fontSize:7,color:'var(--teal)',fontWeight:700,verticalAlign:'super',lineHeight:0,marginLeft:1,cursor:'pointer'}}>●</sup>}
                           </span>
                         )}
+                        {/* Linked session name shown below date */}
+                        {!editingDateIdx===si&&sess.linkedSession&&(
+                          <div style={{fontSize:8,fontWeight:700,color:sess.linkedSession.isCustom?'var(--teal)':'var(--yellow)',
+                            marginTop:2,textAlign:'center',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',
+                            maxWidth:72,lineHeight:1.2}}>
+                            {sess.linkedSession.isCustom?'★ '+sess.linkedSession.label.slice(0,9):('S'+sess.linkedSession.sessionN)}
+                          </div>
+                        )}
+                        )}
                         {teacherMode&&editMode&&(
                           <>
                             <span title="Delete column" style={{fontSize:9,color:'var(--coral)',cursor:'pointer',opacity:0.7,display:'block',textAlign:'center',marginTop:2}}
@@ -9721,12 +9757,12 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                             {sess.sessType!=='cancelled'&&(
                               linkPickerFor===si?(
                                 <div onClick={e=>e.stopPropagation()}>
-                                  <select autoFocus
+                                  <select
                                     style={{fontSize:10,width:'100%',marginTop:2,borderRadius:4,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",cursor:'pointer'}}
                                     defaultValue={sess.linkedSession?sess.linkedSession.isCustom?('custom:'+sess.linkedSession.customId):(sess.linkedSession.phaseId+':'+sess.linkedSession.sessionN):''}
                                     onChange={e=>{
                                       const val=e.target.value;
-                                      if(val==='__add_custom__') return; // handled separately
+                                      if(val==='__add_custom__') return;
                                       const allLessons=[];
                                       PHASES.forEach(p=>p.sessions.forEach(s=>allLessons.push({label:'S'+s.n+': '+s.title,key:p.id+':'+s.n,phaseId:p.id,sessionN:s.n})));
                                       let picked=null;
@@ -9739,10 +9775,6 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                                       }
                                       updateData(d=>{d.sessions[si].linkedSession=picked||null;});
                                       setLinkPickerFor(null);
-                                    }}
-                                    onBlur={e=>{
-                                      // Don't close if the custom input is focused
-                                      setTimeout(()=>setLinkPickerFor(null),200);
                                     }}
                                     onClick={e=>e.stopPropagation()}>
                                     <option value="">— No link —</option>
@@ -9973,16 +10005,27 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                     <input type="file" accept="image/*" multiple style={{display:'none'}}
                       onChange={e=>{
                         const files=Array.from(e.target.files||[]);
-                        setLogPhotos(prev=>[...prev,...files.map(f=>({file:f,localUrl:URL.createObjectURL(f),remember:false}))]);
+                        setLogPhotos(prev=>[...prev,...files.map(f=>({file:f,localUrl:URL.createObjectURL(f),remember:true}))]);
                         e.target.value='';
                       }}/>
                   </label>
+                  <span style={{fontSize:9,color:'var(--tx3)'}}>or drag & drop below</span>
                 </div>
+                <div
+                  onDragOver={e=>e.preventDefault()}
+                  onDrop={e=>{
+                    e.preventDefault();
+                    const files=Array.from(e.dataTransfer.files||[]).filter(f=>f.type.startsWith('image/'));
+                    if(files.length) setLogPhotos(prev=>[...prev,...files.map(f=>({file:f,localUrl:URL.createObjectURL(f),remember:true}))]);
+                  }}
+                  style={{minHeight:logPhotos.length>0?0:42,borderRadius:8,border:'1px dashed var(--glass-border)',background:'var(--glass-bg)',padding:logPhotos.length>0?0:8,
+                    display:'flex',alignItems:'center',justifyContent:logPhotos.length>0?'flex-start':'center',flexWrap:'wrap',gap:8}}>
+                {logPhotos.length===0&&<span style={{fontSize:9,color:'var(--tx3)'}}>Drop images here</span>}
                 {logPhotos.length>0&&(
-                  <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  <div style={{display:'flex',gap:8,flexWrap:'wrap',padding:6}}>
                     {logPhotos.map((p,i)=>(
                       <div key={i} style={{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-                        <div style={{width:64,height:64,borderRadius:8,overflow:'hidden',position:'relative'}}>
+                        <div style={{width:80,height:80,borderRadius:8,overflow:'hidden',position:'relative'}}>
                           <img src={p.localUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                           <button onClick={()=>setLogPhotos(prev=>prev.filter((_,idx)=>idx!==i))}
                             style={{position:'absolute',top:2,right:2,background:'rgba(0,0,0,0.6)',border:'none',color:'#fff',fontSize:9,cursor:'pointer',padding:'1px 4px',borderRadius:3}}>✕</button>
@@ -9990,12 +10033,14 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                         <label style={{display:'flex',alignItems:'center',gap:3,cursor:'pointer',fontSize:9,color:'var(--tx3)',fontFamily:"'DM Sans',sans-serif"}}>
                           <input type="checkbox" checked={p.remember} onChange={e=>setLogPhotos(prev=>prev.map((ph,idx)=>idx===i?{...ph,remember:e.target.checked}:ph))}
                             style={{width:10,height:10,accentColor:'var(--teal)',cursor:'pointer'}}/>
-                          Remember
+                          Pin to log
                         </label>
                       </div>
                     ))}
                   </div>
                 )}
+                </div>
+                {logPhotos.length>0&&<div style={{fontSize:9,color:'var(--tx3)',marginTop:4}}>All photos save to Gallery. ✓ "Pin to log" keeps them visible here.</div>}
               </div>
               <button className="obs-save-btn" onClick={saveClassLog} disabled={logUploading} style={{width:'100%',justifyContent:'center',opacity:logUploading?0.6:1}}>
                 {logUploading?'Saving…':'Post'}
@@ -10034,10 +10079,10 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                     {l.note&&<div style={{fontSize:12,color:'var(--tx2)',lineHeight:1.5,marginBottom:(l.photos&&l.photos.length>0)?6:0}}>{l.note}</div>}
                     {(l.photos||[]).length>0&&(
                       <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:4}}>
-                        {l.photos.map((ph,pi)=>(
-                          <div key={pi} style={{position:'relative'}}>
-                            <img src={ph.url} alt="" style={{width:52,height:52,borderRadius:6,objectFit:'cover',display:'block'}}/>
-                            {ph.remember&&<span style={{position:'absolute',bottom:2,right:2,fontSize:7,background:'rgba(59,191,160,0.8)',color:'#fff',padding:'1px 3px',borderRadius:3,fontWeight:700}}>✓</span>}
+                        {(l.photos||[]).filter(ph=>ph.remember).map((ph,pi)=>(
+                          <div key={pi} style={{position:'relative',cursor:'pointer'}} onClick={()=>setLogLightbox(ph.url)}>
+                            <img src={ph.url} alt="" style={{width:72,height:72,borderRadius:7,objectFit:'cover',display:'block'}}/>
+                            <span style={{position:'absolute',bottom:2,right:2,fontSize:7,background:'rgba(59,191,160,0.8)',color:'#fff',padding:'1px 3px',borderRadius:3,fontWeight:700}}>📌</span>
                           </div>
                         ))}
                       </div>
@@ -10050,6 +10095,16 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
           </div>
         )}
       </div>
+
+      {/* Class Log Photo Lightbox */}
+      {logLightbox&&ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:9000,background:'rgba(6,6,6,0.95)',backdropFilter:'blur(16px)',display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={()=>setLogLightbox(null)}>
+          <img src={logLightbox} alt="" style={{maxWidth:'90vw',maxHeight:'90vh',objectFit:'contain',borderRadius:10,boxShadow:'0 24px 64px rgba(0,0,0,0.7)'}} onClick={e=>e.stopPropagation()}/>
+          <button onClick={()=>setLogLightbox(null)} style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',fontSize:18,padding:'4px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
+        </div>,
+        document.body
+      )}
 
       {/* Session slide panel */}
       {slideOpen&&slideSession&&(
@@ -10075,33 +10130,122 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
 
       {/* Manual (extra) session slide panel */}
       {manualSlideOpen&&manualSlideIdx!=null&&data.sessions[manualSlideIdx]&&(
-        <div className="session-slide-overlay" style={{zIndex:350}} onClick={()=>setManualSlideOpen(false)}>
-          <div className="session-slide-panel" style={{width:'min(480px,90vw)'}} onClick={e=>e.stopPropagation()}>
+        <div className="session-slide-overlay" style={{zIndex:350}} onClick={()=>{setManualSlideOpen(false);setManualEditMode(false);}}>
+          <div className="session-slide-panel" style={{width:'min(520px,92vw)'}} onClick={e=>e.stopPropagation()}>
             <div className="slide-panel-header">
-              <div className="slide-panel-title">
+              <div className="slide-panel-title" style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                 {data.sessions[manualSlideIdx].linkedSession&&data.sessions[manualSlideIdx].linkedSession.isCustom
                   ?'★ '+data.sessions[manualSlideIdx].linkedSession.label+' · '+data.sessions[manualSlideIdx].date
                   :'● My Session · '+data.sessions[manualSlideIdx].date}
               </div>
-              <button className="slide-panel-close" onClick={()=>setManualSlideOpen(false)}>✕</button>
+              {!manualEditMode&&(
+                <button className="slide-panel-close"
+                  title="Edit this session"
+                  onClick={()=>{
+                    setManualDraftTitle(data.sessions[manualSlideIdx].manualTitle||'');
+                    setManualDraftActivity(data.sessions[manualSlideIdx].manualActivityHtml||data.sessions[manualSlideIdx].manualActivity||'');
+                    setManualEditMode(true);
+                  }}
+                  style={{fontSize:11,fontWeight:700,padding:'3px 11px',borderRadius:7,
+                    border:'1px solid var(--teal)',background:'rgba(59,191,160,0.12)',color:'var(--teal)'}}>
+                  Edit
+                </button>
+              )}
+              {manualEditMode&&(
+                <button className="slide-panel-close"
+                  onClick={()=>{
+                    updateData(d=>{
+                      d.sessions[manualSlideIdx].manualTitle=manualDraftTitle;
+                      d.sessions[manualSlideIdx].manualActivityHtml=manualDraftActivity;
+                      d.sessions[manualSlideIdx].manualActivity=manualDraftActivity.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+                    });
+                    setManualEditMode(false);
+                  }}
+                  style={{fontSize:11,fontWeight:700,padding:'3px 11px',borderRadius:7,
+                    border:'none',background:'var(--teal)',color:'#fff'}}>
+                  Save
+                </button>
+              )}
+              <button className="slide-panel-close" onClick={()=>{setManualSlideOpen(false);setManualEditMode(false);}}>✕</button>
             </div>
             <div className="slide-panel-body" style={{overflowY:'auto'}}>
               <div style={{padding:'16px 20px'}}>
-                <div style={{fontSize:9,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--teal)',marginBottom:5}}>Your session</div>
-                <input
-                  style={{width:'100%',fontSize:17,fontWeight:800,color:'var(--tx)',background:'transparent',border:'none',borderBottom:'1px solid var(--glass-border)',outline:'none',fontFamily:"'DM Sans',sans-serif",paddingBottom:6,marginBottom:12}}
-                  placeholder="Session title, e.g. Field trip, Art show prep…"
-                  defaultValue={data.sessions[manualSlideIdx].manualTitle||''}
-                  onBlur={e=>updateData(d=>{d.sessions[manualSlideIdx].manualTitle=e.target.value;})}/>
+                <div style={{fontSize:9,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--teal)',marginBottom:8}}>Your session</div>
+
+                {/* Title — read or edit */}
+                {manualEditMode?(
+                  <input value={manualDraftTitle}
+                    onChange={e=>setManualDraftTitle(e.target.value)}
+                    placeholder="Session title, e.g. Field trip, Art show prep…"
+                    style={{width:'100%',fontSize:17,fontWeight:800,color:'var(--tx)',
+                      background:'var(--glass-bg)',border:'1px solid var(--glass-border2)',
+                      borderRadius:7,outline:'none',fontFamily:"'DM Sans',sans-serif",
+                      padding:'7px 10px',marginBottom:14,boxSizing:'border-box'}}/>
+                ):(
+                  <div style={{fontSize:17,fontWeight:800,color:'var(--tx)',marginBottom:14,lineHeight:1.3,
+                    minHeight:28,borderBottom:'1px solid var(--glass-border)',paddingBottom:8}}>
+                    {data.sessions[manualSlideIdx].manualTitle||
+                      <span style={{color:'var(--tx3)',fontStyle:'italic',fontWeight:400,fontSize:14}}>No title yet — click Edit to add one</span>}
+                  </div>
+                )}
+
                 <div style={{fontSize:9,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--tx3)',marginBottom:8}}>Activity / Notes</div>
-                <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:9,padding:'9px 13px',marginBottom:12}}>
-                  <textarea
-                    style={{width:'100%',fontSize:12,color:'var(--tx2)',lineHeight:1.55,background:'transparent',border:'none',outline:'none',resize:'vertical',minHeight:100,fontFamily:"'DM Sans',sans-serif"}}
-                    placeholder="What did / will students do? Notes for yourself…"
-                    defaultValue={data.sessions[manualSlideIdx].manualActivity||''}
-                    onBlur={e=>updateData(d=>{d.sessions[manualSlideIdx].manualActivity=e.target.value;})}/>
-                </div>
-                <div style={{fontSize:10,color:'var(--tx3)',fontStyle:'italic'}}>Edits save automatically when you click outside a field.</div>
+
+                {/* Rich text edit mode */}
+                {manualEditMode?(
+                  <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border2)',borderRadius:9,overflow:'hidden',marginBottom:14}}>
+                    {/* Toolbar */}
+                    <div style={{display:'flex',gap:2,padding:'6px 8px',borderBottom:'1px solid var(--glass-border)',flexWrap:'wrap'}}>
+                      {[
+                        {cmd:'bold',label:'B',style:{fontWeight:900}},
+                        {cmd:'italic',label:'I',style:{fontStyle:'italic'}},
+                        {cmd:'underline',label:'U',style:{textDecoration:'underline'}},
+                        {cmd:'strikethrough',label:'S',style:{textDecoration:'line-through'}},
+                        {cmd:'insertUnorderedList',label:'• List',style:{}},
+                        {cmd:'insertOrderedList',label:'1. List',style:{}},
+                      ].map(({cmd,label,style})=>(
+                        <button key={cmd}
+                          onMouseDown={e=>{e.preventDefault();document.execCommand(cmd,false,null);}}
+                          style={{fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:5,
+                            border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',
+                            color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",...style}}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Editable div */}
+                    <div
+                      contentEditable
+                      suppressContentEditableWarning
+                      id={'manual-activity-editor-'+manualSlideIdx}
+                      dangerouslySetInnerHTML={{__html:manualDraftActivity||''}}
+                      onInput={e=>setManualDraftActivity(e.currentTarget.innerHTML)}
+                      style={{minHeight:120,padding:'10px 13px',fontSize:12,color:'var(--tx2)',
+                        lineHeight:1.6,outline:'none',fontFamily:"'DM Sans',sans-serif",
+                        overflowY:'auto',maxHeight:320}}
+                      data-placeholder="What did / will students do? Notes for yourself…"
+                    />
+                    <style>{`
+                      [id^="manual-activity-editor-"]:empty:before{content:attr(data-placeholder);color:var(--tx3);pointer-events:none;}
+                      [id^="manual-activity-editor-"] ul{margin:4px 0 4px 18px;padding:0;}
+                      [id^="manual-activity-editor-"] ol{margin:4px 0 4px 18px;padding:0;}
+                      [id^="manual-activity-editor-"] li{margin-bottom:2px;}
+                    `}</style>
+                  </div>
+                ):(
+                  /* Read-only view — renders saved HTML */
+                  <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',
+                    borderRadius:9,padding:'10px 13px',marginBottom:14,
+                    fontSize:12,color:'var(--tx2)',lineHeight:1.65,minHeight:60,overflowY:'auto',maxHeight:400}}
+                    dangerouslySetInnerHTML={{__html:
+                      data.sessions[manualSlideIdx].manualActivityHtml||
+                      (data.sessions[manualSlideIdx].manualActivity
+                        ?data.sessions[manualSlideIdx].manualActivity.replace(/\n/g,'<br/>')
+                        :'<span style="color:var(--tx3);font-style:italic">No notes yet — click Edit to add</span>')
+                    }}/>
+                )}
+
+                {manualEditMode&&<div style={{fontSize:10,color:'var(--tx3)',fontStyle:'italic'}}>Click Save when done.</div>}
               </div>
             </div>
           </div>
@@ -10254,7 +10398,7 @@ function GalleryUpload({onClose,onDone}){
           const data=snap.data();
           if(!data.students[stuIdx].portfolio) data.students[stuIdx].portfolio=[];
           const entry={url,date,caption:'',type:globalType,lessons:[],artTags:[],review:''};
-          if(globalType==='documentation'&&globalLessonKey) entry.lessons=[globalLessonKey];
+          if(globalLessonKey) entry.lessons=[globalLessonKey];
           data.students[stuIdx].portfolio.push(entry);
           await db.collection('sections').doc('shared-'+globalSectionId).set(data);
         }
@@ -10295,7 +10439,7 @@ function GalleryUpload({onClose,onDone}){
             <div style={{display:'flex',gap:5}}>
               {[['artwork','🎨 Artwork'],['documentation','📸 Documentation']].map(([v,l])=>(
                 <button key={v} onClick={()=>setGlobalType(v)}
-                  style={{fontSize:11,fontWeight:700,padding:'6px 14px',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                  style={{fontSize:11,fontWeight:700,padding:'0 14px',height:34,borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
                     border:`1px solid ${globalType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--glass-border)'}`,
                     background:globalType===v?v==='artwork'?'rgba(59,191,160,0.15)':'rgba(155,127,232,0.15)':'var(--glass-bg2)',
                     color:globalType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--tx3)'}}>
@@ -10308,23 +10452,21 @@ function GalleryUpload({onClose,onDone}){
           <div style={{display:'flex',flexDirection:'column',gap:5}}>
             <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase'}}>Grade / Section</div>
             <select value={globalSectionId} onChange={e=>setGlobalSectionId(e.target.value)}
-              style={{fontSize:12,fontWeight:700,padding:'6px 10px',borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer'}}>
+              style={{fontSize:12,fontWeight:700,padding:'0 10px',height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer'}}>
               {G4_SECTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
-          {/* Lesson — for documentation */}
-          {globalType==='documentation'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:180}}>
-              <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase'}}>Lesson (optional)</div>
-              <select value={globalLessonKey} onChange={e=>setGlobalLessonKey(e.target.value)}
-                style={{fontSize:11,padding:'6px 10px',borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',width:'100%'}}>
-                <option value="">— no lesson link —</option>
-                {allPhaseLessons.map(l=><option key={l.key} value={l.key}>{l.label}</option>)}
-                {customLessons.length>0&&<option disabled>── My lessons ──</option>}
-                {customLessons.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
-              </select>
-            </div>
-          )}
+          {/* Lesson — for both artwork and documentation */}
+          <div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:180}}>
+            <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase'}}>Lesson (optional)</div>
+            <select value={globalLessonKey} onChange={e=>setGlobalLessonKey(e.target.value)}
+              style={{fontSize:11,padding:'0 10px',height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',width:'100%'}}>
+              <option value="">— no lesson link —</option>
+              {allPhaseLessons.map(l=><option key={l.key} value={l.key}>{l.label}</option>)}
+              {customLessons.length>0&&<option disabled>── My lessons ──</option>}
+              {customLessons.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
+            </select>
+          </div>
         </div>
 
         {queue.length===0?(
@@ -10439,11 +10581,13 @@ function GalleryUpload({onClose,onDone}){
 }
 
 // ── GALLERY VIEW — all sections portfolio feed ──
-function GalleryView(){
+function GalleryView({isVisitor}){
   const SECTION_IDS=G4_SECTIONS.map(s=>s.id);
   const [allData,setAllData]=React.useState({});
   const [loading,setLoading]=React.useState(true);
   const [filterType,setFilterType]=React.useState('all');
+  // Visitors can only see artworks — force filter
+  const effectiveFilterType=isVisitor?'artwork':filterType;
   const [filterSection,setFilterSection]=React.useState('all');
   const [filterLesson,setFilterLesson]=React.useState(null);
   const [filterTag,setFilterTag]=React.useState(null);
@@ -10491,7 +10635,9 @@ function GalleryView(){
           let displayName=st.name;
           let resolvedLesson='';
           if(p.type==='documentation'&&(p.lessons||[]).length>0){
-            const lk=p.lessons[0];
+            // Strip accidental leading 'L' prefix that can appear on some saved keys
+            const rawLk=p.lessons[0];
+            const lk=rawLk&&rawLk.startsWith('L')?rawLk.slice(1):rawLk;
             if(lk.startsWith('custom:')){
               const cl=customLessons.find(l=>l.id===lk.replace('custom:',''));
               resolvedLesson=cl?cl.label:lk;
@@ -10515,13 +10661,13 @@ function GalleryView(){
 
   const filtered=React.useMemo(()=>{
     return allPhotos.filter(p=>{
-      if(filterType!=='all'&&(p.type||'artwork')!==filterType) return false;
+      if(effectiveFilterType!=='all'&&(p.type||'artwork')!==effectiveFilterType) return false;
       if(filterSection!=='all'&&p.sectionId!==filterSection) return false;
       if(filterLesson!==null&&!(p.lessons||[]).includes(filterLesson)) return false;
       if(filterTag!==null&&!(p.artTags||[]).includes(filterTag)) return false;
       return true;
     });
-  },[allPhotos,filterType,filterSection,filterLesson,filterTag]);
+  },[allPhotos,effectiveFilterType,filterSection,filterLesson,filterTag]);
 
   const activeFilterCount=[filterType!=='all',filterSection!=='all',filterLesson!==null,filterTag!==null].filter(Boolean).length;
   const clearFilters=()=>{setFilterType('all');setFilterSection('all');setFilterLesson(null);setFilterTag(null);};
@@ -10575,7 +10721,7 @@ function GalleryView(){
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           {/* Upload button — teacher only */}
-          {teacherMode&&(
+          {teacherMode&&!isVisitor&&(
             <button onClick={()=>setShowUpload(true)}
               style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,
                 padding:'7px 16px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
@@ -10615,7 +10761,7 @@ function GalleryView(){
               <div>
                 <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Type</div>
                 <div style={{display:'flex',gap:5}}>
-                  {[['all','All'],['artwork','Artwork'],['documentation','Docs']].map(([v,l])=>(
+                  {[['all','All'],['artwork','Artwork'],...(isVisitor?[]:[['documentation','Docs']])].map(([v,l])=>(
                     <button key={v} onClick={()=>setFilterType(v)}
                       style={{flex:1,fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
                         border:filterType===v?'1px solid var(--teal)':'1px solid var(--glass-border)',
@@ -10711,8 +10857,18 @@ function GalleryView(){
               <div style={{position:'absolute',inset:0,background:'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 45%, transparent 70%)',pointerEvents:'none'}}/>
               {/* Name + Section on gradient */}
               <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none'}}>
-                <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.displayName||p.studentName}</div>
-                <div style={{fontSize:9,color:'rgba(255,255,255,0.7)',marginTop:1}}>{p.sectionName}{p.type==='documentation'?' · 📸':''}</div>
+                {p.type==='documentation'?(
+                  <>
+                    <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.docTitle||p.resolvedLesson||'Documentation'}</div>
+                    <div style={{fontSize:9,color:'rgba(255,255,255,0.65)',marginTop:1}}>{p.sectionName} · 📸</div>
+                    {p.resolvedLesson&&p.resolvedLesson!==(p.docTitle||'')&&<div style={{fontSize:9,color:'rgba(255,255,255,0.5)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.resolvedLesson}</div>}
+                  </>
+                ):(
+                  <>
+                    <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.displayName||p.studentName}</div>
+                    <div style={{fontSize:9,color:'rgba(255,255,255,0.7)',marginTop:1}}>{p.sectionName}</div>
+                  </>
+                )}
               </div>
             </div>
           ))}
@@ -10763,13 +10919,17 @@ function GalleryView(){
                   <div style={{display:'flex',flexDirection:'column',gap:6}}>
                     <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
                       <span style={{fontSize:14,fontWeight:700,fontFamily:"'DM Sans',sans-serif",color:'#fff'}}>
-                        {lightbox.type==='documentation'?(lightbox.resolvedLesson||lightbox.displayName||lightbox.studentName):lightbox.studentName}
+                        {lightbox.type==='documentation'
+                          ?(lightbox.docTitle||lightbox.resolvedLesson||'Documentation')
+                          :lightbox.studentName}
                       </span>
-                      <span style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>{lightbox.sectionName} · {lightbox.date}</span>
                       <span style={{fontSize:8,fontWeight:700,padding:'2px 7px',borderRadius:7,background:(lightbox.type||'artwork')==='documentation'?'rgba(155,127,232,0.35)':'rgba(59,191,160,0.35)',color:(lightbox.type||'artwork')==='documentation'?'#c4a8f8':'#7ee8cb'}}>{(lightbox.type||'artwork')==='documentation'?'DOCS':'ARTWORK'}</span>
                     </div>
-                    {lightbox.type==='documentation'&&lightbox.studentName&&(
-                      <div style={{fontSize:10,color:'rgba(255,255,255,0.45)'}}>📸 {lightbox.sectionName}</div>
+                    <div style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>
+                      {lightbox.sectionName} · {lightbox.date}
+                    </div>
+                    {lightbox.type==='documentation'&&lightbox.resolvedLesson&&lightbox.resolvedLesson!==(lightbox.docTitle||'')&&(
+                      <div style={{fontSize:10,color:'rgba(255,255,255,0.45)'}}>📸 {lightbox.resolvedLesson}</div>
                     )}
                     {(lightbox.lessons||[]).length>0&&(
                       <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
@@ -11078,7 +11238,7 @@ function App(){
         <div className="main">
           {view==='annual'&&<AnnualPlan onPhase={handlePhase} getPhaseProgress={getPhaseProgress} totalDone={totalDone} totalSessions={totalSessions} isVisitor={isVisitor} onExportData={handleExportData} onImportData={handleImportData}/>}
           {view==='months'&&<MonthsView/>}
-          {view==='gallery'&&<GalleryView/>}
+          {view==='gallery'&&<GalleryView isVisitor={isVisitor}/>}
           {view==='phase'&&phase&&<PhaseDetail phase={phase} onBack={handleBack} progress={progress} toggle={toggle} classView={classView} isVisitor={isVisitor}/>}
           {view==='notes'&&(isVisitor?<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--tx3)',fontSize:13}}>Sign in to access Unit Notes.</div>:<GlobalNotes/>)}
           {view==='section'&&section&&<SectionView section={section} phases={PHASES} onOpenLinkedSession={handleOpenLinkedSession} teacherMode={teacherMode} subSectionId={subSectionId} setSubSectionId={setSubSectionId} userId={userId} onSignIn={()=>setShowSignIn(true)}/>}
