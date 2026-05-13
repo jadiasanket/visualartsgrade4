@@ -10517,9 +10517,15 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
 
 // ── GALLERY UPLOAD MODAL ──
 function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}){
+  const AMBER='#f59e0b';
+  const THUMB_SIZE=110; // left column thumbnail size
+
+  // ── Queue ──
   const [queue,setQueue]=React.useState([]);
   const [saving,setSaving]=React.useState(false);
-  // Global options — apply to all
+  const [selectedIdx,setSelectedIdx]=React.useState(0);
+
+  // ── Global options ──
   const [globalType,setGlobalType]=React.useState(initialType||'artwork');
   const [globalSectionId,setGlobalSectionId]=React.useState(initialSection||G4_SECTIONS[0].id);
   const [globalLessonKey,setGlobalLessonKey]=React.useState(initialLesson||'');
@@ -10527,16 +10533,299 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
   const allPhaseLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`})));
   const globalSection=G4_SECTIONS.find(s=>s.id===globalSectionId)||G4_SECTIONS[0];
 
-  function makeItem(f){
-    return{file:f,localUrl:URL.createObjectURL(f),studentIdx:0,status:'pending'};
+  // ── Edit mode ──
+  const [editMode,setEditMode]=React.useState(false);
+  // Per-item edit params — keyed by queue index
+  const [editParams,setEditParams]=React.useState({}); // {[idx]: {rotation,fineRotation,flipH,brightness,contrast,saturation,crop}}
+  const [editHistory,setEditHistory]=React.useState({}); // {[idx]: [...snapshots]}
+  // Live edit state for current item
+  const [rotation,setRotation]=React.useState(0);
+  const [fineRotation,setFineRotation]=React.useState(0);
+  const [flipH,setFlipH]=React.useState(false);
+  const [brightness,setBrightness]=React.useState(0);
+  const [contrast,setContrast]=React.useState(0);
+  const [saturation,setSaturation]=React.useState(0);
+  const [crop,setCrop]=React.useState({x:0,y:0,w:1,h:1});
+  const [cropMode,setCropMode]=React.useState(false);
+  const [history,setHistory]=React.useState([]);
+  const [autoEnhancing,setAutoEnhancing]=React.useState(false);
+
+  // Canvas refs for edit preview
+  const canvasRef=React.useRef(null);
+  const baseImg=React.useRef(null);
+  const [imgReady,setImgReady]=React.useState(false);
+  const [canvasRect,setCanvasRect]=React.useState(null);
+  const [dragging,setDragging]=React.useState(false);
+
+  function makeItem(f){return{file:f,localUrl:URL.createObjectURL(f),studentIdx:0,status:'pending'};}
+  function addFiles(files){
+    const newItems=Array.from(files).map(makeItem);
+    setQueue(prev=>{
+      const next=[...prev,...newItems];
+      if(prev.length===0) setSelectedIdx(0);
+      return next;
+    });
   }
-  function addFiles(files){setQueue(prev=>[...prev,...Array.from(files).map(makeItem)]);}
   function handleDrop(e){e.preventDefault();if(e.dataTransfer.files.length)addFiles(e.dataTransfer.files);}
   function update(i,patch){setQueue(prev=>prev.map((item,idx)=>idx===i?{...item,...patch}:item));}
-  function remove(i){setQueue(prev=>prev.filter((_,idx)=>idx!==i));}
+  function remove(i){
+    setQueue(prev=>{
+      const next=prev.filter((_,idx)=>idx!==i);
+      setSelectedIdx(s=>Math.min(s,Math.max(0,next.length-1)));
+      return next;
+    });
+    setEditMode(false);
+  }
 
+  // ── Load image for editing ──
+  React.useEffect(()=>{
+    if(!editMode||!queue[selectedIdx]) return;
+    setImgReady(false);
+    const url=queue[selectedIdx].localUrl;
+    const img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=()=>{baseImg.current=img;setImgReady(true);};
+    img.onerror=()=>{
+      fetch(url).then(r=>r.blob()).then(blob=>{
+        const bu=URL.createObjectURL(blob);
+        const img2=new Image();
+        img2.onload=()=>{baseImg.current=img2;setImgReady(true);URL.revokeObjectURL(bu);};
+        img2.src=bu;
+      }).catch(()=>setImgReady(false));
+    };
+    img.src=url+'?t='+Date.now();
+  },[editMode,selectedIdx,queue[selectedIdx]?.localUrl]);
+
+  // Restore edit params when switching photos in edit mode
+  React.useEffect(()=>{
+    if(!editMode) return;
+    const saved=editParams[selectedIdx];
+    if(saved){
+      setRotation(saved.rotation||0);setFineRotation(saved.fineRotation||0);
+      setFlipH(saved.flipH||false);setBrightness(saved.brightness||0);
+      setContrast(saved.contrast||0);setSaturation(saved.saturation||0);
+      setCrop(saved.crop||{x:0,y:0,w:1,h:1});
+    } else {
+      setRotation(0);setFineRotation(0);setFlipH(false);
+      setBrightness(0);setContrast(0);setSaturation(0);
+      setCrop({x:0,y:0,w:1,h:1});
+    }
+    setHistory([]);setCropMode(false);
+  },[editMode,selectedIdx]);
+
+  // Redraw canvas
+  React.useEffect(()=>{if(imgReady&&editMode) redrawCanvas();},[imgReady,rotation,fineRotation,flipH,editMode]);
+  React.useEffect(()=>{
+    if(imgReady&&editMode) setTimeout(()=>{if(canvasRef.current) setCanvasRect(canvasRef.current.getBoundingClientRect());},50);
+  },[imgReady,rotation,editMode]);
+
+  function getCSSFilter(){
+    const b=brightness!==0?`brightness(${1+brightness/100})`:'';
+    const c=contrast!==0?`contrast(${1+contrast/100})`:'';
+    const s=saturation!==0?`saturate(${1+saturation/100})`:'';
+    return[b,c,s].filter(Boolean).join(' ')||'none';
+  }
+
+  function redrawCanvas(){
+    const canvas=canvasRef.current,img=baseImg.current;
+    if(!canvas||!img) return;
+    // Fill the preview area — max ~560×420 (popup centre minus panels)
+    const maxW=560,maxH=420;
+    const totalRot=rotation+fineRotation;
+    const rad=totalRot*Math.PI/180;
+    const rot90=(rotation===90||rotation===270);
+    const baseW=rot90?img.height:img.width;
+    const baseH=rot90?img.width:img.height;
+    const scale=Math.min(maxW/baseW,maxH/baseH,1);
+    canvas.width=Math.round(baseW*scale);
+    canvas.height=Math.round(baseH*scale);
+    const ctx=canvas.getContext('2d');
+    ctx.save();ctx.translate(canvas.width/2,canvas.height/2);
+    if(flipH) ctx.scale(-1,1);
+    ctx.rotate(rad);
+    ctx.drawImage(img,-Math.round(img.width*scale)/2,-Math.round(img.height*scale)/2,Math.round(img.width*scale),Math.round(img.height*scale));
+    ctx.restore();
+    requestAnimationFrame(()=>{if(canvasRef.current) setCanvasRect(canvasRef.current.getBoundingClientRect());});
+  }
+
+  function snapshot(){
+    setHistory(h=>[...h,{rotation,fineRotation,flipH,brightness,contrast,saturation,crop:{...crop}}]);
+  }
+  function undo(){
+    setHistory(h=>{
+      if(!h.length) return h;
+      const prev=h[h.length-1];
+      setRotation(prev.rotation);setFineRotation(prev.fineRotation||0);setFlipH(prev.flipH);
+      setBrightness(prev.brightness);setContrast(prev.contrast);setSaturation(prev.saturation);
+      setCrop({...prev.crop});
+      return h.slice(0,-1);
+    });
+  }
+  function resetEdits(){setRotation(0);setFineRotation(0);setFlipH(false);setBrightness(0);setContrast(0);setSaturation(0);setCrop({x:0,y:0,w:1,h:1});setCropMode(false);setHistory([]);}
+
+  // ── Auto-enhance: analyse histogram and apply brightness/contrast correction ──
+  async function autoEnhance(){
+    const img=baseImg.current;
+    if(!img||autoEnhancing) return;
+    setAutoEnhancing(true);
+    snapshot();
+    try{
+      const tc=document.createElement('canvas');
+      const maxS=400;
+      const sc=Math.min(maxS/img.width,maxS/img.height,1);
+      tc.width=Math.round(img.width*sc);tc.height=Math.round(img.height*sc);
+      const ctx=tc.getContext('2d');
+      ctx.drawImage(img,0,0,tc.width,tc.height);
+      const data=ctx.getImageData(0,0,tc.width,tc.height).data;
+      // Compute luminance histogram
+      let sum=0,count=0,minL=255,maxL=0;
+      for(let i=0;i<data.length;i+=4){
+        const l=0.299*data[i]+0.587*data[i+1]+0.114*data[i+2];
+        sum+=l;count++;
+        if(l<minL) minL=l;
+        if(l>maxL) maxL=l;
+      }
+      const avgL=sum/count;
+      // Target avg ~128, clamp correction
+      const bCorr=Math.round(Math.max(-35,Math.min(35,(128-avgL)/2.2)));
+      // Contrast: spread based on range (narrow range = low contrast)
+      const range=maxL-minL;
+      const cCorr=Math.round(Math.max(-20,Math.min(30,(200-range)/8)));
+      setBrightness(bCorr);
+      setContrast(cCorr);
+    } catch(e){}
+    setAutoEnhancing(false);
+  }
+
+  // ── Auto crop & straighten: use canvas entropy to detect border crops ──
+  async function autoCropStraighten(){
+    const img=baseImg.current;
+    if(!img) return;
+    snapshot();
+    try{
+      const tc=document.createElement('canvas');
+      const sc=Math.min(600/img.width,600/img.height,1);
+      tc.width=Math.round(img.width*sc);tc.height=Math.round(img.height*sc);
+      const ctx=tc.getContext('2d');
+      ctx.drawImage(img,0,0,tc.width,tc.height);
+      const data=ctx.getImageData(0,0,tc.width,tc.height);
+      const W=tc.width,H=tc.height;
+      const px=(x,y)=>{const i=(y*W+x)*4;return[data.data[i],data.data[i+1],data.data[i+2]];};
+      function rowVariance(y){
+        let s=0,s2=0,n=W;
+        for(let x=0;x<W;x++){const[r,g,b]=px(x,y);const l=0.299*r+0.587*g+0.114*b;s+=l;s2+=l*l;}
+        return s2/n-(s/n)**2;
+      }
+      function colVariance(x){
+        let s=0,s2=0,n=H;
+        for(let y=0;y<H;y++){const[r,g,b]=px(x,y);const l=0.299*r+0.587*g+0.114*b;s+=l;s2+=l*l;}
+        return s2/n-(s/n)**2;
+      }
+      const threshold=30; // low variance = likely border/plain edge
+      let top=0,bottom=H-1,left=0,right=W-1;
+      while(top<H/3&&rowVariance(top)<threshold) top++;
+      while(bottom>2*H/3&&rowVariance(bottom)<threshold) bottom--;
+      while(left<W/3&&colVariance(left)<threshold) left++;
+      while(right>2*W/3&&colVariance(right)<threshold) right--;
+      // Add 2% padding back
+      const pad=0.02;
+      const nx=Math.max(0,(left/W)-pad);
+      const ny=Math.max(0,(top/H)-pad);
+      const nw=Math.min(1,(right/W)+pad)-nx;
+      const nh=Math.min(1,(bottom/H)+pad)-ny;
+      if(nw>0.5&&nh>0.5){
+        setCrop({x:nx,y:ny,w:nw,h:nh});
+        setCropMode(true);
+      }
+    }catch(e){}
+  }
+
+  // ── Save current edits to queue item ──
+  function applyEdits(idx){
+    const img=baseImg.current;
+    if(!img) return;
+    const totalRot=(rotation+fineRotation)*Math.PI/180;
+    const cosA=Math.abs(Math.cos(totalRot)),sinA=Math.abs(Math.sin(totalRot));
+    const MAX=1400;
+    const fullW=img.width*cosA+img.height*sinA;
+    const fullH=img.width*sinA+img.height*cosA;
+    const scaleF=Math.min(MAX/fullW,MAX/fullH,1);
+    const fc=document.createElement('canvas');
+    fc.width=Math.round(fullW*scaleF);fc.height=Math.round(fullH*scaleF);
+    const ctx=fc.getContext('2d');
+    ctx.save();ctx.translate(fc.width/2,fc.height/2);
+    if(flipH) ctx.scale(-1,1);
+    ctx.rotate(totalRot);
+    ctx.drawImage(img,-Math.round(img.width*scaleF)/2,-Math.round(img.height*scaleF)/2,Math.round(img.width*scaleF),Math.round(img.height*scaleF));
+    ctx.restore();
+    const cx=Math.round(crop.x*fc.width),cy=Math.round(crop.y*fc.height);
+    const cw=Math.round(crop.w*fc.width)||fc.width,ch=Math.round(crop.h*fc.height)||fc.height;
+    const fc2=document.createElement('canvas');
+    fc2.width=cw;fc2.height=ch;
+    const ctx2=fc2.getContext('2d');
+    const filterStr=getCSSFilter();
+    if(filterStr!=='none') ctx2.filter=filterStr;
+    ctx2.drawImage(fc,cx,cy,cw,ch,0,0,cw,ch);
+    fc2.toBlob(blob=>{
+      if(!blob) return;
+      const newFile=new File([blob],queue[idx].file.name,{type:'image/jpeg'});
+      update(idx,{file:newFile,localUrl:URL.createObjectURL(newFile)});
+    },'image/jpeg',0.88);
+  }
+
+  function enterEdit(){setEditMode(true);}
+  function exitEdit(save){
+    if(save) applyEdits(selectedIdx);
+    setEditMode(false);
+    resetEdits();
+  }
+
+  // Crop overlay mouse handling
+  const cropHandles=[
+    {id:'tl',x:crop.x,y:crop.y,cursor:'nw-resize'},
+    {id:'tr',x:crop.x+crop.w,y:crop.y,cursor:'ne-resize'},
+    {id:'bl',x:crop.x,y:crop.y+crop.h,cursor:'sw-resize'},
+    {id:'br',x:crop.x+crop.w,y:crop.y+crop.h,cursor:'se-resize'},
+    {id:'t',x:crop.x+crop.w/2,y:crop.y,cursor:'n-resize'},
+    {id:'b',x:crop.x+crop.w/2,y:crop.y+crop.h,cursor:'s-resize'},
+    {id:'l',x:crop.x,y:crop.y+crop.h/2,cursor:'w-resize'},
+    {id:'r',x:crop.x+crop.w,y:crop.y+crop.h/2,cursor:'e-resize'},
+  ];
+  function cropHandleMouseDown(e,handle){
+    if(!cropMode) return;
+    e.preventDefault();e.stopPropagation();snapshot();
+    const rect=canvasRef.current.getBoundingClientRect();
+    function onMove(ev){
+      const nx=Math.max(0,Math.min(1,(ev.clientX-rect.left)/rect.width));
+      const ny=Math.max(0,Math.min(1,(ev.clientY-rect.top)/rect.height));
+      setCrop(prev=>{
+        let{x,y,w,h}=prev;
+        if(handle==='tl'){const nx2=Math.min(nx,x+w-0.05),ny2=Math.min(ny,y+h-0.05);w=x+w-nx2;h=y+h-ny2;x=nx2;y=ny2;}
+        else if(handle==='tr'){w=Math.max(0.05,nx-x);const ny2=Math.min(ny,y+h-0.05);h=y+h-ny2;y=ny2;}
+        else if(handle==='bl'){const nx2=Math.min(nx,x+w-0.05);w=x+w-nx2;x=nx2;h=Math.max(0.05,ny-y);}
+        else if(handle==='br'){w=Math.max(0.05,nx-x);h=Math.max(0.05,ny-y);}
+        else if(handle==='t'){const ny2=Math.min(ny,y+h-0.05);h=y+h-ny2;y=ny2;}
+        else if(handle==='b'){h=Math.max(0.05,ny-y);}
+        else if(handle==='l'){const nx2=Math.min(nx,x+w-0.05);w=x+w-nx2;x=nx2;}
+        else if(handle==='r'){w=Math.max(0.05,nx-x);}
+        else if(handle==='move'){x=Math.max(0,Math.min(1-w,prev._dx!==undefined?nx-prev._dx:x));y=Math.max(0,Math.min(1-h,prev._dy!==undefined?ny-prev._dy:y));return{x,y,w,h,_dx:nx-x,_dy:ny-y};}
+        return{x,y,w,h};
+      });
+    }
+    function onUp(){window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);}
+    window.addEventListener('mousemove',onMove);window.addEventListener('mouseup',onUp);
+  }
+
+  const CropIcon=()=>(
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M6 2v14a2 2 0 002 2h14"/><path d="M18 22V8a2 2 0 00-2-2H2"/>
+    </svg>
+  );
+
+  // ── Save all to Firestore ──
   async function saveAll(){
     if(!queue.length||saving) return;
+    if(editMode) exitEdit(true);
     setSaving(true);
     const db=window._db;
     for(let i=0;i<queue.length;i++){
@@ -10563,81 +10852,61 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
     onDone();
   }
 
-  const [editingIdx,setEditingIdx]=React.useState(null); // index of item being edited in PhotoEditor
-  const [editUploading,setEditUploading]=React.useState(false);
-
-  async function handleBatchEditSave(blob,idx){
-    setEditUploading(true);
-    try{
-      const file=new File([blob],queue[idx].file.name,{type:blob.type||'image/jpeg'});
-      update(idx,{file,localUrl:URL.createObjectURL(file)});
-    }catch(e){console.warn('batch edit save failed',e);}
-    setEditUploading(false);
-    // Auto-advance to next unedited item, or close if last
-    const nextIdx=queue.findIndex((item,i)=>i>idx&&item.status==='pending');
-    if(nextIdx!==-1) setEditingIdx(nextIdx);
-    else setEditingIdx(null);
-  }
   const doneCount=queue.filter(q=>q.status==='done').length;
+  const pendingCount=queue.filter(q=>q.status==='pending').length;
   const hasErrors=queue.some(q=>q.status==='error');
+  const current=queue[selectedIdx];
+  const isDoc=globalType==='documentation';
+
+  const sliders=[
+    {label:'Brightness',val:brightness,set:(v)=>{snapshot();setBrightness(v);},icon:'☀'},
+    {label:'Contrast',val:contrast,set:(v)=>{snapshot();setContrast(v);},icon:'◑'},
+    {label:'Saturation',val:saturation,set:(v)=>{snapshot();setSaturation(v);},icon:'❋'},
+  ];
 
   return ReactDOM.createPortal(
-    <div style={{position:'fixed',inset:0,zIndex:6000,background:'rgba(6,8,16,0.88)',backdropFilter:'blur(18px)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}
+    <div style={{position:'fixed',inset:0,zIndex:6000,
+      background:'rgba(6,8,16,0.88)',backdropFilter:'blur(18px)',
+      display:'flex',alignItems:'center',justifyContent:'center',padding:20}}
       onClick={e=>{if(e.target===e.currentTarget&&!saving)onClose();}}>
-      <div style={{background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:20,
-        boxShadow:'var(--glass-shadow2)',width:'min(860px,96vw)',maxHeight:'92vh',
-        display:'flex',flexDirection:'column',overflow:'hidden'}}>
 
-        {/* Header */}
-        <div style={{padding:'18px 22px 14px',borderBottom:'1px solid var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
-          <div>
-            <div style={{fontSize:16,fontWeight:800,color:'var(--tx)',fontFamily:"'Bricolage Grotesque',sans-serif"}}>Upload to Gallery</div>
-            <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>
-              {queue.length===0?'Choose photos then set global options below':`${queue.length} photo${queue.length!==1?'s':''} queued · ${doneCount} saved`}
+      <div style={{
+        background:editMode?'rgba(14,10,4,0.98)':'var(--popup-bg)',
+        border:`1px solid ${editMode?'rgba(245,158,11,0.3)':'var(--glass-border2)'}`,
+        borderRadius:20,
+        boxShadow:editMode?`0 0 0 1px rgba(245,158,11,0.1), var(--glass-shadow2)`:'var(--glass-shadow2)',
+        width:'min(1040px,97vw)',height:'min(720px,92vh)',
+        display:'flex',flexDirection:'column',overflow:'hidden',
+        transition:'background .3s, border-color .3s'}}>
+
+        {/* ── HEADER ── */}
+        <div style={{padding:'16px 22px 12px',
+          borderBottom:`1px solid ${editMode?'rgba(245,158,11,0.15)':'var(--glass-border)'}`,
+          display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            {editMode&&<span style={{fontSize:10,fontWeight:800,letterSpacing:'.1em',color:AMBER,
+              background:'rgba(245,158,11,0.12)',border:'1px solid rgba(245,158,11,0.25)',
+              borderRadius:6,padding:'3px 9px'}}>✦ EDIT MODE</span>}
+            <div>
+              <div style={{fontSize:15,fontWeight:800,color:editMode?AMBER:'var(--tx)',
+                fontFamily:"'Bricolage Grotesque',sans-serif",transition:'color .3s'}}>
+                {editMode?`Editing photo ${selectedIdx+1} of ${queue.length}`:'Upload to Gallery'}
+              </div>
+              <div style={{fontSize:11,color:'var(--tx3)',marginTop:1}}>
+                {queue.length===0
+                  ?'Choose photos to get started'
+                  :editMode
+                    ?'Make edits · click another photo to switch · Save to apply'
+                    :`${queue.length} photo${queue.length!==1?'s':''} queued · ${doneCount} saved`}
+              </div>
             </div>
           </div>
-          <button onClick={()=>{if(!saving)onClose();}} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'2px 6px',lineHeight:1}}>✕</button>
-        </div>
-
-        {/* ── GLOBAL OPTIONS ── */}
-        <div style={{padding:'14px 22px',borderBottom:'1px solid var(--glass-border)',display:'flex',flexWrap:'wrap',gap:12,alignItems:'flex-end',flexShrink:0,background:'var(--glass-bg)'}}>
-          {/* Type */}
-          <div style={{display:'flex',flexDirection:'column',gap:5}}>
-            <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase'}}>Type</div>
-            <div style={{display:'flex',gap:5}}>
-              {[['artwork','🎨 Artwork'],['documentation','📸 Documentation']].map(([v,l])=>(
-                <button key={v} onClick={()=>setGlobalType(v)}
-                  style={{fontSize:11,fontWeight:700,padding:'0 14px',height:34,borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                    border:`1px solid ${globalType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--glass-border)'}`,
-                    background:globalType===v?v==='artwork'?'rgba(59,191,160,0.15)':'rgba(155,127,232,0.15)':'var(--glass-bg2)',
-                    color:globalType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--tx3)'}}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* Grade / Section */}
-          <div style={{display:'flex',flexDirection:'column',gap:5}}>
-            <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase'}}>Grade / Section</div>
-            <select value={globalSectionId} onChange={e=>setGlobalSectionId(e.target.value)}
-              style={{fontSize:12,fontWeight:700,padding:'0 10px',height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer'}}>
-              {G4_SECTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-          {/* Lesson — for both artwork and documentation */}
-          <div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:180}}>
-            <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase'}}>Lesson (optional)</div>
-            <select value={globalLessonKey} onChange={e=>setGlobalLessonKey(e.target.value)}
-              style={{fontSize:11,padding:'0 10px',height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',width:'100%'}}>
-              <option value="">— no lesson link —</option>
-              {allPhaseLessons.map(l=><option key={l.key} value={l.key}>{l.label}</option>)}
-              {customLessons.length>0&&<option disabled>── My lessons ──</option>}
-              {customLessons.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
-            </select>
-          </div>
+          <button onClick={()=>{if(!saving)onClose();}}
+            style={{background:'none',border:'none',color:'var(--tx3)',fontSize:20,cursor:'pointer',padding:'2px 6px',lineHeight:1}}>✕</button>
         </div>
 
         {queue.length===0?(
+          /* ── EMPTY STATE ── */
           <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:48}}
             onDragOver={e=>e.preventDefault()} onDrop={handleDrop}>
             <div style={{width:72,height:72,borderRadius:18,border:'2px dashed var(--glass-border2)',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--glass-bg)'}}>
@@ -10656,89 +10925,359 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
             </label>
           </div>
         ):(
-          <div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
-            {/* Add more strip */}
-            <div style={{padding:'10px 22px',borderBottom:'1px solid var(--glass-border)',display:'flex',alignItems:'center',gap:10,flexShrink:0}}
-              onDragOver={e=>e.preventDefault()} onDrop={handleDrop}>
-              <label style={{display:'flex',alignItems:'center',gap:7,fontSize:11,fontWeight:700,padding:'6px 14px',borderRadius:8,border:'1px dashed var(--glass-border2)',background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add more
+          /* ── MAIN SPLIT LAYOUT ── */
+          <div style={{flex:1,display:'flex',minHeight:0}}>
+
+            {/* LEFT — thumbnail strip */}
+            <div style={{
+              width:THUMB_SIZE+28+'px',flexShrink:0,
+              borderRight:`1px solid ${editMode?'rgba(245,158,11,0.12)':'var(--glass-border)'}`,
+              display:'flex',flexDirection:'column',overflowY:'auto',padding:'10px 10px',gap:8,
+              background:editMode?'rgba(10,7,2,0.6)':'var(--glass-bg)'}}>
+              {/* Add more */}
+              <label style={{display:'flex',alignItems:'center',justifyContent:'center',
+                height:36,borderRadius:8,border:'1px dashed var(--glass-border2)',
+                background:'var(--glass-bg)',color:'var(--tx3)',cursor:'pointer',
+                fontSize:11,fontWeight:700,gap:5,flexShrink:0}}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add
                 <input type="file" accept="image/*" multiple style={{display:'none'}} onChange={e=>{if(e.target.files.length)addFiles(e.target.files);e.target.value='';}}/>
               </label>
-              <span style={{fontSize:10,color:'var(--tx3)'}}>or drag & drop more photos</span>
-              <span style={{marginLeft:'auto',fontSize:10,color:'var(--tx3)'}}>{queue.length} photo{queue.length!==1?'s':''}</span>
+
+              {queue.map((item,i)=>{
+                const isSel=i===selectedIdx;
+                const isDone=item.status==='done';
+                const isErr=item.status==='error';
+                const isUp=item.status==='uploading';
+                return(
+                  <div key={i}
+                    onClick={()=>{
+                      if(editMode&&i!==selectedIdx){
+                        applyEdits(selectedIdx);
+                        setSelectedIdx(i);
+                      } else {
+                        setSelectedIdx(i);
+                      }
+                    }}
+                    style={{position:'relative',borderRadius:10,overflow:'hidden',
+                      width:THUMB_SIZE,height:THUMB_SIZE,flexShrink:0,cursor:'pointer',
+                      outline:isSel
+                        ?(editMode?`3px solid ${AMBER}`:'3px solid var(--teal)')
+                        :'3px solid transparent',
+                      outlineOffset:'-3px',
+                      transition:'outline-color .15s'}}>
+                    <img src={item.localUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                    {isDone&&<div style={{position:'absolute',inset:0,background:'rgba(59,191,160,0.45)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>✓</div>}
+                    {isUp&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <div style={{width:20,height:20,border:'2px solid rgba(255,255,255,0.3)',borderTop:'2px solid #fff',borderRadius:'50%',animation:'spin .7s linear infinite'}}/>
+                    </div>}
+                    {isErr&&<div style={{position:'absolute',bottom:0,left:0,right:0,background:'rgba(232,112,90,0.85)',fontSize:8,color:'#fff',textAlign:'center',padding:'2px'}}>Error</div>}
+                    {/* Index badge */}
+                    <div style={{position:'absolute',top:4,left:4,background:'rgba(0,0,0,0.55)',
+                      color:'rgba(255,255,255,0.7)',fontSize:9,fontWeight:700,
+                      padding:'1px 5px',borderRadius:4}}>{i+1}</div>
+                    {/* Remove */}
+                    {!isDone&&!isUp&&(
+                      <button onClick={e=>{e.stopPropagation();remove(i);}}
+                        style={{position:'absolute',top:3,right:3,background:'rgba(0,0,0,0.6)',border:'none',
+                          color:'rgba(255,255,255,0.75)',fontSize:10,cursor:'pointer',
+                          width:18,height:18,borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',
+                          lineHeight:1}}>✕</button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Grid of thumbnails */}
-            <div style={{flex:1,overflowY:'auto',padding:'14px 16px'}}>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(130px,1fr))',gap:12}}>
-                {queue.map((item,i)=>{
-                  const isDone=item.status==='done';
-                  const isUploading=item.status==='uploading';
-                  const isError=item.status==='error';
-                  const isDoc=globalType==='documentation';
-                  return(
-                    <div key={i} style={{display:'flex',flexDirection:'column',gap:6,
-                      padding:'10px 10px 12px',borderRadius:12,
-                      background:isDone?'rgba(59,191,160,0.07)':isError?'rgba(232,112,90,0.08)':'var(--glass-bg)',
-                      border:`1px solid ${isDone?'rgba(59,191,160,0.25)':isError?'rgba(232,112,90,0.25)':'var(--glass-border)'}`,
-                      position:'relative'}}>
-                      {/* Remove button */}
-                      {!isDone&&!isUploading&&(
-                        <button onClick={()=>remove(i)} style={{position:'absolute',top:6,right:6,background:'rgba(0,0,0,0.5)',border:'none',color:'rgba(255,255,255,0.7)',fontSize:11,cursor:'pointer',padding:'1px 5px',borderRadius:4,lineHeight:1,zIndex:1}}>✕</button>
-                      )}
-                      {/* Thumbnail — large */}
-                      <div style={{width:'100%',aspectRatio:'1',borderRadius:8,overflow:'hidden',position:'relative',background:'var(--glass-bg2)'}}>
-                        <img src={item.localUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                        {isDone&&<div style={{position:'absolute',inset:0,background:'rgba(59,191,160,0.4)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28}}>✓</div>}
-                        {isUploading&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                          <div style={{width:24,height:24,border:'2px solid rgba(255,255,255,0.3)',borderTop:'2px solid #fff',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>
-                        </div>}
-                        {!isDone&&!isUploading&&(
-                          <button onClick={e=>{e.stopPropagation();setEditingIdx(i);}}
-                            style={{position:'absolute',bottom:6,right:6,background:'rgba(0,0,0,0.65)',
-                              border:'1px solid rgba(255,255,255,0.2)',borderRadius:6,
-                              color:'rgba(255,255,255,0.85)',fontSize:10,fontWeight:700,
-                              cursor:'pointer',padding:'3px 8px',lineHeight:1,
+            {/* RIGHT — info panel or edit panel */}
+            <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,minHeight:0}}>
+
+              {!editMode?(
+                /* ── INFO PANEL ── */
+                <div style={{flex:1,overflowY:'auto',padding:'20px 24px',display:'flex',flexDirection:'column',gap:20}}>
+
+                  {/* Selected photo preview + edit button */}
+                  {current&&(
+                    <div style={{display:'flex',gap:16,alignItems:'flex-start'}}>
+                      <div style={{position:'relative',borderRadius:12,overflow:'hidden',
+                        width:180,height:180,flexShrink:0,background:'var(--glass-bg2)'}}>
+                        <img src={current.localUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                        {current.status!=='done'&&current.status!=='uploading'&&(
+                          <button onClick={enterEdit}
+                            style={{position:'absolute',bottom:8,right:8,
+                              background:'rgba(245,158,11,0.9)',border:'none',
+                              color:'#060606',fontSize:10,fontWeight:800,
+                              padding:'5px 12px',borderRadius:7,cursor:'pointer',
                               fontFamily:"'DM Sans',sans-serif"}}>
-                            Edit
+                            ✎ Edit photo
                           </button>
                         )}
                       </div>
-                      {/* Student picker — artwork only */}
-                      {!isDoc&&(
-                        <select value={item.studentIdx} onChange={e=>update(i,{studentIdx:Number(e.target.value)})}
-                          disabled={isDone||isUploading}
-                          style={{fontSize:10,padding:'4px 6px',borderRadius:6,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer',width:'100%'}}>
+                      <div style={{flex:1,display:'flex',flexDirection:'column',gap:6}}>
+                        <div style={{fontSize:11,color:'var(--tx3)'}}>Photo {selectedIdx+1} of {queue.length}</div>
+                        <div style={{fontSize:12,color:'var(--tx2)',wordBreak:'break-all'}}>{current.file?.name}</div>
+                        <div style={{fontSize:11,color:
+                          current.status==='done'?'var(--teal)':
+                          current.status==='error'?'var(--coral)':
+                          current.status==='uploading'?'var(--yellow)':'var(--tx3)'}}>
+                          {current.status==='done'?'✓ Saved':
+                           current.status==='error'?'✕ '+current.errorMsg?.slice(0,50):
+                           current.status==='uploading'?'Uploading…':'Ready'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Divider */}
+                  <div style={{borderTop:'1px solid var(--glass-border)'}}/>
+
+                  {/* Global options */}
+                  <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                    <div style={{fontSize:10,fontWeight:800,color:'var(--tx3)',letterSpacing:'.08em',textTransform:'uppercase'}}>Options applied to all photos</div>
+
+                    {/* Type */}
+                    <div>
+                      <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:7}}>Type</div>
+                      <div style={{display:'flex',gap:6}}>
+                        {[['artwork','🎨 Artwork'],['documentation','📸 Documentation']].map(([v,l])=>(
+                          <button key={v} onClick={()=>setGlobalType(v)}
+                            style={{flex:1,fontSize:11,fontWeight:700,padding:'0 12px',height:34,borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                              border:`1px solid ${globalType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--glass-border)'}`,
+                              background:globalType===v?v==='artwork'?'rgba(59,191,160,0.15)':'rgba(155,127,232,0.15)':'var(--glass-bg2)',
+                              color:globalType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--tx3)'}}>
+                            {l}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Section */}
+                    <div>
+                      <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:7}}>Grade / Section</div>
+                      <select value={globalSectionId} onChange={e=>setGlobalSectionId(e.target.value)}
+                        style={{width:'100%',fontSize:12,fontWeight:700,padding:'0 10px',height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer'}}>
+                        {G4_SECTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Lesson */}
+                    <div>
+                      <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:7}}>Lesson (optional)</div>
+                      <select value={globalLessonKey} onChange={e=>setGlobalLessonKey(e.target.value)}
+                        style={{width:'100%',fontSize:11,padding:'0 10px',height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer'}}>
+                        <option value="">— no lesson link —</option>
+                        {allPhaseLessons.map(l=><option key={l.key} value={l.key}>{l.label}</option>)}
+                        {customLessons.length>0&&<option disabled>── My lessons ──</option>}
+                        {customLessons.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Student — artwork only */}
+                    {!isDoc&&current&&current.status!=='done'&&(
+                      <div>
+                        <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:7}}>Student (this photo)</div>
+                        <select value={current.studentIdx} onChange={e=>update(selectedIdx,{studentIdx:Number(e.target.value)})}
+                          style={{width:'100%',fontSize:11,padding:'0 10px',height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',cursor:'pointer'}}>
                           {globalSection.students.map((name,si)=><option key={si} value={si}>{name}</option>)}
                         </select>
-                      )}
-                      {isDoc&&!isDone&&<div style={{fontSize:9,color:'var(--violet)',textAlign:'center',fontFamily:"'DM Sans',sans-serif"}}>Documentation</div>}
-                      {isError&&<div style={{fontSize:9,color:'var(--coral)',lineHeight:1.3,wordBreak:'break-word'}}>{(item.errorMsg||'Upload failed').replace('Firebase Storage: ','').slice(0,60)}</div>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ):(
+                /* ── EDIT PANEL ── */
+                <div style={{flex:1,display:'flex',minHeight:0}}>
+
+                  {/* Canvas preview — centre */}
+                  <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',
+                    background:'rgba(6,4,2,0.6)',position:'relative',overflow:'hidden',minWidth:0}}>
+                    {!imgReady&&<div style={{color:'rgba(245,158,11,0.7)',fontSize:12,fontWeight:700}}>Loading…</div>}
+                    <div style={{position:'relative',display:'inline-block'}}>
+                      <canvas ref={canvasRef}
+                        style={{display:'block',borderRadius:3,filter:getCSSFilter(),maxWidth:'100%',maxHeight:'100%'}}/>
+                      {/* Crop overlay */}
+                      {cropMode&&canvasRect&&(()=>{
+                        return(
+                          <div style={{position:'absolute',inset:0,zIndex:3,overflow:'visible'}}>
+                            <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}>
+                              <defs><mask id="cmask2"><rect width="100%" height="100%" fill="white"/><rect x={(crop.x*100)+'%'} y={(crop.y*100)+'%'} width={(crop.w*100)+'%'} height={(crop.h*100)+'%'} fill="black"/></mask></defs>
+                              <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#cmask2)"/>
+                              {[1/3,2/3].map(p=>(<React.Fragment key={p}><line x1={(crop.x+crop.w*p)*100+'%'} y1={(crop.y*100)+'%'} x2={(crop.x+crop.w*p)*100+'%'} y2={((crop.y+crop.h)*100)+'%'} stroke="rgba(245,158,11,0.3)" strokeWidth="1"/><line x1={(crop.x*100)+'%'} y1={(crop.y+crop.h*p)*100+'%'} x2={((crop.x+crop.w)*100)+'%'} y2={(crop.y+crop.h*p)*100+'%'} stroke="rgba(245,158,11,0.3)" strokeWidth="1"/></React.Fragment>))}
+                              <rect x={(crop.x*100)+'%'} y={(crop.y*100)+'%'} width={(crop.w*100)+'%'} height={(crop.h*100)+'%'} fill="none" stroke={AMBER} strokeWidth="0.75"/>
+                            </svg>
+                            <div onMouseDown={e=>cropHandleMouseDown(e,'move')} style={{position:'absolute',left:(crop.x*100)+'%',top:(crop.y*100)+'%',width:(crop.w*100)+'%',height:(crop.h*100)+'%',cursor:'move',zIndex:4}}/>
+                            <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:5}} overflow="visible">
+                              {[{x:crop.x,y:crop.y,dx:1,dy:1},{x:crop.x+crop.w,y:crop.y,dx:-1,dy:1},{x:crop.x,y:crop.y+crop.h,dx:1,dy:-1},{x:crop.x+crop.w,y:crop.y+crop.h,dx:-1,dy:-1}].map((c,i)=>{const px=c.x*100+'%',py=c.y*100+'%',L=12;return(<g key={i}><line x1={px} y1={py} x2={'calc('+px+' + '+(c.dx*L)+'px)'} y2={py} stroke={AMBER} strokeWidth="2.5" strokeLinecap="round"/><line x1={px} y1={py} x2={px} y2={'calc('+py+' + '+(c.dy*L)+'px)'} stroke={AMBER} strokeWidth="2.5" strokeLinecap="round"/></g>);})}
+                              {[{x:(crop.x+crop.w/2)*100+'%',y:crop.y*100+'%',h:true},{x:(crop.x+crop.w/2)*100+'%',y:(crop.y+crop.h)*100+'%',h:true},{x:crop.x*100+'%',y:(crop.y+crop.h/2)*100+'%',h:false},{x:(crop.x+crop.w)*100+'%',y:(crop.y+crop.h/2)*100+'%',h:false}].map((em,i)=>(<line key={'e'+i} x1={em.h?'calc('+em.x+' - 8px)':em.x} y1={em.h?em.y:'calc('+em.y+' - 8px)'} x2={em.h?'calc('+em.x+' + 8px)':em.x} y2={em.h?em.y:'calc('+em.y+' + 8px)'} stroke={AMBER} strokeWidth="2" strokeLinecap="round"/>))}
+                            </svg>
+                            {cropHandles.map(h=>(<div key={h.id} onMouseDown={e=>cropHandleMouseDown(e,h.id)} style={{position:'absolute',left:(h.x*100)+'%',top:(h.y*100)+'%',width:20,height:20,background:'transparent',transform:'translate(-50%,-50%)',cursor:h.cursor,zIndex:6}}/>))}
+                          </div>
+                        );
+                      })()}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+
+                  {/* Edit tools panel — right side of edit area */}
+                  <div style={{width:220,flexShrink:0,borderLeft:'1px solid rgba(245,158,11,0.12)',
+                    overflowY:'auto',padding:'14px 14px',
+                    display:'flex',flexDirection:'column',gap:12,
+                    background:'rgba(12,8,2,0.7)'}}>
+
+                    {/* Auto tools */}
+                    <div>
+                      <div style={{fontSize:8,fontWeight:700,color:'rgba(245,158,11,0.4)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:7}}>Auto</div>
+                      <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                        <button onClick={autoEnhance} disabled={autoEnhancing||!imgReady}
+                          style={{fontSize:10,fontWeight:700,padding:'7px 10px',borderRadius:8,cursor:'pointer',
+                            border:'1px solid rgba(245,158,11,0.2)',background:'rgba(245,158,11,0.07)',
+                            color:AMBER,fontFamily:"'DM Sans',sans-serif",opacity:autoEnhancing?0.6:1,
+                            display:'flex',alignItems:'center',gap:6}}>
+                          ✦ {autoEnhancing?'Enhancing…':'Auto Enhance'}
+                        </button>
+                        <button onClick={autoCropStraighten} disabled={!imgReady}
+                          style={{fontSize:10,fontWeight:700,padding:'7px 10px',borderRadius:8,cursor:'pointer',
+                            border:'1px solid rgba(245,158,11,0.2)',background:'rgba(245,158,11,0.07)',
+                            color:AMBER,fontFamily:"'DM Sans',sans-serif",
+                            display:'flex',alignItems:'center',gap:6}}>
+                          ⊡ Auto Crop & Straighten
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Transform */}
+                    <div style={{borderTop:'1px solid rgba(245,158,11,0.08)',paddingTop:10}}>
+                      <div style={{fontSize:8,fontWeight:700,color:'rgba(245,158,11,0.4)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:7}}>Transform</div>
+                      <div style={{display:'flex',gap:4}}>
+                        {[{label:'↺',fn:()=>{snapshot();setRotation(r=>(r-90+360)%360);}},{label:'↻',fn:()=>{snapshot();setRotation(r=>(r+90)%360);}},{label:'⇄',fn:()=>{snapshot();setFlipH(v=>!v);}}].map(b=>(
+                          <button key={b.label} onClick={b.fn}
+                            style={{flex:1,fontSize:14,padding:'6px 0',borderRadius:7,cursor:'pointer',
+                              border:'1px solid rgba(245,158,11,0.12)',background:'rgba(245,158,11,0.04)',
+                              color:'rgba(245,158,11,0.7)',transition:'all .12s'}}
+                            onMouseEnter={e=>{e.currentTarget.style.borderColor=AMBER;e.currentTarget.style.color=AMBER;e.currentTarget.style.background='rgba(245,158,11,0.1)';}}
+                            onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(245,158,11,0.12)';e.currentTarget.style.color='rgba(245,158,11,0.7)';e.currentTarget.style.background='rgba(245,158,11,0.04)';}}>
+                            {b.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Adjust sliders */}
+                    <div style={{borderTop:'1px solid rgba(245,158,11,0.08)',paddingTop:10}}>
+                      <div style={{fontSize:8,fontWeight:700,color:'rgba(245,158,11,0.4)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:8}}>Adjust</div>
+                      {sliders.map(s=>(
+                        <div key={s.label} style={{marginBottom:10}}>
+                          <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
+                            <span style={{fontSize:10,color:'rgba(255,255,255,0.45)'}}>{s.icon} {s.label}</span>
+                            <span style={{fontSize:10,fontWeight:700,color:s.val!==0?AMBER:'rgba(255,255,255,0.2)',minWidth:28,textAlign:'right'}}>{s.val>0?'+':''}{s.val}</span>
+                          </div>
+                          <div style={{position:'relative',height:5,borderRadius:5,background:'rgba(255,255,255,0.07)',marginBottom:2}}>
+                            <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.12)'}}/>
+                            <div style={{position:'absolute',borderRadius:5,background:AMBER,left:s.val<0?(50+s.val)+'%':'50%',width:Math.abs(s.val)+'%',top:0,bottom:0,opacity:0.85}}/>
+                            <div style={{position:'absolute',top:'50%',left:'calc('+((s.val+50)/100*100)+'% - 7px)',width:14,height:14,borderRadius:'50%',background:AMBER,border:'2px solid #060606',transform:'translateY(-50%)',boxShadow:'0 1px 6px rgba(0,0,0,0.6)',pointerEvents:'none'}}/>
+                          </div>
+                          <input type="range" min={-50} max={50} value={s.val} onChange={e=>s.set(Number(e.target.value))}
+                            style={{width:'100%',opacity:0,height:18,cursor:'pointer',position:'relative',zIndex:1,marginTop:-16,display:'block'}}/>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Crop & Straighten */}
+                    <div style={{borderTop:'1px solid rgba(245,158,11,0.08)',paddingTop:10}}>
+                      <div style={{display:'flex',gap:4,marginBottom:cropMode?8:0}}>
+                        <button onClick={()=>{if(!cropMode){snapshot();setCrop({x:0,y:0,w:1,h:1});}setCropMode(v=>!v);}}
+                          style={{flex:1,fontSize:10,fontWeight:700,padding:'6px 0',borderRadius:7,cursor:'pointer',
+                            display:'flex',alignItems:'center',justifyContent:'center',gap:4,
+                            border:'1px solid',
+                            borderColor:cropMode?AMBER:'rgba(245,158,11,0.12)',
+                            background:cropMode?'rgba(245,158,11,0.1)':'rgba(245,158,11,0.04)',
+                            color:cropMode?AMBER:'rgba(245,158,11,0.6)'}}>
+                          <CropIcon/>{cropMode?'Crop on':'Crop'}
+                        </button>
+                        {cropMode&&<button onClick={()=>setCrop({x:0,y:0,w:1,h:1})}
+                          style={{fontSize:9,padding:'5px 8px',borderRadius:7,border:'1px solid rgba(245,158,11,0.2)',background:'transparent',color:'rgba(245,158,11,0.6)',cursor:'pointer'}}>Reset</button>}
+                      </div>
+                      {cropMode&&(
+                        <div>
+                          <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
+                            <span style={{fontSize:9,color:'rgba(255,255,255,0.35)'}}>↻ Straighten</span>
+                            <span style={{fontSize:9,fontWeight:700,color:fineRotation!==0?AMBER:'rgba(255,255,255,0.2)'}}>{fineRotation>0?'+':''}{fineRotation}°</span>
+                          </div>
+                          <div style={{position:'relative',height:5,borderRadius:5,background:'rgba(255,255,255,0.07)',marginBottom:2}}>
+                            <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.12)'}}/>
+                            <div style={{position:'absolute',borderRadius:5,background:AMBER,left:fineRotation<0?(50+fineRotation/45*50)+'%':'50%',width:Math.abs(fineRotation)/45*50+'%',top:0,bottom:0,opacity:0.85}}/>
+                            <div style={{position:'absolute',top:'50%',left:'calc('+((fineRotation+45)/90*100)+'% - 7px)',width:14,height:14,borderRadius:'50%',background:AMBER,border:'2px solid #060606',transform:'translateY(-50%)',boxShadow:'0 1px 6px rgba(0,0,0,0.6)',pointerEvents:'none'}}/>
+                          </div>
+                          <input type="range" min={-45} max={45} value={fineRotation} onChange={e=>{snapshot();setFineRotation(Number(e.target.value));}}
+                            style={{width:'100%',opacity:0,height:18,cursor:'pointer',position:'relative',zIndex:1,marginTop:-16,display:'block'}}/>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Undo / Reset */}
+                    <div style={{borderTop:'1px solid rgba(245,158,11,0.08)',paddingTop:10,display:'flex',gap:4}}>
+                      <button onClick={undo} disabled={!history.length}
+                        style={{flex:1,fontSize:9,fontWeight:700,padding:'5px 0',borderRadius:7,
+                          border:'1px solid rgba(245,158,11,0.12)',background:'transparent',
+                          color:history.length?'rgba(245,158,11,0.6)':'rgba(255,255,255,0.15)',cursor:history.length?'pointer':'default'}}>
+                        ↩ Undo
+                      </button>
+                      <button onClick={resetEdits}
+                        style={{flex:1,fontSize:9,fontWeight:700,padding:'5px 0',borderRadius:7,
+                          border:'1px solid rgba(245,158,11,0.12)',background:'transparent',
+                          color:'rgba(245,158,11,0.4)',cursor:'pointer'}}>
+                        ↺ Reset
+                      </button>
+                    </div>
+
+                    {/* Save edits / Cancel */}
+                    <div style={{display:'flex',flexDirection:'column',gap:5,marginTop:'auto',paddingTop:12}}>
+                      <button onClick={()=>exitEdit(true)}
+                        style={{fontSize:11,fontWeight:800,padding:'9px 0',borderRadius:9,border:'none',
+                          background:AMBER,color:'#060606',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                        Save Edits
+                      </button>
+                      <button onClick={()=>exitEdit(false)}
+                        style={{fontSize:10,padding:'6px 0',borderRadius:9,
+                          border:'1px solid rgba(245,158,11,0.15)',background:'transparent',
+                          color:'rgba(245,158,11,0.5)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                        Discard
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         )}
 
-        {/* Footer */}
+        {/* ── FOOTER ── */}
         {queue.length>0&&(
-          <div style={{padding:'14px 22px',borderTop:'1px solid var(--glass-border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+          <div style={{padding:'12px 22px',
+            borderTop:`1px solid ${editMode?'rgba(245,158,11,0.12)':'var(--glass-border)'}`,
+            display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
             <div style={{fontSize:11,color:'var(--tx3)'}}>
-              {doneCount>0&&!saving&&!hasErrors&&doneCount===queue.length
-                ?`All ${doneCount} saved ✓`
-                :saving?'Saving…'
-                :hasErrors?`${pendingCount} pending · some errors`
-                :`${pendingCount} ready to save`}
+              {editMode?<span style={{color:'rgba(245,158,11,0.7)'}}>Exit edit mode to save photos</span>
+                :doneCount>0&&!saving&&!hasErrors&&doneCount===queue.length
+                  ?`All ${doneCount} saved ✓`
+                  :saving?'Saving…'
+                  :hasErrors?`${pendingCount} ready · some errors`
+                  :`${pendingCount} ready to save`}
             </div>
             <div style={{display:'flex',gap:8}}>
-              {doneCount===queue.length&&!hasErrors?(
-                <button onClick={onClose} style={{fontSize:12,fontWeight:700,padding:'8px 22px',borderRadius:10,border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Done</button>
+              {editMode?(
+                <button onClick={()=>exitEdit(false)}
+                  style={{fontSize:12,padding:'8px 18px',borderRadius:10,border:`1px solid ${AMBER}`,
+                    background:'transparent',color:AMBER,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>
+                  ← Back to Info
+                </button>
+              ):doneCount===queue.length&&!hasErrors?(
+                <button onClick={onClose}
+                  style={{fontSize:12,fontWeight:700,padding:'8px 22px',borderRadius:10,border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Done</button>
               ):(
                 <>
-                  <button onClick={()=>{if(!saving)onClose();}} style={{fontSize:12,padding:'8px 16px',borderRadius:10,border:'1px solid var(--glass-border)',background:'transparent',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+                  <button onClick={()=>{if(!saving)onClose();}}
+                    style={{fontSize:12,padding:'8px 16px',borderRadius:10,border:'1px solid var(--glass-border)',background:'transparent',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
                   <button onClick={saveAll} disabled={saving||pendingCount===0}
                     style={{fontSize:12,fontWeight:700,padding:'8px 22px',borderRadius:10,border:'none',
                       background:saving||pendingCount===0?'var(--glass-bg2)':'var(--teal)',
@@ -10919,6 +11458,14 @@ function RefsStrip_(){
   const [photos,setPhotos]=React.useState([]);
   const [activeIdx,setActiveIdx]=React.useState(START_ACTIVE);
   const [lightbox,setLightbox]=React.useState(null);
+  const [hlMetaVisible,setHlMetaVisible]=React.useState(true);
+  const [hlZoom,setHlZoom]=React.useState(1);
+  const [hlPanX,setHlPanX]=React.useState(0);
+  const [hlPanY,setHlPanY]=React.useState(0);
+  const [hlDragging,setHlDragging]=React.useState(false);
+  const [hlHint,setHlHint]=React.useState(false); // show "click to see info" hint on first open
+  const hlDragStart=React.useRef(null);
+  const hlHintTimer=React.useRef(null);
   const [studentPopup,setStudentPopup]=React.useState(null);
   const [allPhotos,setAllPhotos]=React.useState([]);
   const scrollAccum=React.useRef(0);
@@ -10985,20 +11532,33 @@ function RefsStrip_(){
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
+  function openHlLightbox(photo){
+    setLightbox({photo});
+    setHlZoom(1);setHlPanX(0);setHlPanY(0);
+    setHlMetaVisible(true);
+    // Show hint for 2.5s then fade out
+    setHlHint(true);
+    clearTimeout(hlHintTimer.current);
+    hlHintTimer.current=setTimeout(()=>setHlHint(false),2500);
+  }
+  function closeHlLightbox(){setLightbox(null);setHlZoom(1);setHlPanX(0);setHlPanY(0);}
+
   // Keyboard nav for lightbox
   React.useEffect(()=>{
     if(!lightbox) return;
     function onKey(e){
-      if(e.key==='Escape'){setLightbox(null);}
+      if(e.key==='Escape'){closeHlLightbox();}
       if(e.key==='ArrowLeft') setLightbox(prev=>{
         if(!prev) return prev;
         const idx=photosRef.current.findIndex(p=>p.url===prev.photo.url);
-        return idx>0?{...prev,photo:photosRef.current[idx-1]}:prev;
+        if(idx>0){setHlZoom(1);setHlPanX(0);setHlPanY(0);return{photo:photosRef.current[idx-1]};}
+        return prev;
       });
       if(e.key==='ArrowRight') setLightbox(prev=>{
         if(!prev) return prev;
         const idx=photosRef.current.findIndex(p=>p.url===prev.photo.url);
-        return idx<photosRef.current.length-1?{...prev,photo:photosRef.current[idx+1]}:prev;
+        if(idx<photosRef.current.length-1){setHlZoom(1);setHlPanX(0);setHlPanY(0);return{photo:photosRef.current[idx+1]};}
+        return prev;
       });
     }
     window.addEventListener('keydown',onKey);
@@ -11048,7 +11608,7 @@ function RefsStrip_(){
           const isActive=i===activeIdx;
           return(
             <div key={i}
-              onClick={()=>{if(!isActive){setActiveIdx(i);return;}setLightbox({photo:p});}}
+              onClick={()=>{if(!isActive){setActiveIdx(i);return;}openHlLightbox(p);}}
               style={{position:'absolute',left:'50%',top:'50%',
                 width:CARD_W+'px',height:CARD_H+'px',
                 borderRadius:16,overflow:'hidden',background:'#111',
@@ -11086,91 +11646,162 @@ function RefsStrip_(){
         ))}
       </div>
 
-      {/* Lightbox — Refs-style: full overlay, side arrows on image, meta overlay, no zoom bar */}
-      {lightbox&&ReactDOM.createPortal((()=>{
-        const [hlMetaVisible,setHlMetaVisible]=React.useState(true);
-        const photo=lightbox.photo;
-        const hasInfo=!!(photo.studentName||photo.resolvedLesson);
-        return(
-          <div style={{position:'fixed',inset:0,zIndex:5000,background:'rgba(6,6,6,0.97)',
-            backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center',
-            overflow:'hidden'}}
-            onClick={()=>setLightbox(null)}>
+      {/* Lightbox — true fullscreen, zoom/pan, meta overlay, click-outside nav */}
+      {lightbox&&ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:5000,
+          background:'rgba(6,6,6,0.93)',
+          backdropFilter:'blur(20px)',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          overflow:'hidden',
+          cursor:hlZoom>1?(hlDragging?'grabbing':'grab'):'default'}}
+          onWheel={e=>{e.preventDefault();
+            const delta=e.deltaY>0?-0.08:0.08;
+            setHlZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));
+              if(nz===1){setHlPanX(0);setHlPanY(0);}return nz;});}}
+          onMouseDown={e=>{if(hlZoom>1){e.preventDefault();setHlDragging(true);hlDragStart.current={x:e.clientX-hlPanX,y:e.clientY-hlPanY,moved:false};}}}
+          onMouseMove={e=>{if(!hlDragging||!hlDragStart.current)return;
+            const dx=e.clientX-hlDragStart.current.x-hlPanX,dy=e.clientY-hlDragStart.current.y-hlPanY;
+            if(Math.abs(dx)>3||Math.abs(dy)>3)hlDragStart.current.moved=true;
+            setHlPanX(e.clientX-hlDragStart.current.x);setHlPanY(e.clientY-hlDragStart.current.y);}}
+          onMouseUp={()=>{setHlDragging(false);setTimeout(()=>{if(hlDragStart.current)hlDragStart.current.moved=false;},50);}}
+          onMouseLeave={()=>setHlDragging(false)}
+          onClick={e=>{
+            // Click outside image area: left half = prev, right half = next
+            if(hlZoom>1) return;
+            if(hlDragStart.current&&hlDragStart.current.moved) return;
+            const half=window.innerWidth/2;
+            if(e.clientX<half){if(lbIdx>0){setLightbox({photo:photos[lbIdx-1]});setHlZoom(1);setHlPanX(0);setHlPanY(0);}}
+            else{if(lbIdx<photos.length-1){setLightbox({photo:photos[lbIdx+1]});setHlZoom(1);setHlPanX(0);setHlPanY(0);}}
+          }}>
 
-            {/* Image container — fixed 2/3 screen height */}
-            <div style={{position:'relative',
-              width:'min(92vw,1100px)',height:'66.67vh',
-              display:'flex',alignItems:'center',justifyContent:'center',
-              flexShrink:0}}
-              onClick={e=>{e.stopPropagation();if(hasInfo)setHlMetaVisible(v=>!v);}}>
+          {/* Preload neighbours */}
+          {lbIdx>0&&<img src={photos[lbIdx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
+          {lbIdx<photos.length-1&&<img src={photos[lbIdx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
 
-              <img src={photo.url} alt="" draggable={false}
-                style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
-                  transition:'filter .3s ease',
-                  filter:hlMetaVisible&&hasInfo?'blur(6px) brightness(0.78)':'none',
-                  cursor:'pointer',userSelect:'none',imageRendering:'high-quality',
-                  borderRadius:6}}/>
+          {/* Image — click toggles meta (when not zoomed); drag when zoomed */}
+          {(()=>{
+            const photo=lightbox.photo;
+            const hasInfo=!!(photo.studentName||photo.resolvedLesson||(photo.lessons&&photo.lessons[0]));
+            const lessonLabel=photo.resolvedLesson||(photo.lessons&&photo.lessons[0])||null;
+            return(
+              <div style={{position:'relative',
+                width:'min(88vw,960px)',height:'min(84vh,760px)',
+                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}
+                onClick={e=>{
+                  e.stopPropagation();
+                  if(hlZoom>1) return; // zoomed: handled by mousedown/drag
+                  if(hlDragStart.current&&hlDragStart.current.moved) return;
+                  if(hasInfo) setHlMetaVisible(v=>!v);
+                }}>
 
-              {/* Info overlay — centred over image */}
-              {hasInfo&&(
-                <div style={{position:'absolute',inset:0,
-                  display:'flex',flexDirection:'column',
-                  alignItems:'center',justifyContent:'center',
-                  padding:'24px 32px',pointerEvents:'none',
-                  opacity:hlMetaVisible?1:0,transition:'opacity .3s ease'}}>
-                  <div style={{maxWidth:480,textAlign:'center'}}>
-                    {photo.type!=='documentation'&&photo.studentName&&(
-                      <div style={{fontSize:22,fontWeight:700,color:'#fff',
-                        fontFamily:"'DM Sans',sans-serif",letterSpacing:'-.01em',
-                        marginBottom:6,textShadow:'0 2px 12px rgba(0,0,0,0.5)',
-                        pointerEvents:'auto',cursor:'pointer'}}
-                        onClick={e=>{e.stopPropagation();setStudentPopup({studentName:photo.studentName,sectionId:photo.sectionId});}}>
-                        {photo.studentName}
+                <img src={photo.url} alt="" draggable={false}
+                  style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
+                    transform:`scale(${hlZoom}) translate(${hlPanX/hlZoom}px,${hlPanY/hlZoom}px)`,
+                    transition:hlDragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1), filter .3s ease',
+                    willChange:'transform',
+                    filter:hlMetaVisible&&hasInfo?'blur(6px) brightness(0.78)':'none',
+                    cursor:hlZoom>1?(hlDragging?'grabbing':'grab'):'pointer',
+                    userSelect:'none',imageRendering:'high-quality',borderRadius:4}}/>
+
+                {/* Meta overlay — centred over image */}
+                {hasInfo&&(
+                  <div style={{position:'absolute',inset:0,
+                    display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+                    padding:'24px 32px',pointerEvents:'none',
+                    opacity:hlMetaVisible?1:0,transition:'opacity .3s ease'}}>
+                    <div style={{maxWidth:480,textAlign:'center'}}>
+                      {photo.type!=='documentation'&&photo.studentName&&(
+                        <div style={{fontSize:22,fontWeight:700,color:'#fff',
+                          fontFamily:"'DM Sans',sans-serif",letterSpacing:'-.01em',
+                          marginBottom:4,textShadow:'0 2px 12px rgba(0,0,0,0.5)',
+                          pointerEvents:'auto',cursor:'pointer'}}
+                          onClick={e=>{e.stopPropagation();setStudentPopup({studentName:photo.studentName,sectionId:photo.sectionId});}}>
+                          {photo.studentName}
+                        </div>
+                      )}
+                      {lessonLabel&&(
+                        <div style={{fontSize:15,color:'rgba(255,255,255,0.85)',
+                          fontFamily:"'DM Sans',sans-serif",marginBottom:6,
+                          textShadow:'0 1px 8px rgba(0,0,0,0.5)'}}>{lessonLabel}</div>
+                      )}
+                      {photo.type==='documentation'&&!lessonLabel&&(
+                        <div style={{fontSize:20,fontWeight:700,color:'#fff',
+                          fontFamily:"'DM Sans',sans-serif",marginBottom:6,
+                          textShadow:'0 2px 12px rgba(0,0,0,0.5)'}}>Documentation</div>
+                      )}
+                      <div style={{display:'inline-flex',alignItems:'center',gap:6,marginTop:2}}>
+                        <SectionDot sectionId={photo.sectionId} size={7}/>
+                        <span style={{fontSize:13,color:'rgba(255,255,255,0.65)',
+                          textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>{photo.sectionName}</span>
                       </div>
-                    )}
-                    {photo.type==='documentation'&&(
-                      <div style={{fontSize:20,fontWeight:700,color:'#fff',
-                        fontFamily:"'DM Sans',sans-serif",marginBottom:6,
-                        textShadow:'0 2px 12px rgba(0,0,0,0.5)'}}>{photo.resolvedLesson||'Documentation'}</div>
-                    )}
-                    <div style={{display:'inline-flex',alignItems:'center',gap:6,marginTop:4}}>
-                      <SectionDot sectionId={photo.sectionId} size={7}/>
-                      <span style={{fontSize:13,color:'rgba(255,255,255,0.65)',
-                        textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>{photo.sectionName} · {photo.date}</span>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Left arrow — on image */}
-              {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx-1]});setHlMetaVisible(true);}}
-                style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',
-                  background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
-                  borderRadius:10,color:'#fff',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10}}>&#8249;</button>}
-              {/* Right arrow — on image */}
-              {lbIdx<photos.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx+1]});setHlMetaVisible(true);}}
-                style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',
-                  background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
-                  borderRadius:10,color:'#fff',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10}}>&#8250;</button>}
-            </div>
+                {/* Hint — "click image to show info" — fades out after 2.5s */}
+                {hasInfo&&(
+                  <div style={{position:'absolute',bottom:16,left:'50%',transform:'translateX(-50%)',
+                    background:'rgba(0,0,0,0.55)',color:'rgba(255,255,255,0.55)',
+                    fontSize:11,fontFamily:"'DM Sans',sans-serif",fontWeight:600,
+                    padding:'5px 14px',borderRadius:20,whiteSpace:'nowrap',pointerEvents:'none',
+                    opacity:hlHint?1:0,transition:'opacity .6s ease'}}>
+                    Click image to {hlMetaVisible?'hide':'show'} info
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
-            {/* Close — top right of screen */}
-            <button onClick={e=>{e.stopPropagation();setLightbox(null);}}
-              style={{position:'absolute',top:14,right:14,background:'rgba(255,255,255,0.1)',
-                border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',
-                fontSize:13,padding:'0 14px',height:32,cursor:'pointer',
-                fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>✕</button>
+          {/* Left / right arrows — outside image, subtle */}
+          {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx-1]});setHlZoom(1);setHlPanX(0);setHlPanY(0);}}
+            style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',
+              background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',
+              borderRadius:10,color:'rgba(255,255,255,0.5)',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10,
+              transition:'all .15s'}}
+            onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.14)';e.currentTarget.style.color='rgba(255,255,255,0.85)';}}
+            onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>&#8249;</button>}
+          {lbIdx<photos.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx+1]});setHlZoom(1);setHlPanX(0);setHlPanY(0);}}
+            style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',
+              background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',
+              borderRadius:10,color:'rgba(255,255,255,0.5)',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10,
+              transition:'all .15s'}}
+            onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.14)';e.currentTarget.style.color='rgba(255,255,255,0.85)';}}
+            onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>&#8250;</button>}
 
-            {/* Counter — top centre */}
-            {photos.length>1&&<div style={{position:'absolute',top:14,left:'50%',
-              transform:'translateX(-50%)',background:'rgba(0,0,0,0.5)',
-              color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 14px',
-              borderRadius:12,pointerEvents:'none'}}>
-              {lbIdx+1} / {photos.length}
-            </div>}
+          {/* Close */}
+          <button onClick={e=>{e.stopPropagation();closeHlLightbox();}}
+            style={{position:'absolute',top:14,right:14,background:'rgba(255,255,255,0.1)',
+              border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',
+              fontSize:13,padding:'0 14px',height:32,cursor:'pointer',
+              fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>✕</button>
+
+          {/* Counter */}
+          {photos.length>1&&<div style={{position:'absolute',top:14,left:'50%',
+            transform:'translateX(-50%)',background:'rgba(0,0,0,0.5)',
+            color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 14px',
+            borderRadius:12,pointerEvents:'none'}}>
+            {lbIdx+1} / {photos.length}
+          </div>}
+
+          {/* Vertical zoom slider — right edge */}
+          <div style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',
+            display:'flex',flexDirection:'column',alignItems:'center',gap:8,zIndex:10}}
+            onClick={e=>e.stopPropagation()}
+            onMouseDown={e=>e.stopPropagation()}
+            onMouseMove={e=>e.stopPropagation()}
+            onMouseUp={e=>e.stopPropagation()}>
+            <span style={{color:'rgba(255,255,255,0.4)',fontSize:9,fontFamily:"'DM Sans',sans-serif"}}>4×</span>
+            <input type="range" min={100} max={400} step={5} value={Math.round(hlZoom*100)}
+              onChange={e=>{const v=Number(e.target.value)/100;setHlZoom(v);if(v===1){setHlPanX(0);setHlPanY(0);}}}
+              style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',height:140,
+                accentColor:'rgba(255,255,255,0.7)',cursor:'pointer'}}/>
+            <span style={{color:'rgba(255,255,255,0.4)',fontSize:9,fontFamily:"'DM Sans',sans-serif"}}>1×</span>
           </div>
-        );
-      })(),
+          {hlZoom>1&&<div style={{position:'fixed',bottom:56,left:'50%',
+            transform:'translateX(-50%)',background:'rgba(0,0,0,0.55)',
+            color:'rgba(255,255,255,0.5)',fontSize:10,padding:'3px 12px',
+            borderRadius:10,pointerEvents:'none',zIndex:5011}}>{Math.round(hlZoom*100)}% · drag to pan</div>}
+        </div>,
         document.body
       )}
 
@@ -11184,7 +11815,7 @@ function RefsStrip_(){
           onOpenPhoto={p=>{
             const orig=lightbox;
             setStudentPopup(null);
-            setLightbox({photo:p,returnTo:orig});
+            openHlLightbox(p);
           }}
         />
       )}
@@ -11276,7 +11907,8 @@ function GalleryView({isVisitor}){
   const [showFilter,setShowFilter]=React.useState(false);
   const [showUpload,setShowUpload]=React.useState(false);
   const [lightbox,setLightbox]=React.useState(null);
-  const [lbFullscreen,setLbFullscreen]=React.useState(false);
+  const [lbHint,setLbHint]=React.useState(false); // hint: "click to show info"
+  const lbHintTimer=React.useRef(null);
   const [metaVisible,setMetaVisible]=React.useState(true);
   const [lbZoom,setLbZoom]=React.useState(1);
   const [lbPanX,setLbPanX]=React.useState(0);
@@ -11359,28 +11991,25 @@ function GalleryView({isVisitor}){
   const filteredRef=React.useRef(filtered);
   const lightboxRef=React.useRef(lightbox);
   const metaRef=React.useRef(metaVisible);
-  const lbFsRef=React.useRef(lbFullscreen);
   React.useEffect(()=>{filteredRef.current=filtered;},[filtered]);
   React.useEffect(()=>{lightboxRef.current=lightbox;},[lightbox]);
   React.useEffect(()=>{metaRef.current=metaVisible;},[metaVisible]);
-  React.useEffect(()=>{lbFsRef.current=lbFullscreen;},[lbFullscreen]);
 
   React.useEffect(()=>{
     function onKey(e){
       if(!lightboxRef.current) return;
       if(e.key==='Escape'){
-        if(lbFsRef.current){setLbFullscreen(false);}
-        else setLightbox(null);
+        setLightbox(null);setLbZoom(1);setLbPanX(0);setLbPanY(0);
         return;
       }
       if(e.key===' '){e.preventDefault();setMetaVisible(v=>!v);return;}
       if(e.key==='ArrowLeft'){
         const idx=filteredRef.current.findIndex(p=>p.url===lightboxRef.current.url&&p.studentName===lightboxRef.current.studentName);
-        if(idx>0) setLightbox(filteredRef.current[idx-1]);
+        if(idx>0){setLightbox(filteredRef.current[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}
       }
       if(e.key==='ArrowRight'){
         const idx=filteredRef.current.findIndex(p=>p.url===lightboxRef.current.url&&p.studentName===lightboxRef.current.studentName);
-        if(idx<filteredRef.current.length-1) setLightbox(filteredRef.current[idx+1]);
+        if(idx<filteredRef.current.length-1){setLightbox(filteredRef.current[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}
       }
     }
     window.addEventListener('keydown',onKey);
@@ -11588,7 +12217,7 @@ function GalleryView({isVisitor}){
             const sel=selectedPhotos.has(k);
             return(
               <div key={i}
-                onClick={()=>galleryEditMode?toggleSelect(p):setLightbox(p)}
+                onClick={()=>{if(galleryEditMode){toggleSelect(p);}else{setLightbox(p);setMetaVisible(true);setLbZoom(1);setLbPanX(0);setLbPanY(0);setLbHint(true);clearTimeout(lbHintTimer.current);lbHintTimer.current=setTimeout(()=>setLbHint(false),2500);}}}
                 style={{borderRadius:12,overflow:'hidden',cursor:'pointer',position:'relative',
                   aspectRatio:'1',
                   outline:sel?'3px solid var(--teal)':'3px solid transparent',outlineOffset:'-3px'}}
@@ -11609,18 +12238,18 @@ function GalleryView({isVisitor}){
                 <div className="tile-meta" style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none',opacity:0,transition:'opacity .25s'}}>
                   {p.type==='documentation'?(
                     <>
-                      <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.resolvedLesson||'Documentation'}</div>
+                      <div style={{fontSize:13,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.resolvedLesson||'Documentation'}</div>
                       <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
                         <SectionDot sectionId={p.sectionId} size={6}/>
-                        <span style={{fontSize:9,color:'rgba(255,255,255,0.65)'}}>{p.sectionName} · 📸</span>
+                        <span style={{fontSize:11,color:'rgba(255,255,255,0.65)'}}>{p.sectionName} · 📸</span>
                       </div>
                     </>
                   ):(
                     <>
-                      <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.displayName||p.studentName}</div>
+                      <div style={{fontSize:13,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.displayName||p.studentName}</div>
                       <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
                         <SectionDot sectionId={p.sectionId} size={6}/>
-                        <span style={{fontSize:9,color:'rgba(255,255,255,0.7)'}}>{p.sectionName}</span>
+                        <span style={{fontSize:11,color:'rgba(255,255,255,0.7)'}}>{p.sectionName}</span>
                       </div>
                     </>
                   )}
@@ -11742,112 +12371,187 @@ function GalleryView({isVisitor}){
         document.body
       )}
 
-      {/* Lightbox — Refs-style: full overlay, 2/3 height, side arrows on image, meta overlay */}
+      {/* Lightbox — true fullscreen, zoom/pan, meta overlay, click-outside nav */}
       {lightbox&&ReactDOM.createPortal(
         (()=>{
           const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);
-          const hasInfo=!!(lightbox.studentName||lightbox.resolvedLesson||lightbox.date);
+          const isDoc=(lightbox.type||'artwork')==='documentation';
+          const lessonLabel=lightbox.resolvedLesson||(lightbox.lessons&&lightbox.lessons[0])||null;
+          const hasInfo=!!(lightbox.studentName||lessonLabel||lightbox.date);
           return(
-            <div style={{position:'fixed',inset:0,zIndex:4000,background:'rgba(6,6,6,0.97)',
-              backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center',
-              overflow:'hidden'}}
-              onClick={()=>setLightbox(null)}>
+            <div style={{position:'fixed',inset:0,zIndex:4000,
+              background:'rgba(6,6,6,0.93)',
+              backdropFilter:'blur(20px)',
+              display:'flex',alignItems:'center',justifyContent:'center',
+              overflow:'hidden',
+              cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'default'}}
+              onWheel={e=>{e.preventDefault();
+                const delta=e.deltaY>0?-0.08:0.08;
+                setLbZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));
+                  if(nz===1){setLbPanX(0);setLbPanY(0);}return nz;});}}
+              onMouseDown={e=>{if(lbZoom>1){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY,moved:false};}}}
+              onMouseMove={e=>{if(!lbDragging||!lbDragStart.current)return;
+                const dx=e.clientX-lbDragStart.current.x-lbPanX,dy=e.clientY-lbDragStart.current.y-lbPanY;
+                if(Math.abs(dx)>3||Math.abs(dy)>3)lbDragStart.current.moved=true;
+                setLbPanX(e.clientX-lbDragStart.current.x);setLbPanY(e.clientY-lbDragStart.current.y);}}
+              onMouseUp={()=>{setLbDragging(false);setTimeout(()=>{if(lbDragStart.current)lbDragStart.current.moved=false;},50);}}
+              onMouseLeave={()=>setLbDragging(false)}
+              onClick={e=>{
+                if(lbZoom>1) return;
+                if(lbDragStart.current&&lbDragStart.current.moved) return;
+                const half=window.innerWidth/2;
+                if(e.clientX<half){if(idx>0){setLightbox(filtered[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                else{if(idx<filtered.length-1){setLightbox(filtered[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+              }}>
 
-              {/* Image container — 2/3 screen height */}
-              <div onClick={e=>{e.stopPropagation();if(hasInfo)setMetaVisible(v=>!v);}}
-                style={{position:'relative',
-                  width:'min(92vw,1100px)',height:'66.67vh',
-                  display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              {idx>0&&<img src={filtered[idx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
+              {idx<filtered.length-1&&<img src={filtered[idx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
 
-                <img src={lightbox.url} alt=""
+              {/* Image container */}
+              <div style={{position:'relative',
+                width:'min(88vw,960px)',height:'min(84vh,760px)',
+                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}
+                onClick={e=>{
+                  e.stopPropagation();
+                  if(lbZoom>1) return;
+                  if(lbDragStart.current&&lbDragStart.current.moved) return;
+                  if(hasInfo) setMetaVisible(v=>!v);
+                }}>
+
+                <img src={lightbox.url} alt="" draggable={false}
                   style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
-                    cursor:'pointer',userSelect:'none',imageRendering:'high-quality',
-                    transition:'filter .3s ease',
+                    transform:`scale(${lbZoom}) translate(${lbPanX/lbZoom}px,${lbPanY/lbZoom}px)`,
+                    transition:lbDragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1), filter .3s ease',
+                    willChange:'transform',
                     filter:metaVisible&&hasInfo?'blur(6px) brightness(0.78)':'none',
-                    borderRadius:6}}/>
+                    cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'pointer',
+                    userSelect:'none',imageRendering:'high-quality',borderRadius:4}}/>
 
-                {/* Meta overlay — centred over image */}
+                {/* Meta overlay */}
                 {hasInfo&&(
                   <div style={{position:'absolute',inset:0,
-                    display:'flex',flexDirection:'column',
-                    alignItems:'center',justifyContent:'center',
-                    padding:'24px 40px',pointerEvents:'none',
+                    display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+                    padding:'24px 48px',pointerEvents:'none',
                     opacity:metaVisible?1:0,transition:'opacity .3s ease'}}>
-                    <div style={{maxWidth:520,textAlign:'center'}}>
-                      {/* Name / lesson */}
-                      <div style={{fontSize:22,fontWeight:700,color:'#fff',
-                        fontFamily:"'DM Sans',sans-serif",letterSpacing:'-.01em',
-                        marginBottom:6,textShadow:'0 2px 12px rgba(0,0,0,0.5)',
-                        pointerEvents:'auto',
-                        cursor:lightbox.type!=='documentation'?'pointer':'default'}}
-                        onClick={e=>{if(lightbox.type!=='documentation'){e.stopPropagation();setStudentPopup({studentName:lightbox.studentName,sectionId:lightbox.sectionId,returnLightbox:lightbox});}}}>
-                        {lightbox.type==='documentation'
-                          ?(lightbox.resolvedLesson||'Documentation')
-                          :lightbox.studentName}
-                      </div>
-                      {/* Section + date */}
-                      <div style={{display:'inline-flex',alignItems:'center',gap:6,marginBottom:lightbox.artTags?.length?8:0}}>
-                        <SectionDot sectionId={lightbox.sectionId} size={7}/>
-                        <span style={{fontSize:13,color:'rgba(255,255,255,0.65)',
-                          textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>
-                          {lightbox.sectionName} · {lightbox.date}
-                        </span>
-                        <span style={{fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:7,
-                          background:(lightbox.type||'artwork')==='documentation'?'rgba(155,127,232,0.35)':'rgba(59,191,160,0.35)',
-                          color:(lightbox.type||'artwork')==='documentation'?'#c4a8f8':'#7ee8cb'}}>
-                          {(lightbox.type||'artwork')==='documentation'?'DOCS':'ARTWORK'}
-                        </span>
-                      </div>
-                      {/* Tags */}
-                      {(lightbox.artTags||[]).length>0&&(
-                        <div style={{display:'flex',flexWrap:'wrap',gap:4,justifyContent:'center',marginTop:4}}>
-                          {(lightbox.artTags||[]).map(t=>{const td=artworkTags.find(x=>x.label===t);return<span key={t} style={{fontSize:9,padding:'2px 7px',borderRadius:7,background:'rgba(255,255,255,0.08)',border:`1px solid ${td?tagColors[td.color]:'rgba(255,255,255,0.18)'}`,color:td?tagColors[td.color]:'rgba(255,255,255,0.6)'}}>{t}</span>;})}
+                    <div style={{maxWidth:520,textAlign:'center',display:'flex',flexDirection:'column',gap:5}}>
+                      {!isDoc&&lightbox.studentName&&(
+                        <div style={{fontSize:22,fontWeight:700,color:'#fff',
+                          fontFamily:"'DM Sans',sans-serif",letterSpacing:'-.01em',
+                          textShadow:'0 2px 12px rgba(0,0,0,0.5)',
+                          pointerEvents:'auto',cursor:'pointer'}}
+                          onClick={e=>{e.stopPropagation();setStudentPopup({studentName:lightbox.studentName,sectionId:lightbox.sectionId,returnLightbox:lightbox});}}>
+                          {lightbox.studentName}
                         </div>
                       )}
-                      {lightbox.caption&&<div style={{marginTop:6,fontSize:11,color:'rgba(255,255,255,0.65)',fontStyle:'italic',textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>"{lightbox.caption}"</div>}
+                      {isDoc&&(lessonLabel||'Documentation')&&(
+                        <div style={{fontSize:22,fontWeight:700,color:'#fff',
+                          fontFamily:"'DM Sans',sans-serif",letterSpacing:'-.01em',
+                          textShadow:'0 2px 12px rgba(0,0,0,0.5)'}}>
+                          {lessonLabel||'Documentation'}
+                        </div>
+                      )}
+                      {!isDoc&&lessonLabel&&(
+                        <div style={{fontSize:15,color:'rgba(255,255,255,0.85)',
+                          fontFamily:"'DM Sans',sans-serif",
+                          textShadow:'0 1px 8px rgba(0,0,0,0.5)'}}>
+                          {lessonLabel}
+                        </div>
+                      )}
+                      <div style={{display:'inline-flex',alignItems:'center',gap:6,justifyContent:'center'}}>
+                        <SectionDot sectionId={lightbox.sectionId} size={7}/>
+                        <span style={{fontSize:13,color:'rgba(255,255,255,0.7)',
+                          textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>
+                          {lightbox.sectionName}
+                        </span>
+                        <span style={{fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:7,
+                          background:isDoc?'rgba(155,127,232,0.35)':'rgba(59,191,160,0.35)',
+                          color:isDoc?'#c4a8f8':'#7ee8cb'}}>
+                          {isDoc?'DOCS':'ARTWORK'}
+                        </span>
+                      </div>
+                      {(lightbox.artTags||[]).length>0&&(
+                        <div style={{display:'flex',flexWrap:'wrap',gap:4,justifyContent:'center',marginTop:2}}>
+                          {(lightbox.artTags||[]).map(t=>{const td=artworkTags.find(x=>x.label===t);return<span key={t} style={{fontSize:10,padding:'2px 7px',borderRadius:7,background:'rgba(255,255,255,0.08)',border:`1px solid ${td?tagColors[td.color]:'rgba(255,255,255,0.18)'}`,color:td?tagColors[td.color]:'rgba(255,255,255,0.65)'}}>{t}</span>;})}
+                        </div>
+                      )}
+                      {isDoc&&lightbox.date&&(
+                        <div style={{fontSize:11,color:'rgba(255,255,255,0.45)',
+                          textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>
+                          {lightbox.date}
+                        </div>
+                      )}
+                      {lightbox.caption&&(
+                        <div style={{fontSize:11,color:'rgba(255,255,255,0.6)',fontStyle:'italic',
+                          textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>"{lightbox.caption}"</div>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {/* Left arrow — on image */}
-                {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);setMetaVisible(true);}}
-                  style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',
-                    background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
-                    borderRadius:10,color:'#fff',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10}}>&#8249;</button>}
-                {/* Right arrow — on image */}
-                {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);setMetaVisible(true);}}
-                  style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',
-                    background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
-                    borderRadius:10,color:'#fff',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10}}>&#8250;</button>}
+                {/* Hint — fades in on open, auto-hides */}
+                {hasInfo&&(
+                  <div style={{position:'absolute',bottom:16,left:'50%',transform:'translateX(-50%)',
+                    background:'rgba(0,0,0,0.55)',color:'rgba(255,255,255,0.55)',
+                    fontSize:11,fontFamily:"'DM Sans',sans-serif",fontWeight:600,
+                    padding:'5px 14px',borderRadius:20,whiteSpace:'nowrap',pointerEvents:'none',
+                    opacity:lbHint?1:0,transition:'opacity .6s ease'}}>
+                    Click image to {metaVisible?'hide':'show'} info
+                  </div>
+                )}
               </div>
 
-              {/* Close — top right of screen */}
-              <button onClick={e=>{e.stopPropagation();if(lightbox._returnTo){setLightbox(lightbox._returnTo);}else{setLightbox(null);}}}
+              {/* Arrows — outside image, subtle */}
+              {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',
+                  background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',
+                  borderRadius:10,color:'rgba(255,255,255,0.5)',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10,transition:'all .15s'}}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.14)';e.currentTarget.style.color='rgba(255,255,255,0.85)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>&#8249;</button>}
+              {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',
+                  background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',
+                  borderRadius:10,color:'rgba(255,255,255,0.5)',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10,transition:'all .15s'}}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.14)';e.currentTarget.style.color='rgba(255,255,255,0.85)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>&#8250;</button>}
+
+              {/* Close */}
+              <button onClick={e=>{e.stopPropagation();if(lightbox._returnTo){setLightbox(lightbox._returnTo);setMetaVisible(true);}else{setLightbox(null);}setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
                 style={{position:'absolute',top:14,right:14,background:'rgba(255,255,255,0.1)',
                   border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',
                   fontSize:13,padding:'0 14px',height:32,cursor:'pointer',
                   fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>✕</button>
 
-              {/* Fullscreen button — top right, next to close */}
-              <button onClick={e=>{e.stopPropagation();setLbFullscreen(true);}}
-                style={{position:'absolute',top:14,right:62,background:'rgba(255,255,255,0.1)',
-                  border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'rgba(255,255,255,0.8)',
-                  fontSize:16,width:32,height:32,cursor:'pointer',display:'flex',alignItems:'center',
-                  justifyContent:'center'}}>&#x26F6;</button>
-
-              {/* Counter — top centre */}
+              {/* Counter */}
               {filtered.length>1&&<div style={{position:'absolute',top:14,left:'50%',
                 transform:'translateX(-50%)',background:'rgba(0,0,0,0.5)',
                 color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 14px',
                 borderRadius:12,pointerEvents:'none'}}>
                 {idx+1} / {filtered.length}
               </div>}
+
+              {/* Vertical zoom slider */}
+              <div style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',
+                display:'flex',flexDirection:'column',alignItems:'center',gap:8,zIndex:10}}
+                onClick={e=>e.stopPropagation()}
+                onMouseDown={e=>e.stopPropagation()}
+                onMouseMove={e=>e.stopPropagation()}
+                onMouseUp={e=>e.stopPropagation()}>
+                <span style={{color:'rgba(255,255,255,0.4)',fontSize:9,fontFamily:"'DM Sans',sans-serif"}}>4×</span>
+                <input type="range" min={100} max={400} step={5} value={Math.round(lbZoom*100)}
+                  onChange={e=>{const v=Number(e.target.value)/100;setLbZoom(v);if(v===1){setLbPanX(0);setLbPanY(0);}}}
+                  style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',height:140,
+                    accentColor:'rgba(255,255,255,0.7)',cursor:'pointer'}}/>
+                <span style={{color:'rgba(255,255,255,0.4)',fontSize:9,fontFamily:"'DM Sans',sans-serif"}}>1×</span>
+              </div>
+              {lbZoom>1&&<div style={{position:'fixed',bottom:56,left:'50%',
+                transform:'translateX(-50%)',background:'rgba(0,0,0,0.55)',
+                color:'rgba(255,255,255,0.5)',fontSize:10,padding:'3px 12px',
+                borderRadius:10,pointerEvents:'none',zIndex:5011}}>{Math.round(lbZoom*100)}% · drag to pan</div>}
             </div>
           );
         })(),
         document.body
       )}
-
       {/* Student popup — click student name in lightbox */}
       {studentPopup&&(
         <StudentPopup
@@ -11858,49 +12562,10 @@ function GalleryView({isVisitor}){
           onOpenPhoto={p=>{
             const returnTo=studentPopup.returnLightbox;
             setStudentPopup(null);
-            // Open the clicked student photo in a temporary lightbox
-            // On close, restore original lightbox
-            setLightbox({...p, _returnTo:returnTo});
+            setLightbox({...p,_returnTo:returnTo});
+            setMetaVisible(true);
           }}
         />
-      )}
-
-      {/* Fullscreen zoom overlay */}
-      {lbFullscreen&&lightbox&&ReactDOM.createPortal(
-        <div style={{position:'fixed',inset:0,zIndex:9999,background:'#000',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'default'}}
-          onClick={e=>{if(lbDragStart.current&&lbDragStart.current.moved) return;setLbFullscreen(false);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-          onWheel={e=>{e.preventDefault();setLbZoom(z=>{const next=+(Math.min(4,Math.max(1,z-(e.deltaY>0?0.05:-0.05))).toFixed(2));if(next===1){setLbPanX(0);setLbPanY(0);}return next;});}}
-          onMouseDown={e=>{if(lbZoom>1){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY,moved:false};}else{lbDragStart.current=null;}}}
-          onMouseMove={e=>{if(!lbDragging||!lbDragStart.current) return;const dx=e.clientX-lbDragStart.current.x-lbPanX,dy=e.clientY-lbDragStart.current.y-lbPanY;if(Math.abs(dx)>3||Math.abs(dy)>3) lbDragStart.current.moved=true;setLbPanX(e.clientX-lbDragStart.current.x);setLbPanY(e.clientY-lbDragStart.current.y);}}
-          onMouseUp={()=>{setLbDragging(false);setTimeout(()=>{if(lbDragStart.current) lbDragStart.current.moved=false;},50);}}
-          onMouseLeave={()=>{setLbDragging(false);}}
-        >
-          <img src={lightbox.url} alt=""
-            draggable={false}
-            style={{maxWidth:'100vw',maxHeight:'100vh',objectFit:'contain',
-              transform:`scale(${lbZoom}) translate(${lbPanX/lbZoom}px,${lbPanY/lbZoom}px)`,
-              transition:lbDragging?'none':'transform .12s ease',
-              userSelect:'none',pointerEvents:'none',
-              imageRendering:'high-quality',
-              willChange:'transform'}}/>
-          {/* Exit button */}
-          <button onClick={e=>{e.stopPropagation();setLbZoom(1);setLbPanX(0);setLbPanY(0);setLbFullscreen(false);}}
-            style={{position:'absolute',top:16,right:16,background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:8,color:'#fff',fontSize:13,padding:'0 16px',height:36,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>✕ Exit</button>
-          {/* Vertical zoom slider — right-middle edge */}
-          <div style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',alignItems:'center',gap:8}}
-            onClick={e=>e.stopPropagation()}
-            onMouseDown={e=>e.stopPropagation()}
-            onMouseMove={e=>e.stopPropagation()}
-            onMouseUp={e=>e.stopPropagation()}>
-            <span style={{color:'rgba(255,255,255,0.5)',fontSize:10,fontFamily:"'DM Sans',sans-serif"}}>4×</span>
-            <input type="range" min={100} max={400} step={5} value={Math.round(lbZoom*100)}
-              onChange={e=>{const v=Number(e.target.value)/100;setLbZoom(v);if(v===1){setLbPanX(0);setLbPanY(0);}}}
-              style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',height:160,accentColor:'rgba(255,255,255,0.8)',cursor:'pointer'}}/>
-            <span style={{color:'rgba(255,255,255,0.5)',fontSize:10,fontFamily:"'DM Sans',sans-serif"}}>1×</span>
-          </div>
-          {lbZoom>1&&<div style={{position:'absolute',bottom:20,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,0.6)',color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 14px',borderRadius:12,pointerEvents:'none',whiteSpace:'nowrap'}}>{Math.round(lbZoom*100)}% · drag to pan</div>}
-        </div>,
-        document.body
       )}
     </div>
   );
