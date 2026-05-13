@@ -4039,6 +4039,7 @@ function useRefsFirestore(sessionKey){
     const db=window._db;
     const docRef=db.collection('refs').doc(sessionKey);
     const unsub=docRef.onSnapshot(snap=>{
+      if(writePendingRef.current) return; // local write in flight — ignore remote snapshot
       if(snap.exists){
         setVal(snap.data()||INIT);
       } else {
@@ -4048,15 +4049,20 @@ function useRefsFirestore(sessionKey){
     return()=>unsub();
   },[sessionKey]);
 
+  const writePendingRef=React.useRef(false);
+
   const set=React.useCallback(updater=>{
     setVal(prev=>{
       const next=typeof updater==='function'?updater(prev):updater;
       latestRef.current=next;
+      writePendingRef.current=true;
       if(saveTimerRef.current)clearTimeout(saveTimerRef.current);
       saveTimerRef.current=setTimeout(()=>{
         const toSave=latestRef.current;
-        if(!toSave)return;
-        window._db.collection('refs').doc(sessionKey).set(toSave).catch(e=>console.warn('refs save failed',e));
+        if(!toSave){writePendingRef.current=false;return;}
+        window._db.collection('refs').doc(sessionKey).set(toSave)
+          .then(()=>{writePendingRef.current=false;})
+          .catch(e=>{console.warn('refs save failed',e);writePendingRef.current=false;});
       },800);
       return next;
     });
