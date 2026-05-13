@@ -4033,6 +4033,7 @@ function useRefsFirestore(sessionKey){
   const [val,setVal]=React.useState(INIT);
   const saveTimerRef=React.useRef(null);
   const latestRef=React.useRef(null);
+  const writePendingRef=React.useRef(false);
 
   React.useEffect(()=>{
     if(!sessionKey)return;
@@ -4048,8 +4049,6 @@ function useRefsFirestore(sessionKey){
     },()=>{setVal(INIT);});
     return()=>unsub();
   },[sessionKey]);
-
-  const writePendingRef=React.useRef(false);
 
   const set=React.useCallback(updater=>{
     setVal(prev=>{
@@ -4101,7 +4100,6 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
     <div
       data-refcard={i}
       draggable="false"
-      onPointerDown={onPointerDown}
       onDragStart={e=>e.preventDefault()}
       onMouseEnter={()=>setHovered(true)}
       onMouseLeave={()=>setHovered(false)}
@@ -4342,7 +4340,6 @@ function RefsPanel({refs,sessionKey}){
 
   function onCardPointerDown(e,i){
     if(!teacherMode||e.button!==0) return;
-    e.preventDefault();
     e.stopPropagation();
     // If this is a non-active card, activating it should not also open lightbox/link
     if(i!==activeIdx){
@@ -4398,7 +4395,7 @@ function RefsPanel({refs,sessionKey}){
       if(wasDragging){
         suppressNextClick.current=true;
         setTimeout(()=>{suppressNextClick.current=false;},300);
-        if(from!==null&&to!==null&&from!==to){
+        if(from!==null&&to!==null&&from!==to&&typeof from==='number'&&typeof to==='number'){
           const fc=fanCardsRef.current;
           const reordered=[...fc];
           const [moved]=reordered.splice(from,1);
@@ -4435,6 +4432,22 @@ function RefsPanel({refs,sessionKey}){
   const manualCardsRef=React.useRef(manualCards);
   React.useEffect(()=>{fanCardsRef.current=fanCards;},[fanCards]);
   React.useEffect(()=>{manualCardsRef.current=manualCards;},[manualCards]);
+
+  // Attach pointerdown with passive:false so preventDefault() actually works
+  // React attaches synthetic events as passive — that's why e.preventDefault() was silently failing
+  React.useEffect(()=>{
+    const container=carouselRef.current;
+    if(!container) return;
+    const els=()=>container.querySelectorAll('[data-refcard]');
+    function handler(e){
+      const card=e.target.closest('[data-refcard]');
+      if(!card) return;
+      e.preventDefault();
+      onCardPointerDown(e, parseInt(card.dataset.refcard));
+    }
+    container.addEventListener('pointerdown', handler, {passive:false});
+    return()=>container.removeEventListener('pointerdown', handler);
+  },[teacherMode, activeIdx]);
 
   // Stubs — props kept for RefCard_ interface
   function onCardPointerMove(){}
