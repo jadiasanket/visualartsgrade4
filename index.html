@@ -4343,6 +4343,7 @@ function RefsPanel({refs,sessionKey}){
   const [dragOverIdx,setDragOverIdx]=React.useState(null);
 
   function onCardPointerDown(e,i){
+    console.log('onCardPointerDown called', i, 'teacherMode:', teacherModeRef.current, 'activeIdx:', activeIdxRef.current, 'button:', e.button);
     if(!teacherModeRef.current||e.button!==0) return;
     e.stopPropagation();
     // If this is a non-active card, activating it should not also open lightbox/link
