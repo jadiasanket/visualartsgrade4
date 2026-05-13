@@ -4331,6 +4331,10 @@ function RefsPanel({refs,sessionKey}){
 
   // ── Drag to reorder — document-level pointer tracking ──
   const dragCardIdx=React.useRef(null);
+  const teacherModeRef=React.useRef(teacherMode);
+  const activeIdxRef=React.useRef(activeIdx);
+  React.useEffect(()=>{teacherModeRef.current=teacherMode;},[teacherMode]);
+  React.useEffect(()=>{activeIdxRef.current=activeIdx;},[activeIdx]);
   const dragPointerStartX=React.useRef(0);
   const dragMovedRef=React.useRef(false);
   const suppressNextClick=React.useRef(false); // covers both drag AND inactive-card-activate
@@ -4339,10 +4343,10 @@ function RefsPanel({refs,sessionKey}){
   const [dragOverIdx,setDragOverIdx]=React.useState(null);
 
   function onCardPointerDown(e,i){
-    if(!teacherMode||e.button!==0) return;
+    if(!teacherModeRef.current||e.button!==0) return;
     e.stopPropagation();
     // If this is a non-active card, activating it should not also open lightbox/link
-    if(i!==activeIdx){
+    if(i!==activeIdxRef.current){
       setActiveIdx(i);
       suppressNextClick.current=true;
       setTimeout(()=>{suppressNextClick.current=false;},300);
@@ -4451,7 +4455,8 @@ function RefsPanel({refs,sessionKey}){
       container.removeEventListener('pointerdown', handler);
       container.removeEventListener('wheel', handleCarouselWheel);
     };
-  },[teacherMode, activeIdx]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
 
   // Stubs — props kept for RefCard_ interface
   function onCardPointerMove(){}
