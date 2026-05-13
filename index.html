@@ -4369,8 +4369,10 @@ function RefsPanel({refs,sessionKey}){
     }
 
     function onMove(ev){
+      console.log('onMove fired', dragCardIdx.current, ev.clientX);
       if(dragCardIdx.current===null) return;
       const dx=ev.clientX-dragPointerStartX.current;
+      console.log('dx:', dx, 'dragMoved:', dragMovedRef.current);
       if(!dragMovedRef.current&&Math.abs(dx)>8){
         dragMovedRef.current=true;
         setActiveDragIdx(dragCardIdx.current);
