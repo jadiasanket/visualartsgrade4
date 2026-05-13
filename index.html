@@ -4446,7 +4446,11 @@ function RefsPanel({refs,sessionKey}){
       onCardPointerDown(e, parseInt(card.dataset.refcard));
     }
     container.addEventListener('pointerdown', handler, {passive:false});
-    return()=>container.removeEventListener('pointerdown', handler);
+    container.addEventListener('wheel', handleCarouselWheel, {passive:false});
+    return()=>{
+      container.removeEventListener('pointerdown', handler);
+      container.removeEventListener('wheel', handleCarouselWheel);
+    };
   },[teacherMode, activeIdx]);
 
   // Stubs — props kept for RefCard_ interface
@@ -4735,7 +4739,6 @@ function RefsPanel({refs,sessionKey}){
           <div ref={carouselRef}
             style={{position:'relative',height:containerHeight+'px',width:'100%',
               overflow:activeDragIdx!==null?'visible':'hidden',userSelect:'none'}}
-            onWheel={handleCarouselWheel}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}>
             {fanCards.map((card,i)=>(
@@ -4759,7 +4762,6 @@ function RefsPanel({refs,sessionKey}){
                 dragOverIdx={dragOverIdx}
                 activeDragIdx={activeDragIdx}
                 suppressNextClick={suppressNextClick}
-                onPointerDown={e=>onCardPointerDown(e,i)}
                 onPointerMove={e=>onCardPointerMove(e,i)}
                 onPointerUp={e=>onCardPointerUp(e,i)}
               />
