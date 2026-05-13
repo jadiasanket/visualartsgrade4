@@ -4437,21 +4437,24 @@ function RefsPanel({refs,sessionKey}){
   React.useEffect(()=>{fanCardsRef.current=fanCards;},[fanCards]);
   React.useEffect(()=>{manualCardsRef.current=manualCards;},[manualCards]);
 
-  // Attach wheel+pointerdown with passive:false via callback ref — fires when DOM is ready,
-  // unlike useEffect which runs after paint and may find carouselRef.current still null.
-  // onCardPointerDown and handleCarouselWheel are defined above in the same scope.
+  // Use a callback ref so listeners attach the moment the carousel div mounts
+  // (useEffect with [] fires before the JSX renders, so carouselRef.current is null)
   const carouselCallbackRef=React.useCallback(node=>{
     if(!node) return;
     carouselRef.current=node;
-    function pointerHandler(e){
+    function handler(e){
       const card=e.target.closest('[data-refcard]');
       if(!card) return;
       e.preventDefault();
       onCardPointerDown(e, parseInt(card.dataset.refcard));
     }
-    node.addEventListener('pointerdown', pointerHandler, {passive:false});
+    node.addEventListener('pointerdown', handler, {passive:false});
     node.addEventListener('wheel', handleCarouselWheel, {passive:false});
-  // We intentionally omit deps — this only needs to run once when the node mounts
+    // Store cleanup on the node itself so it can be removed if needed
+    node._cleanupListeners=()=>{
+      node.removeEventListener('pointerdown', handler);
+      node.removeEventListener('wheel', handleCarouselWheel);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
