@@ -4343,7 +4343,6 @@ function RefsPanel({refs,sessionKey}){
   const [dragOverIdx,setDragOverIdx]=React.useState(null);
 
   function onCardPointerDown(e,i){
-    console.log('onCardPointerDown called', i, 'teacherMode:', teacherModeRef.current, 'activeIdx:', activeIdxRef.current, 'button:', e.button);
     if(!teacherModeRef.current||e.button!==0) return;
     e.stopPropagation();
     // If this is a non-active card, activating it should not also open lightbox/link
@@ -4369,10 +4368,8 @@ function RefsPanel({refs,sessionKey}){
     }
 
     function onMove(ev){
-      console.log('onMove fired', dragCardIdx.current, ev.clientX);
       if(dragCardIdx.current===null) return;
       const dx=ev.clientX-dragPointerStartX.current;
-      console.log('dx:', dx, 'dragMoved:', dragMovedRef.current);
       if(!dragMovedRef.current&&Math.abs(dx)>8){
         dragMovedRef.current=true;
         setActiveDragIdx(dragCardIdx.current);
@@ -4394,8 +4391,6 @@ function RefsPanel({refs,sessionKey}){
       const wasDragging=dragMovedRef.current;
       const from=dragCardIdx.current;
       const to=dragOverIdxRef.current;
-      console.log('onUp fired — wasDragging:', wasDragging, 'from:', from, 'to:', to);
-      console.log('onUp — wasDragging:', wasDragging, 'from:', from, 'to:', to, 'cardCenters:', cardCenters);
       dragCardIdx.current=null;
       dragMovedRef.current=false;
       dragOverIdxRef.current=null;
@@ -4442,25 +4437,21 @@ function RefsPanel({refs,sessionKey}){
   React.useEffect(()=>{fanCardsRef.current=fanCards;},[fanCards]);
   React.useEffect(()=>{manualCardsRef.current=manualCards;},[manualCards]);
 
-  // Attach pointerdown with passive:false so preventDefault() actually works
-  // React attaches synthetic events as passive — that's why e.preventDefault() was silently failing
-  React.useEffect(()=>{
-    const container=carouselRef.current;
-    if(!container) return;
-    const els=()=>container.querySelectorAll('[data-refcard]');
-    function handler(e){
-      console.log('pointerdown fired', e.target, e.target.closest('[data-refcard]'));
+  // Attach wheel+pointerdown with passive:false via callback ref — fires when DOM is ready,
+  // unlike useEffect which runs after paint and may find carouselRef.current still null.
+  // onCardPointerDown and handleCarouselWheel are defined above in the same scope.
+  const carouselCallbackRef=React.useCallback(node=>{
+    if(!node) return;
+    carouselRef.current=node;
+    function pointerHandler(e){
       const card=e.target.closest('[data-refcard]');
       if(!card) return;
       e.preventDefault();
       onCardPointerDown(e, parseInt(card.dataset.refcard));
     }
-    container.addEventListener('pointerdown', handler, {passive:false});
-    container.addEventListener('wheel', handleCarouselWheel, {passive:false});
-    return()=>{
-      container.removeEventListener('pointerdown', handler);
-      container.removeEventListener('wheel', handleCarouselWheel);
-    };
+    node.addEventListener('pointerdown', pointerHandler, {passive:false});
+    node.addEventListener('wheel', handleCarouselWheel, {passive:false});
+  // We intentionally omit deps — this only needs to run once when the node mounts
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
@@ -4747,7 +4738,7 @@ function RefsPanel({refs,sessionKey}){
         <div style={{marginBottom:20}}>
           <div className="pl" style={{marginBottom:16}}>Artists & References</div>
           {/* Carousel container */}
-          <div ref={carouselRef}
+          <div ref={carouselCallbackRef}
             style={{position:'relative',height:containerHeight+'px',width:'100%',
               overflow:activeDragIdx!==null?'visible':'hidden',userSelect:'none'}}
             onTouchStart={handleTouchStart}
