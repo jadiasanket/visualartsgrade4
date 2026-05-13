@@ -4359,13 +4359,11 @@ function RefsPanel({refs,sessionKey}){
 
     // Snapshot card center-x positions from the DOM once at drag start
     const cardCenters=[];
-    const container=carouselRef.current;
-    if(container){
-      container.querySelectorAll('[data-refcard]').forEach(el=>{
-        const r=el.getBoundingClientRect();
-        cardCenters.push({idx:parseInt(el.dataset.refcard),cx:r.left+r.width/2});
-      });
-    }
+    const container=document.querySelectorAll('[data-refcard]');
+    container.forEach(el=>{
+      const r=el.getBoundingClientRect();
+      cardCenters.push({idx:parseInt(el.dataset.refcard),cx:r.left+r.width/2});
+    });
 
     function onMove(ev){
       if(dragCardIdx.current===null) return;
