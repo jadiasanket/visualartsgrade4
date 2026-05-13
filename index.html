@@ -4083,7 +4083,7 @@ async function uploadRefImage(file,sessionKey,name){
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 // ── Individual reference card ──
-function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,editLinkUrl,setEditLinkUrl,onSaveEdit,onCancelEdit,onPointerDown,onPointerMove,onPointerUp,isDraggingRef,dragOverIdx,activeDragIdx,suppressNextClick}){
+function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,editLinkUrl,setEditLinkUrl,onSaveEdit,onCancelEdit}){
   const CARD=350;
   const dist=i-activeIdx;
   const absDist=Math.abs(dist);
@@ -4093,7 +4093,6 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
   const isActive=i===activeIdx;
   const editKey=card.isCurriculum?('curriculum:'+card.curriculumIdx):card.manualIdx;
   const isEditing=editingCard===editKey;
-  const isBeingDragged=activeDragIdx===i;
   const [hovered,setHovered]=React.useState(false);
 
   return(
@@ -4104,7 +4103,6 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
       onMouseEnter={()=>setHovered(true)}
       onMouseLeave={()=>setHovered(false)}
       onClick={()=>{
-        if(suppressNextClick&&suppressNextClick.current) return;
         if(isEditing) return;
         if(!isActive){onSetActive(i);return;}
         if(card.isLink&&card.linkUrl){window.open(card.linkUrl,'_blank');return;}
@@ -4121,13 +4119,13 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
         background:card.src?'#111':'var(--glass-bg2)',
         border:`2px solid ${isActive?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.07)'}`,
         boxShadow:'none',
-        transform:`translateX(calc(${xOffset}px - 50%)) translateY(calc(-50% ${isBeingDragged?'- 16px':''})) scale(${isBeingDragged?scale*1.05:scale})`,
+        transform:`translateX(calc(${xOffset}px - 50%)) translateY(-50%) scale(${scale})`,
         transition:'transform .42s cubic-bezier(.25,0.1,.25,1), filter .42s',
         willChange:'transform',
-        zIndex:isBeingDragged?500:zIdx,
-        cursor:teacherMode?(isBeingDragged?'grabbing':'grab'):'pointer',
+        zIndex:zIdx,
+        cursor:'pointer',
         touchAction:'none',
-        filter:isBeingDragged?'brightness(1.08)':absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)',
+        filter:absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)',
       }}>
 
       {/* Image — subtle zoom when active */}
@@ -4329,136 +4327,19 @@ function RefsPanel({refs,sessionKey}){
   },[setRefsData]);
   const [uploads]=useLocalStorage('uploads-'+sessionKey,[]);
 
-  // ── Drag to reorder — document-level pointer tracking ──
-  const dragCardIdx=React.useRef(null);
-  const teacherModeRef=React.useRef(teacherMode);
-  const activeIdxRef=React.useRef(activeIdx);
-  React.useEffect(()=>{teacherModeRef.current=teacherMode;},[teacherMode]);
-  React.useEffect(()=>{activeIdxRef.current=activeIdx;},[activeIdx]);
-  const dragPointerStartX=React.useRef(0);
-  const dragMovedRef=React.useRef(false);
-  const suppressNextClick=React.useRef(false); // covers both drag AND inactive-card-activate
-  const [activeDragIdx,setActiveDragIdx]=React.useState(null);
-  const dragOverIdxRef=React.useRef(null);
-  const [dragOverIdx,setDragOverIdx]=React.useState(null);
-
-  function onCardPointerDown(e,i){
-    if(!teacherModeRef.current||e.button!==0) return;
-    e.stopPropagation();
-    // If this is a non-active card, activating it should not also open lightbox/link
-    if(i!==activeIdxRef.current){
-      setActiveIdx(i);
-      suppressNextClick.current=true;
-      setTimeout(()=>{suppressNextClick.current=false;},300);
-      return; // don't start a drag from a back card — let the activate happen first
-    }
-    dragCardIdx.current=i;
-    dragPointerStartX.current=e.clientX;
-    dragMovedRef.current=false;
-    dragOverIdxRef.current=null;
-
-    // Snapshot card center-x positions from the DOM once at drag start
-    const cardCenters=[];
-    const container=document.querySelectorAll('[data-refcard]');
-    container.forEach(el=>{
-      const r=el.getBoundingClientRect();
-      cardCenters.push({idx:parseInt(el.dataset.refcard),cx:r.left+r.width/2});
-    });
-
-    function onMove(ev){
-      if(dragCardIdx.current===null) return;
-      const dx=ev.clientX-dragPointerStartX.current;
-      if(!dragMovedRef.current&&Math.abs(dx)>8){
-        dragMovedRef.current=true;
-        setActiveDragIdx(dragCardIdx.current);
-      }
-      if(!dragMovedRef.current) return;
-      let best=null,bestDist=Infinity;
-      for(const {idx,cx} of cardCenters){
-        if(idx===dragCardIdx.current) continue;
-        const d=Math.abs(ev.clientX-cx);
-        if(d<bestDist){bestDist=d;best=idx;}
-      }
-      dragOverIdxRef.current=best;
-      setDragOverIdx(best);
-    }
-
-    function onUp(){
-      document.removeEventListener('pointermove',onMove);
-      document.removeEventListener('pointerup',onUp);
-      const wasDragging=dragMovedRef.current;
-      const from=dragCardIdx.current;
-      const to=dragOverIdxRef.current;
-      dragCardIdx.current=null;
-      dragMovedRef.current=false;
-      dragOverIdxRef.current=null;
-      setActiveDragIdx(null);
-      setDragOverIdx(null);
-      if(wasDragging){
-        suppressNextClick.current=true;
-        setTimeout(()=>{suppressNextClick.current=false;},300);
-        if(from!==null&&to!==null&&from!==to&&typeof from==='number'&&typeof to==='number'){
-          const fc=fanCardsRef.current;
-          const reordered=[...fc];
-          const [moved]=reordered.splice(from,1);
-          reordered.splice(to,0,moved);
-          // Build newManual directly from card data — NOT via manualIdx
-          // manualIdx is the original position and doesn't change after splice,
-          // so mapping through it always produces the original order
-          const newManual=reordered
-            .filter(c=>!c.isCurriculum)
-            .map(c=>({
-              src:c.src||null,
-              title:c.title||'',
-              subtitle:c.subtitle||'',
-              why:c.why||'',
-              isLink:!!c.isLink,
-              linkUrl:c.linkUrl||'',
-              isVideo:!!c.isVideo,
-              videoUrl:c.videoUrl||'',
-            }));
-          const newCurriculumOrder=reordered
-            .filter(c=>c.isCurriculum&&c.curriculumIdx!=null)
-            .map(c=>c.curriculumIdx);
-          setRefsData(prev=>({...prev,manualCards:newManual,curriculumOrder:newCurriculumOrder}));
-        }
-      }
-    }
-
-    document.addEventListener('pointermove',onMove);
-    document.addEventListener('pointerup',onUp);
-  }
-
-  // Live refs so onUp closure always reads latest data
+  // Live refs for fanCards
   const fanCardsRef=React.useRef(fanCards);
-  const manualCardsRef=React.useRef(manualCards);
   React.useEffect(()=>{fanCardsRef.current=fanCards;},[fanCards]);
-  React.useEffect(()=>{manualCardsRef.current=manualCards;},[manualCards]);
 
-  // Use a callback ref so listeners attach the moment the carousel div mounts
-  // (useEffect with [] fires before the JSX renders, so carouselRef.current is null)
+  // Attach wheel listener with passive:false so preventDefault works
   const carouselCallbackRef=React.useCallback(node=>{
     if(!node) return;
     carouselRef.current=node;
-    function handler(e){
-      const card=e.target.closest('[data-refcard]');
-      if(!card) return;
-      e.preventDefault();
-      onCardPointerDown(e, parseInt(card.dataset.refcard));
-    }
-    node.addEventListener('pointerdown', handler, {passive:false});
     node.addEventListener('wheel', handleCarouselWheel, {passive:false});
-    // Store cleanup on the node itself so it can be removed if needed
-    node._cleanupListeners=()=>{
-      node.removeEventListener('pointerdown', handler);
-      node.removeEventListener('wheel', handleCarouselWheel);
-    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
-  // Stubs — props kept for RefCard_ interface
-  function onCardPointerMove(){}
-  function onCardPointerUp(){}
+
 
   // ── Add card state ──
   const [addingCard,setAddingCard]=React.useState(false);
@@ -4741,7 +4622,7 @@ function RefsPanel({refs,sessionKey}){
           {/* Carousel container */}
           <div ref={carouselCallbackRef}
             style={{position:'relative',height:containerHeight+'px',width:'100%',
-              overflow:activeDragIdx!==null?'visible':'hidden',userSelect:'none'}}
+              overflow:'hidden',userSelect:'none'}}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}>
             {fanCards.map((card,i)=>(
@@ -4761,12 +4642,6 @@ function RefsPanel({refs,sessionKey}){
                 editLinkUrl={editLinkUrl} setEditLinkUrl={setEditLinkUrl}
                 onSaveEdit={saveEdit}
                 onCancelEdit={()=>setEditingCard(null)}
-                isDraggingRef={null}
-                dragOverIdx={dragOverIdx}
-                activeDragIdx={activeDragIdx}
-                suppressNextClick={suppressNextClick}
-                onPointerMove={e=>onCardPointerMove(e,i)}
-                onPointerUp={e=>onCardPointerUp(e,i)}
               />
             ))}
             {/* Left arrow */}
