@@ -4078,26 +4078,27 @@ async function uploadRefImage(file,sessionKey,name){
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 // ── Individual reference card ──
-function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,onSaveEdit,onCancelEdit,onPointerDown,onPointerMove,onPointerUp,isDraggingRef,dragOverIdx}){
+function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,onSaveEdit,onCancelEdit,onPointerDown,onPointerMove,onPointerUp,isDraggingRef,dragOverIdx,activeDragIdx,dragSuppressClick}){
   const CARD=350;
-  const dist=i-activeIdx; // signed distance from active card
+  const dist=i-activeIdx;
   const absDist=Math.abs(dist);
-  // Coverflow geometry
   const scale=Math.max(0.62, 1-absDist*0.12);
-  const xOffset=dist*Math.round(CARD*0.42); // 42% of card = ~147px spacing
+  const xOffset=dist*Math.round(CARD*0.42);
   const zIdx=100-absDist*10;
   const isActive=i===activeIdx;
   const editKey=card.isCurriculum?('curriculum:'+card.curriculumIdx):card.manualIdx;
   const isEditing=editingCard===editKey;
+  const isBeingDragged=activeDragIdx===i;
+  const [hovered,setHovered]=React.useState(false);
 
   return(
     <div
+      data-refcard={i}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      style={{touchAction:'none',cursor:teacherMode?'grab':'pointer'}}
+      onMouseEnter={()=>setHovered(true)}
+      onMouseLeave={()=>setHovered(false)}
       onClick={()=>{
-        if(isDraggingRef&&isDraggingRef.current) return;
+        if(dragSuppressClick&&dragSuppressClick.current) return;
         if(isEditing) return;
         if(!isActive){onSetActive(i);return;}
         if(card.isLink&&card.linkUrl){window.open(card.linkUrl,'_blank');return;}
@@ -4113,14 +4114,16 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
         overflow:'hidden',
         background:card.src?'#111':'var(--glass-bg2)',
         border:`2px solid ${dragOverIdx===i?'var(--teal)':isActive?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.07)'}`,
-        boxShadow:dragOverIdx===i?'0 0 0 3px rgba(59,191,160,0.35)':'none',
-        transform:`translateX(calc(${xOffset}px - 50%)) translateY(-50%) scale(${scale})`,
-        transition:'transform .42s cubic-bezier(.25,0.1,.25,1), box-shadow .42s, filter .42s',
+        boxShadow:isBeingDragged
+          ?'0 32px 64px rgba(0,0,0,0.7), 0 0 0 3px rgba(59,191,160,0.5)'
+          :dragOverIdx===i?'0 0 0 3px rgba(59,191,160,0.35)':'none',
+        transform:`translateX(calc(${xOffset}px - 50%)) translateY(calc(-50% ${isBeingDragged?'- 18px':''})) scale(${isBeingDragged?scale*1.06:scale})`,
+        transition:isBeingDragged?'box-shadow .15s':'transform .42s cubic-bezier(.25,0.1,.25,1), box-shadow .42s, filter .42s',
         willChange:'transform',
-        zIndex:zIdx,
-        cursor:teacherMode?'grab':'pointer',
+        zIndex:isBeingDragged?500:zIdx,
+        cursor:teacherMode?(isBeingDragged?'grabbing':'grab'):'pointer',
         touchAction:'none',
-        filter:absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)',
+        filter:isBeingDragged?'brightness(1.08)':absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)',
       }}>
 
       {/* Image — subtle zoom when active */}
@@ -4130,15 +4133,18 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
           transition:'transform .45s cubic-bezier(.25,0.1,.25,1)',
           transformOrigin:'center center'}}/>}
 
-      {/* Link card placeholder */}
+      {/* Link card placeholder — show domain name when no image */}
       {card.isLink&&!card.src&&(
         <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',
-          alignItems:'center',justifyContent:'center',gap:8,padding:24,
+          alignItems:'center',justifyContent:'center',gap:10,padding:24,
           background:'linear-gradient(135deg,rgba(59,130,246,0.18),rgba(99,102,241,0.12))'}}>
-          <div style={{fontSize:36}}>🔗</div>
-          <div style={{fontSize:12,fontWeight:700,color:'#fff',textAlign:'center',wordBreak:'break-all'}}>{card.title||card.linkUrl}</div>
+          <div style={{fontSize:13,fontWeight:800,color:'rgba(255,255,255,0.5)',
+            letterSpacing:'.04em',textAlign:'center',wordBreak:'break-all',
+            fontFamily:"'DM Mono',monospace"}}>
+            {(()=>{try{return new URL(card.linkUrl).hostname.replace(/^www\./,'');}catch(e){return card.linkUrl;}})()}
+          </div>
+          <div style={{fontSize:13,fontWeight:700,color:'#fff',textAlign:'center',lineHeight:1.3,wordBreak:'break-word'}}>{card.title||''}</div>
           {card.subtitle&&<div style={{fontSize:10,color:'rgba(255,255,255,0.6)',textAlign:'center'}}>{card.subtitle}</div>}
-          <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',textAlign:'center',wordBreak:'break-all',marginTop:4}}>{card.linkUrl}</div>
         </div>
       )}
 
@@ -4207,6 +4213,11 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
               style={{fontSize:11,padding:'6px 12px',borderRadius:7,
                 border:'1px solid rgba(255,255,255,0.15)',background:'transparent',
                 color:'rgba(255,255,255,0.5)',cursor:'pointer'}}>Cancel</button>
+            {!card.isCurriculum&&(
+              <button onClick={e=>{e.stopPropagation();onCancelEdit();onDelete(card);}}
+                style={{fontSize:11,padding:'6px 10px',borderRadius:7,border:'none',
+                  background:'rgba(232,112,90,0.18)',color:'var(--coral)',cursor:'pointer',fontWeight:700}}>Delete</button>
+            )}
           </div>
         </div>
       )}
@@ -4243,28 +4254,21 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
             onChange={e=>onReplaceImg(card,e)} style={{display:'none'}}/>
         </label>
       )}
-      {/* Teacher controls — only on active card */}
-      {teacherMode&&isActive&&!isEditing&&(
-        <div style={{position:'absolute',top:8,right:8,display:'flex',gap:5,zIndex:10}}
-          onClick={e=>e.stopPropagation()}>
-          {/* Edit button — both manual and curriculum cards */}
-          <button onClick={e=>{e.stopPropagation();onEdit(card.isCurriculum?('curriculum:'+card.curriculumIdx):card.manualIdx,card);}}
-            style={{width:28,height:28,borderRadius:7,border:'none',
-              background:'rgba(245,158,11,0.9)',cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke="#060606" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-          {!card.isCurriculum&&(
-            <button onClick={e=>{e.stopPropagation();onDelete(card);}}
-              style={{width:28,height:28,borderRadius:7,border:'none',
-                background:'rgba(232,112,90,0.9)',color:'#fff',cursor:'pointer',
-                display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:14,fontWeight:800}}>✕</button>
-          )}
+      {/* Pencil icon — appears on hover in teacher mode, not while editing */}
+      {teacherMode&&!isEditing&&(
+        <div
+          onClick={e=>{e.stopPropagation();onEdit(card.isCurriculum?('curriculum:'+card.curriculumIdx):card.manualIdx,card);}}
+          style={{position:'absolute',top:8,right:8,width:30,height:30,borderRadius:8,
+            background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.18)',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            cursor:'pointer',zIndex:10,
+            opacity:hovered?1:0,
+            transition:'opacity .2s',pointerEvents:hovered?'auto':'none'}}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="rgba(255,255,255,0.9)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
         </div>
       )}
 
@@ -4317,46 +4321,88 @@ function RefsPanel({refs,sessionKey}){
   const [uploads]=useLocalStorage('uploads-'+sessionKey,[]);
 
   // ── Drag to reorder — document-level pointer tracking ──
-  const dragCardIdx=React.useRef(null);
-  const isDragging=React.useRef(false);
-  const pointerStartX=React.useRef(0);
+  const dragCardIdx=React.useRef(null);       // index of card being dragged
+  const dragPointerStartX=React.useRef(0);
+  const dragMovedRef=React.useRef(false);     // true once threshold crossed
+  const dragSuppressClick=React.useRef(false);// suppress the click that fires after pointerup
+  const [activeDragIdx,setActiveDragIdx]=React.useState(null); // for visual lift
   const [dragOverIdx,setDragOverIdx]=React.useState(null);
+  const carouselBoundsRef=React.useRef(null); // cached card positions
 
   function onCardPointerDown(e,i){
-    if(!teacherMode) return;
+    if(!teacherMode||e.button!==0) return;
+    e.stopPropagation();
     dragCardIdx.current=i;
-    isDragging.current=false;
-    pointerStartX.current=e.clientX;
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }
-  function onCardPointerMove(e,i){
-    if(dragCardIdx.current===null) return;
-    const dx=Math.abs(e.clientX-pointerStartX.current);
-    if(dx>10) isDragging.current=true;
-    if(isDragging.current) setDragOverIdx(i);
-  }
-  function onCardPointerUp(e,i){
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    if(!isDragging.current){
-      dragCardIdx.current=null;
-      isDragging.current=false;
-      setDragOverIdx(null);
-      return;
+    dragPointerStartX.current=e.clientX;
+    dragMovedRef.current=false;
+    dragSuppressClick.current=false;
+
+    // Cache bounding rects of all card elements now (cheap, done once per drag)
+    const container=carouselRef.current;
+    if(container){
+      const els=[...container.querySelectorAll('[data-refcard]')];
+      carouselBoundsRef.current=els.map(el=>({rect:el.getBoundingClientRect(),idx:parseInt(el.dataset.refcard)}));
     }
-    const from=dragCardIdx.current;
-    const to=dragOverIdx!==null?dragOverIdx:i;
-    dragCardIdx.current=null;
-    isDragging.current=false;
-    setDragOverIdx(null);
-    if(from===null||from===to) return;
-    const reordered=[...fanCards];
-    const [moved]=reordered.splice(from,1);
-    reordered.splice(to,0,moved);
-    const newManual=reordered.filter(c=>!c.isCurriculum).map(c=>manualCards[c.manualIdx]);
-    setManualCards(newManual);
-    const newCurriculumOrder=reordered.filter(c=>c.isCurriculum).map(c=>c.curriculumIdx);
-    setRefsData(prev=>({...prev,curriculumOrder:newCurriculumOrder}));
+
+    function onMove(ev){
+      if(dragCardIdx.current===null) return;
+      const dx=ev.clientX-dragPointerStartX.current;
+      if(!dragMovedRef.current&&Math.abs(dx)>8){
+        dragMovedRef.current=true;
+        setActiveDragIdx(dragCardIdx.current);
+      }
+      if(!dragMovedRef.current) return;
+      // Find which card the pointer is over by checking cached rects
+      if(carouselBoundsRef.current){
+        let best=null,bestDist=Infinity;
+        for(const {rect,idx} of carouselBoundsRef.current){
+          if(idx===dragCardIdx.current) continue;
+          const cx=rect.left+rect.width/2;
+          const dist=Math.abs(ev.clientX-cx);
+          if(dist<bestDist){bestDist=dist;best=idx;}
+        }
+        setDragOverIdx(best);
+      }
+    }
+
+    function onUp(ev){
+      document.removeEventListener('pointermove',onMove);
+      document.removeEventListener('pointerup',onUp);
+      const wasDragging=dragMovedRef.current;
+      const from=dragCardIdx.current;
+      const to=dragOverIdx!==null?dragOverIdx:null;
+      dragCardIdx.current=null;
+      dragMovedRef.current=false;
+      setActiveDragIdx(null);
+      setDragOverIdx(null);
+      if(wasDragging){
+        dragSuppressClick.current=true;
+        setTimeout(()=>{dragSuppressClick.current=false;},200);
+        if(from!==null&&to!==null&&from!==to){
+          // Use the latest fanCards via functional updater pattern
+          setManualCards(prev=>{
+            // Build current order from fanCards snapshot (closure)
+            const reordered=[...fanCards];
+            const [moved]=reordered.splice(from,1);
+            reordered.splice(to,0,moved);
+            return reordered.filter(c=>!c.isCurriculum).map(c=>manualCards[c.manualIdx]);
+          });
+          const reordered=[...fanCards];
+          const [moved]=reordered.splice(from,1);
+          reordered.splice(to,0,moved);
+          const newCurriculumOrder=reordered.filter(c=>c.isCurriculum).map(c=>c.curriculumIdx);
+          setRefsData(prev=>({...prev,curriculumOrder:newCurriculumOrder}));
+        }
+      }
+    }
+
+    document.addEventListener('pointermove',onMove);
+    document.addEventListener('pointerup',onUp);
   }
+
+  // Stubs kept so RefCard_ prop interface unchanged
+  function onCardPointerMove(){}
+  function onCardPointerUp(){}
 
   // ── Add card state ──
   const [addingCard,setAddingCard]=React.useState(false);
@@ -4371,20 +4417,23 @@ function RefsPanel({refs,sessionKey}){
   const [linkFetching,setLinkFetching]=React.useState(false);
   async function submitLinkCard(){
     if(!linkUrl.trim()) return;
+    // Add card immediately — show domain name, no waiting
+    const cardUrl=linkUrl.trim();
+    const cardTitle_=linkTitle.trim()||cardUrl;
+    const cardSubtitle_=linkSubtitle.trim();
+    setManualCards(prev=>[...prev,{src:null,title:cardTitle_,subtitle:cardSubtitle_,why:'',isLink:true,linkUrl:cardUrl}]);
+    const insertedAt=manualCards.length; // will be this index after the set above resolves
+    setLinkUrl('');setLinkTitle('');setLinkSubtitle('');setAddType(null);
+    // Background fetch for OG image — update card if found
     setLinkFetching(true);
     let ogImg=null;
-    // Try jsonlink API first (more reliable for og:image)
     try{
-      const res=await fetch(`https://jsonlink.io/api/extract?url=${encodeURIComponent(linkUrl.trim())}`);
-      if(res.ok){
-        const data=await res.json();
-        ogImg=data.images?.[0]||data.image||null;
-      }
+      const res=await fetch(`https://jsonlink.io/api/extract?url=${encodeURIComponent(cardUrl)}`);
+      if(res.ok){const data=await res.json();ogImg=data.images?.[0]||data.image||null;}
     }catch(e){}
-    // Fallback: allorigins
     if(!ogImg){
       try{
-        const res=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(linkUrl.trim())}`);
+        const res=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(cardUrl)}`);
         if(res.ok){
           const data=await res.json();
           const html=data.contents||'';
@@ -4395,8 +4444,12 @@ function RefsPanel({refs,sessionKey}){
       }catch(e){}
     }
     setLinkFetching(false);
-    setManualCards(prev=>[...prev,{src:ogImg||null,title:linkTitle.trim()||linkUrl.trim(),subtitle:linkSubtitle.trim(),why:'',isLink:true,linkUrl:linkUrl.trim()}]);
-    setLinkUrl('');setLinkTitle('');setLinkSubtitle('');setAddType(null);
+    if(ogImg){
+      // Patch the card we just added with the found image
+      setManualCards(prev=>prev.map((c,i)=>
+        i===insertedAt&&c.isLink&&c.linkUrl===cardUrl&&!c.src?{...c,src:ogImg}:c
+      ));
+    }
   }
   function submitVideoCard(){
     const vid=ytId(videoUrl.trim());
@@ -4647,8 +4700,10 @@ function RefsPanel({refs,sessionKey}){
                 editWhy={editWhy} setEditWhy={setEditWhy}
                 onSaveEdit={saveEdit}
                 onCancelEdit={()=>setEditingCard(null)}
-                isDraggingRef={isDragging}
+                isDraggingRef={null}
                 dragOverIdx={dragOverIdx}
+                activeDragIdx={activeDragIdx}
+                dragSuppressClick={dragSuppressClick}
                 onPointerDown={e=>onCardPointerDown(e,i)}
                 onPointerMove={e=>onCardPointerMove(e,i)}
                 onPointerUp={e=>onCardPointerUp(e,i)}
