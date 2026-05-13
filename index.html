@@ -4078,7 +4078,7 @@ async function uploadRefImage(file,sessionKey,name){
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 // ── Individual reference card ──
-function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,onSaveEdit,onCancelEdit,onPointerDown,onPointerMove,onPointerUp,isDraggingRef,dragOverIdx,activeDragIdx,dragSuppressClick}){
+function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,editLinkUrl,setEditLinkUrl,onSaveEdit,onCancelEdit,onPointerDown,onPointerMove,onPointerUp,isDraggingRef,dragOverIdx,activeDragIdx,dragSuppressClick}){
   const CARD=350;
   const dist=i-activeIdx;
   const absDist=Math.abs(dist);
@@ -4113,12 +4113,10 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
         borderRadius:18,
         overflow:'hidden',
         background:card.src?'#111':'var(--glass-bg2)',
-        border:`2px solid ${dragOverIdx===i?'var(--teal)':isActive?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.07)'}`,
-        boxShadow:isBeingDragged
-          ?'0 32px 64px rgba(0,0,0,0.7), 0 0 0 3px rgba(59,191,160,0.5)'
-          :dragOverIdx===i?'0 0 0 3px rgba(59,191,160,0.35)':'none',
-        transform:`translateX(calc(${xOffset}px - 50%)) translateY(calc(-50% ${isBeingDragged?'- 18px':''})) scale(${isBeingDragged?scale*1.06:scale})`,
-        transition:isBeingDragged?'box-shadow .15s':'transform .42s cubic-bezier(.25,0.1,.25,1), box-shadow .42s, filter .42s',
+        border:`2px solid ${isActive?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.07)'}`,
+        boxShadow:isBeingDragged?'none':'none',
+        transform:`translateX(calc(${xOffset}px - 50%)) translateY(calc(-50% ${isBeingDragged?'- 16px':''})) scale(${isBeingDragged?scale*1.05:scale})`,
+        transition:isBeingDragged?'none':'transform .42s cubic-bezier(.25,0.1,.25,1), box-shadow .42s, filter .42s',
         willChange:'transform',
         zIndex:isBeingDragged?500:zIdx,
         cursor:teacherMode?(isBeingDragged?'grabbing':'grab'):'pointer',
@@ -4200,30 +4198,50 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
               border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.08)',
               color:'rgba(255,255,255,0.8)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
           <textarea value={editWhy} onChange={e=>setEditWhy(e.target.value)}
-            placeholder="Note / description (why this reference?)"
-            rows={3}
+            placeholder="Note / description"
+            rows={2}
             style={{fontSize:11,padding:'7px 10px',borderRadius:7,resize:'none',
               border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.06)',
               color:'rgba(255,255,255,0.65)',fontFamily:"'DM Sans',sans-serif",outline:'none',lineHeight:1.5}}/>
+          {/* Link URL field — only for link cards */}
+          {card.isLink&&(
+            <input value={editLinkUrl} onChange={e=>setEditLinkUrl(e.target.value)}
+              placeholder="URL"
+              style={{fontSize:11,padding:'7px 10px',borderRadius:7,
+                border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.06)',
+                color:'rgba(255,255,255,0.65)',fontFamily:"'DM Sans',sans-serif",outline:'none'}}/>
+          )}
+          {/* Replace image — inside edit mode for all card types */}
+          <label style={{fontSize:10,fontWeight:700,color:'var(--tx2)',cursor:'pointer',
+            display:'inline-flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:6,
+            border:'1px dashed rgba(255,255,255,0.18)',background:'rgba(255,255,255,0.05)',width:'fit-content'}}
+            onClick={e=>e.stopPropagation()}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 4v6h6"/><path d="M23 20v-6h-6"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"/>
+              <path d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"/>
+            </svg>
+            Replace image
+            <input type="file" accept="image/*" style={{display:'none'}}
+              onChange={e=>{e.stopPropagation();onReplaceImg(card,e);onCancelEdit();}}/>
+          </label>
           <div style={{display:'flex',gap:7,marginTop:2}}>
-            <button onClick={e=>{e.stopPropagation();onSaveEdit(card);}}
+            <button onClick={e=>{e.stopPropagation();onSaveEdit(card,editLinkUrl);}}
               style={{flex:1,fontSize:11,fontWeight:700,padding:'6px 0',borderRadius:7,
                 border:'none',background:'var(--teal)',color:'#fff',cursor:'pointer'}}>Save</button>
             <button onClick={e=>{e.stopPropagation();onCancelEdit();}}
               style={{fontSize:11,padding:'6px 12px',borderRadius:7,
                 border:'1px solid rgba(255,255,255,0.15)',background:'transparent',
                 color:'rgba(255,255,255,0.5)',cursor:'pointer'}}>Cancel</button>
-            {!card.isCurriculum&&(
-              <button onClick={e=>{e.stopPropagation();onCancelEdit();onDelete(card);}}
-                style={{fontSize:11,padding:'6px 10px',borderRadius:7,border:'none',
-                  background:'rgba(232,112,90,0.18)',color:'var(--coral)',cursor:'pointer',fontWeight:700}}>Delete</button>
-            )}
+            <button onClick={e=>{e.stopPropagation();onCancelEdit();onDelete(card);}}
+              style={{fontSize:11,padding:'6px 10px',borderRadius:7,border:'none',
+                background:'rgba(232,112,90,0.18)',color:'var(--coral)',cursor:'pointer',fontWeight:700}}>Delete</button>
           </div>
         </div>
       )}
 
       {/* Curriculum: upload prompt if no image — centred */}
-      {card.isCurriculum&&!card.src&&teacherMode&&(
+      {card.isCurriculum&&!card.src&&teacherMode&&!isEditing&&(
         <label style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
           background:'rgba(0,0,0,0.65)',borderRadius:8,padding:'8px 18px',
           fontSize:10,color:'rgba(255,255,255,0.85)',fontWeight:700,cursor:'pointer',
@@ -4235,29 +4253,14 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
         </label>
       )}
 
-      {/* Replace image — camera button top-left, all cards on hover, teacher mode */}
-      {teacherMode&&!isEditing&&card.src&&(
-        <label style={{position:'absolute',top:8,left:8,width:26,height:26,borderRadius:7,
-          background:'rgba(0,0,0,0.6)',border:'1px solid rgba(255,255,255,0.15)',
-          display:'flex',alignItems:'center',justifyContent:'center',
-          cursor:'pointer',zIndex:10,opacity:isActive?1:0,transition:'opacity .25s'}}
-          onClick={e=>e.stopPropagation()}
-          title="Replace image">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-            stroke="rgba(255,255,255,0.85)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1 4v6h6"/>
-            <path d="M23 20v-6h-6"/>
-            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"/>
-            <path d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"/>
-          </svg>
-          <input type="file" accept="image/*"
-            onChange={e=>onReplaceImg(card,e)} style={{display:'none'}}/>
-        </label>
-      )}
       {/* Pencil icon — appears on hover in teacher mode, not while editing */}
       {teacherMode&&!isEditing&&(
         <div
-          onClick={e=>{e.stopPropagation();onEdit(card.isCurriculum?('curriculum:'+card.curriculumIdx):card.manualIdx,card);}}
+          onClick={e=>{
+            e.stopPropagation();
+            if(!isActive) onSetActive(i); // activate card first
+            onEdit(card.isCurriculum?('curriculum:'+card.curriculumIdx):card.manualIdx,card);
+          }}
           style={{position:'absolute',top:8,right:8,width:30,height:30,borderRadius:8,
             background:'rgba(0,0,0,0.55)',border:'1px solid rgba(255,255,255,0.18)',
             display:'flex',alignItems:'center',justifyContent:'center',
@@ -4321,27 +4324,38 @@ function RefsPanel({refs,sessionKey}){
   const [uploads]=useLocalStorage('uploads-'+sessionKey,[]);
 
   // ── Drag to reorder — document-level pointer tracking ──
-  const dragCardIdx=React.useRef(null);       // index of card being dragged
+  const dragCardIdx=React.useRef(null);
   const dragPointerStartX=React.useRef(0);
-  const dragMovedRef=React.useRef(false);     // true once threshold crossed
-  const dragSuppressClick=React.useRef(false);// suppress the click that fires after pointerup
-  const [activeDragIdx,setActiveDragIdx]=React.useState(null); // for visual lift
+  const dragMovedRef=React.useRef(false);
+  const dragSuppressClick=React.useRef(false);
+  const [activeDragIdx,setActiveDragIdx]=React.useState(null);
   const [dragOverIdx,setDragOverIdx]=React.useState(null);
-  const carouselBoundsRef=React.useRef(null); // cached card positions
+  const dragOverIdxRef=React.useRef(null); // mirror of dragOverIdx readable inside closure
+  // Keep live refs to fanCards/manualCards so onUp closure always reads latest
+  const fanCardsRef=React.useRef(fanCards);
+  const manualCardsRef=React.useRef(manualCards);
+  React.useEffect(()=>{fanCardsRef.current=fanCards;},[fanCards]);
+  React.useEffect(()=>{manualCardsRef.current=manualCards;},[manualCards]);
 
   function onCardPointerDown(e,i){
     if(!teacherMode||e.button!==0) return;
     e.stopPropagation();
+    // If clicking a non-active card, bring it to front first — drag will start from there
+    if(i!==activeIdx) setActiveIdx(i);
     dragCardIdx.current=i;
     dragPointerStartX.current=e.clientX;
     dragMovedRef.current=false;
     dragSuppressClick.current=false;
+    dragOverIdxRef.current=null;
 
-    // Cache bounding rects of all card elements now (cheap, done once per drag)
+    // Snapshot card center-x positions from the DOM (done once per drag start)
+    const cardCenters=[];
     const container=carouselRef.current;
     if(container){
-      const els=[...container.querySelectorAll('[data-refcard]')];
-      carouselBoundsRef.current=els.map(el=>({rect:el.getBoundingClientRect(),idx:parseInt(el.dataset.refcard)}));
+      container.querySelectorAll('[data-refcard]').forEach(el=>{
+        const r=el.getBoundingClientRect();
+        cardCenters.push({idx:parseInt(el.dataset.refcard),cx:r.left+r.width/2});
+      });
     }
 
     function onMove(ev){
@@ -4352,44 +4366,39 @@ function RefsPanel({refs,sessionKey}){
         setActiveDragIdx(dragCardIdx.current);
       }
       if(!dragMovedRef.current) return;
-      // Find which card the pointer is over by checking cached rects
-      if(carouselBoundsRef.current){
-        let best=null,bestDist=Infinity;
-        for(const {rect,idx} of carouselBoundsRef.current){
-          if(idx===dragCardIdx.current) continue;
-          const cx=rect.left+rect.width/2;
-          const dist=Math.abs(ev.clientX-cx);
-          if(dist<bestDist){bestDist=dist;best=idx;}
-        }
-        setDragOverIdx(best);
+      // Find nearest card center that isn't the dragged card
+      let best=null,bestDist=Infinity;
+      for(const {idx,cx} of cardCenters){
+        if(idx===dragCardIdx.current) continue;
+        const d=Math.abs(ev.clientX-cx);
+        if(d<bestDist){bestDist=d;best=idx;}
       }
+      dragOverIdxRef.current=best; // update ref — readable in onUp
+      setDragOverIdx(best);        // update state — readable by render
     }
 
-    function onUp(ev){
+    function onUp(){
       document.removeEventListener('pointermove',onMove);
       document.removeEventListener('pointerup',onUp);
       const wasDragging=dragMovedRef.current;
       const from=dragCardIdx.current;
-      const to=dragOverIdx!==null?dragOverIdx:null;
+      const to=dragOverIdxRef.current; // read from ref, not stale closure state
       dragCardIdx.current=null;
       dragMovedRef.current=false;
+      dragOverIdxRef.current=null;
       setActiveDragIdx(null);
       setDragOverIdx(null);
       if(wasDragging){
         dragSuppressClick.current=true;
         setTimeout(()=>{dragSuppressClick.current=false;},200);
         if(from!==null&&to!==null&&from!==to){
-          // Use the latest fanCards via functional updater pattern
-          setManualCards(prev=>{
-            // Build current order from fanCards snapshot (closure)
-            const reordered=[...fanCards];
-            const [moved]=reordered.splice(from,1);
-            reordered.splice(to,0,moved);
-            return reordered.filter(c=>!c.isCurriculum).map(c=>manualCards[c.manualIdx]);
-          });
-          const reordered=[...fanCards];
+          const fc=fanCardsRef.current;
+          const mc=manualCardsRef.current;
+          const reordered=[...fc];
           const [moved]=reordered.splice(from,1);
           reordered.splice(to,0,moved);
+          const newManual=reordered.filter(c=>!c.isCurriculum).map(c=>mc[c.manualIdx]);
+          setManualCards(newManual);
           const newCurriculumOrder=reordered.filter(c=>c.isCurriculum).map(c=>c.curriculumIdx);
           setRefsData(prev=>({...prev,curriculumOrder:newCurriculumOrder}));
         }
@@ -4400,7 +4409,7 @@ function RefsPanel({refs,sessionKey}){
     document.addEventListener('pointerup',onUp);
   }
 
-  // Stubs kept so RefCard_ prop interface unchanged
+  // Stubs — props kept for RefCard_ interface
   function onCardPointerMove(){}
   function onCardPointerUp(){}
 
@@ -4464,10 +4473,11 @@ function RefsPanel({refs,sessionKey}){
   const [uploadingCard,setUploadingCard]=React.useState(false);
 
   // ── Edit state ──
-  const [editingCard,setEditingCard]=React.useState(null); // stores manualIdx
+  const [editingCard,setEditingCard]=React.useState(null);
   const [editTitle,setEditTitle]=React.useState('');
   const [editSubtitle,setEditSubtitle]=React.useState('');
   const [editWhy,setEditWhy]=React.useState('');
+  const [editLinkUrl,setEditLinkUrl]=React.useState('');
 
   const {teacherMode}=React.useContext(KWContext);
   const slideRefs=(refs||[]).filter(r=>r.type==='slide');
@@ -4641,7 +4651,6 @@ function RefsPanel({refs,sessionKey}){
     else removeManualCard(card.manualIdx);
   }
 
-  // Fix: use manualIdx directly; also supports curriculum cards via 'curriculum:N' key
   function startEdit(key,card){
     setEditingCard(key);
     if(card.isCurriculum){
@@ -4649,13 +4658,15 @@ function RefsPanel({refs,sessionKey}){
       setEditTitle(ov.title!==undefined?ov.title:(nonSlideRefs[card.curriculumIdx]?.name||card.title||''));
       setEditSubtitle(ov.subtitle!==undefined?ov.subtitle:(nonSlideRefs[card.curriculumIdx]?.work||card.subtitle||''));
       setEditWhy(ov.why!==undefined?ov.why:(nonSlideRefs[card.curriculumIdx]?.why||card.why||''));
+      setEditLinkUrl('');
     } else {
       setEditTitle(manualCards[card.manualIdx]?.title||'');
       setEditSubtitle(manualCards[card.manualIdx]?.subtitle||'');
       setEditWhy(manualCards[card.manualIdx]?.why||'');
+      setEditLinkUrl(manualCards[card.manualIdx]?.linkUrl||'');
     }
   }
-  function saveEdit(card){
+  function saveEdit(card,newLinkUrl){
     if(card&&card.isCurriculum){
       setRefsData(prev=>{
         const overrides={...(prev.curriculumOverrides||{})};
@@ -4663,7 +4674,10 @@ function RefsPanel({refs,sessionKey}){
         return{...prev,curriculumOverrides:overrides};
       });
     } else {
-      setManualCards(prev=>prev.map((c,i)=>i===editingCard?{...c,title:editTitle,subtitle:editSubtitle,why:editWhy}:c));
+      setManualCards(prev=>prev.map((c,i)=>i===editingCard
+        ?{...c,title:editTitle,subtitle:editSubtitle,why:editWhy,
+            ...(c.isLink&&newLinkUrl!==undefined?{linkUrl:newLinkUrl}:{})}
+        :c));
     }
     setEditingCard(null);
   }
@@ -4680,7 +4694,7 @@ function RefsPanel({refs,sessionKey}){
           {/* Carousel container */}
           <div ref={carouselRef}
             style={{position:'relative',height:containerHeight+'px',width:'100%',
-              overflow:'hidden',userSelect:'none'}}
+              overflow:activeDragIdx!==null?'visible':'hidden',userSelect:'none'}}
             onWheel={handleCarouselWheel}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}>
@@ -4698,6 +4712,7 @@ function RefsPanel({refs,sessionKey}){
                 editTitle={editTitle} setEditTitle={setEditTitle}
                 editSubtitle={editSubtitle} setEditSubtitle={setEditSubtitle}
                 editWhy={editWhy} setEditWhy={setEditWhy}
+                editLinkUrl={editLinkUrl} setEditLinkUrl={setEditLinkUrl}
                 onSaveEdit={saveEdit}
                 onCancelEdit={()=>setEditingCard(null)}
                 isDraggingRef={null}
