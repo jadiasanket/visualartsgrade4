@@ -4394,6 +4394,7 @@ function RefsPanel({refs,sessionKey}){
       const wasDragging=dragMovedRef.current;
       const from=dragCardIdx.current;
       const to=dragOverIdxRef.current;
+      console.log('onUp — wasDragging:', wasDragging, 'from:', from, 'to:', to, 'cardCenters:', cardCenters);
       dragCardIdx.current=null;
       dragMovedRef.current=false;
       dragOverIdxRef.current=null;
