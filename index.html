@@ -4078,7 +4078,7 @@ async function uploadRefImage(file,sessionKey,name){
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 // ── Individual reference card ──
-function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,editLinkUrl,setEditLinkUrl,onSaveEdit,onCancelEdit,onPointerDown,onPointerMove,onPointerUp,isDraggingRef,dragOverIdx,activeDragIdx,dragSuppressClick}){
+function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,editLinkUrl,setEditLinkUrl,onSaveEdit,onCancelEdit,onPointerDown,onPointerMove,onPointerUp,isDraggingRef,dragOverIdx,activeDragIdx,suppressNextClick}){
   const CARD=350;
   const dist=i-activeIdx;
   const absDist=Math.abs(dist);
@@ -4098,7 +4098,7 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
       onMouseEnter={()=>setHovered(true)}
       onMouseLeave={()=>setHovered(false)}
       onClick={()=>{
-        if(dragSuppressClick&&dragSuppressClick.current) return;
+        if(suppressNextClick&&suppressNextClick.current) return;
         if(isEditing) return;
         if(!isActive){onSetActive(i);return;}
         if(card.isLink&&card.linkUrl){window.open(card.linkUrl,'_blank');return;}
@@ -4114,9 +4114,9 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
         overflow:'hidden',
         background:card.src?'#111':'var(--glass-bg2)',
         border:`2px solid ${isActive?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.07)'}`,
-        boxShadow:isBeingDragged?'none':'none',
+        boxShadow:'none',
         transform:`translateX(calc(${xOffset}px - 50%)) translateY(calc(-50% ${isBeingDragged?'- 16px':''})) scale(${isBeingDragged?scale*1.05:scale})`,
-        transition:isBeingDragged?'none':'transform .42s cubic-bezier(.25,0.1,.25,1), box-shadow .42s, filter .42s',
+        transition:'transform .42s cubic-bezier(.25,0.1,.25,1), filter .42s',
         willChange:'transform',
         zIndex:isBeingDragged?500:zIdx,
         cursor:teacherMode?(isBeingDragged?'grabbing':'grab'):'pointer',
@@ -4327,28 +4327,27 @@ function RefsPanel({refs,sessionKey}){
   const dragCardIdx=React.useRef(null);
   const dragPointerStartX=React.useRef(0);
   const dragMovedRef=React.useRef(false);
-  const dragSuppressClick=React.useRef(false);
+  const suppressNextClick=React.useRef(false); // covers both drag AND inactive-card-activate
   const [activeDragIdx,setActiveDragIdx]=React.useState(null);
+  const dragOverIdxRef=React.useRef(null);
   const [dragOverIdx,setDragOverIdx]=React.useState(null);
-  const dragOverIdxRef=React.useRef(null); // mirror of dragOverIdx readable inside closure
-  // Keep live refs to fanCards/manualCards so onUp closure always reads latest
-  const fanCardsRef=React.useRef(fanCards);
-  const manualCardsRef=React.useRef(manualCards);
-  React.useEffect(()=>{fanCardsRef.current=fanCards;},[fanCards]);
-  React.useEffect(()=>{manualCardsRef.current=manualCards;},[manualCards]);
 
   function onCardPointerDown(e,i){
     if(!teacherMode||e.button!==0) return;
     e.stopPropagation();
-    // If clicking a non-active card, bring it to front first — drag will start from there
-    if(i!==activeIdx) setActiveIdx(i);
+    // If this is a non-active card, activating it should not also open lightbox/link
+    if(i!==activeIdx){
+      setActiveIdx(i);
+      suppressNextClick.current=true;
+      setTimeout(()=>{suppressNextClick.current=false;},300);
+      return; // don't start a drag from a back card — let the activate happen first
+    }
     dragCardIdx.current=i;
     dragPointerStartX.current=e.clientX;
     dragMovedRef.current=false;
-    dragSuppressClick.current=false;
     dragOverIdxRef.current=null;
 
-    // Snapshot card center-x positions from the DOM (done once per drag start)
+    // Snapshot card center-x positions from the DOM once at drag start
     const cardCenters=[];
     const container=carouselRef.current;
     if(container){
@@ -4366,15 +4365,14 @@ function RefsPanel({refs,sessionKey}){
         setActiveDragIdx(dragCardIdx.current);
       }
       if(!dragMovedRef.current) return;
-      // Find nearest card center that isn't the dragged card
       let best=null,bestDist=Infinity;
       for(const {idx,cx} of cardCenters){
         if(idx===dragCardIdx.current) continue;
         const d=Math.abs(ev.clientX-cx);
         if(d<bestDist){bestDist=d;best=idx;}
       }
-      dragOverIdxRef.current=best; // update ref — readable in onUp
-      setDragOverIdx(best);        // update state — readable by render
+      dragOverIdxRef.current=best;
+      setDragOverIdx(best);
     }
 
     function onUp(){
@@ -4382,24 +4380,31 @@ function RefsPanel({refs,sessionKey}){
       document.removeEventListener('pointerup',onUp);
       const wasDragging=dragMovedRef.current;
       const from=dragCardIdx.current;
-      const to=dragOverIdxRef.current; // read from ref, not stale closure state
+      const to=dragOverIdxRef.current;
       dragCardIdx.current=null;
       dragMovedRef.current=false;
       dragOverIdxRef.current=null;
       setActiveDragIdx(null);
       setDragOverIdx(null);
       if(wasDragging){
-        dragSuppressClick.current=true;
-        setTimeout(()=>{dragSuppressClick.current=false;},200);
+        suppressNextClick.current=true;
+        setTimeout(()=>{suppressNextClick.current=false;},300);
         if(from!==null&&to!==null&&from!==to){
+          // Read latest values directly — no stale closure issue
           const fc=fanCardsRef.current;
           const mc=manualCardsRef.current;
           const reordered=[...fc];
           const [moved]=reordered.splice(from,1);
           reordered.splice(to,0,moved);
-          const newManual=reordered.filter(c=>!c.isCurriculum).map(c=>mc[c.manualIdx]);
+          // Rebuild manualCards in new order — use the manualIdx to look up from mc
+          // Only include entries where manualIdx is a valid index
+          const newManual=reordered
+            .filter(c=>!c.isCurriculum&&c.manualIdx!=null&&mc[c.manualIdx]!==undefined)
+            .map(c=>mc[c.manualIdx]);
           setManualCards(newManual);
-          const newCurriculumOrder=reordered.filter(c=>c.isCurriculum).map(c=>c.curriculumIdx);
+          const newCurriculumOrder=reordered
+            .filter(c=>c.isCurriculum&&c.curriculumIdx!=null)
+            .map(c=>c.curriculumIdx);
           setRefsData(prev=>({...prev,curriculumOrder:newCurriculumOrder}));
         }
       }
@@ -4408,6 +4413,12 @@ function RefsPanel({refs,sessionKey}){
     document.addEventListener('pointermove',onMove);
     document.addEventListener('pointerup',onUp);
   }
+
+  // Live refs so onUp closure always reads latest data
+  const fanCardsRef=React.useRef(fanCards);
+  const manualCardsRef=React.useRef(manualCards);
+  React.useEffect(()=>{fanCardsRef.current=fanCards;},[fanCards]);
+  React.useEffect(()=>{manualCardsRef.current=manualCards;},[manualCards]);
 
   // Stubs — props kept for RefCard_ interface
   function onCardPointerMove(){}
@@ -4718,7 +4729,7 @@ function RefsPanel({refs,sessionKey}){
                 isDraggingRef={null}
                 dragOverIdx={dragOverIdx}
                 activeDragIdx={activeDragIdx}
-                dragSuppressClick={dragSuppressClick}
+                suppressNextClick={suppressNextClick}
                 onPointerDown={e=>onCardPointerDown(e,i)}
                 onPointerMove={e=>onCardPointerMove(e,i)}
                 onPointerUp={e=>onCardPointerUp(e,i)}
