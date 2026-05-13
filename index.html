@@ -7789,7 +7789,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 }
 
 // ── PHOTO EDITOR MODAL ──
-function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropChange}){
+function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropChange, batchLabel, onPrev, onNext}){
   const canvasRef=React.useRef(null);
   const baseImg=React.useRef(null);
   const [rotation,setRotation]=React.useState(0);
@@ -8048,7 +8048,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
                   </React.Fragment>
                 ))}
                 {/* Crop border */}
-                <rect x={(crop.x*100)+'%'} y={(crop.y*100)+'%'} width={(crop.w*100)+'%'} height={(crop.h*100)+'%'} fill="none" stroke={AMBER} strokeWidth="1.5"/>
+                <rect x={(crop.x*100)+'%'} y={(crop.y*100)+'%'} width={(crop.w*100)+'%'} height={(crop.h*100)+'%'} fill="none" stroke={AMBER} strokeWidth="0.75"/>
               </svg>
               {/* Move handle (drag inside box) */}
               <div onMouseDown={e=>cropHandleMouseDown(e,'move')}
@@ -8108,8 +8108,10 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
           style={{display:'flex',alignItems:'center',justifyContent:'space-between',
             padding:'9px 12px',borderBottom:'1px solid rgba(245,158,11,0.12)',
             background:'rgba(245,158,11,0.06)',cursor:'grab'}}>
-          <span style={{fontSize:10,fontWeight:800,letterSpacing:'.1em',color:AMBER}}>✦ PHOTO EDITOR</span>
+          <span style={{fontSize:10,fontWeight:800,letterSpacing:'.1em',color:AMBER}}>✦ PHOTO EDITOR{batchLabel?' · '+batchLabel:''}</span>
           <div style={{display:'flex',gap:5}}>
+            {onPrev&&<button onClick={onPrev} style={{fontSize:9,padding:'2px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,0.12)',background:'transparent',color:'rgba(255,255,255,0.5)',cursor:'pointer'}}>← Prev</button>}
+            {onNext&&<button onClick={onNext} style={{fontSize:9,padding:'2px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,0.12)',background:'transparent',color:'rgba(255,255,255,0.5)',cursor:'pointer'}}>Next →</button>}
             <button onClick={undo} disabled={!history.length}
               style={{fontSize:9,padding:'2px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,0.12)',background:'transparent',color:history.length?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.15)',cursor:history.length?'pointer':'default'}}>
               ↩ Undo
@@ -10561,7 +10563,21 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
     onDone();
   }
 
-  const pendingCount=queue.filter(q=>q.status==='pending').length;
+  const [editingIdx,setEditingIdx]=React.useState(null); // index of item being edited in PhotoEditor
+  const [editUploading,setEditUploading]=React.useState(false);
+
+  async function handleBatchEditSave(blob,idx){
+    setEditUploading(true);
+    try{
+      const file=new File([blob],queue[idx].file.name,{type:blob.type||'image/jpeg'});
+      update(idx,{file,localUrl:URL.createObjectURL(file)});
+    }catch(e){console.warn('batch edit save failed',e);}
+    setEditUploading(false);
+    // Auto-advance to next unedited item, or close if last
+    const nextIdx=queue.findIndex((item,i)=>i>idx&&item.status==='pending');
+    if(nextIdx!==-1) setEditingIdx(nextIdx);
+    else setEditingIdx(null);
+  }
   const doneCount=queue.filter(q=>q.status==='done').length;
   const hasErrors=queue.some(q=>q.status==='error');
 
@@ -10678,6 +10694,16 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
                         {isUploading&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
                           <div style={{width:24,height:24,border:'2px solid rgba(255,255,255,0.3)',borderTop:'2px solid #fff',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>
                         </div>}
+                        {!isDone&&!isUploading&&(
+                          <button onClick={e=>{e.stopPropagation();setEditingIdx(i);}}
+                            style={{position:'absolute',bottom:6,right:6,background:'rgba(0,0,0,0.65)',
+                              border:'1px solid rgba(255,255,255,0.2)',borderRadius:6,
+                              color:'rgba(255,255,255,0.85)',fontSize:10,fontWeight:700,
+                              cursor:'pointer',padding:'3px 8px',lineHeight:1,
+                              fontFamily:"'DM Sans',sans-serif"}}>
+                            Edit
+                          </button>
+                        )}
                       </div>
                       {/* Student picker — artwork only */}
                       {!isDoc&&(
@@ -10802,71 +10828,268 @@ function RichTextEditor_({initialHtml,onChange}){
 }
 
 // ── GALLERY VIEW — all sections portfolio feed ──
-// ── Refs image strip shown at top of Gallery ──
-// Fetches all refs documents across sections, collects images, shows in random order
-// Cards are 2:1 ratio, height = 2× gallery thumbnail height (~180px → 360px tall, but 2:1 so ~240h)
+// ── Section colour map ──
+const SECTION_COLORS={
+  '4gir':'var(--coral)',
+  '4sariska':'var(--teal)',
+  '4ranthambore':'var(--yellow)',
+  '4kanha':'var(--violet)',
+  '4corbett':'var(--sky)',
+};
+function SectionDot({sectionId,size=7}){
+  const color=SECTION_COLORS[sectionId]||'rgba(255,255,255,0.3)';
+  return <span style={{display:'inline-block',width:size,height:size,borderRadius:'50%',background:color,flexShrink:0}}/>;
+}
+
+// ── Student photo popup ──
+function StudentPopup({studentName,sectionId,allPhotos,onClose,onOpenPhoto}){
+  const photos=allPhotos.filter(p=>p.studentName===studentName&&p.sectionId===sectionId);
+  return ReactDOM.createPortal(
+    <div style={{position:'fixed',inset:0,zIndex:5500,background:'rgba(6,8,16,0.92)',backdropFilter:'blur(18px)',
+      display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
+      onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{width:'min(680px,92vw)',maxHeight:'82vh',background:'var(--popup-bg)',
+          border:'1px solid var(--glass-border2)',borderRadius:20,
+          boxShadow:'0 24px 64px rgba(0,0,0,0.7)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        <div style={{padding:'16px 20px',borderBottom:'1px solid var(--glass-border)',
+          display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <SectionDot sectionId={sectionId} size={9}/>
+            <span style={{fontSize:15,fontWeight:800,color:'var(--tx)',fontFamily:"'Bricolage Grotesque',sans-serif"}}>{studentName}</span>
+            <span style={{fontSize:11,color:'var(--tx3)'}}>{photos.length} photo{photos.length!==1?'s':''}</span>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:18,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:16}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:10}}>
+            {photos.map((p,i)=>(
+              <div key={i} onClick={()=>onOpenPhoto(p)}
+                style={{borderRadius:10,overflow:'hidden',cursor:'pointer',position:'relative',aspectRatio:'1',
+                  background:'var(--glass-bg2)'}}
+                onMouseEnter={e=>{const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1.07)';}}
+                onMouseLeave={e=>{const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1)';}}>
+                <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',transition:'transform .3s'}}/>
+                <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,0.6) 0%,transparent 60%)',pointerEvents:'none'}}/>
+                <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'6px 8px',fontSize:9,color:'rgba(255,255,255,0.7)',pointerEvents:'none'}}>
+                  {p.date}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Gallery fan/stack carousel strip ──
+// Shows 10 random gallery photos (artworks + docs), refreshes every 2hrs
+// Fan/stack layout identical to refs carousel, 4:3 ratio cards
 function RefsStrip_(){
-  const [imgs,setImgs]=React.useState([]);
-  const CARD_H=200; // height of each card
-  const CARD_W=CARD_H*2; // 2:1 ratio
+  const CARD_H=360;
+  const CARD_W=Math.round(CARD_H*(4/3));
+  const [photos,setPhotos]=React.useState([]);
+  const [activeIdx,setActiveIdx]=React.useState(0);
+  const [lightbox,setLightbox]=React.useState(null); // {photo, originIdx}
+  const [studentPopup,setStudentPopup]=React.useState(null); // {studentName,sectionId}
+  const [allPhotos,setAllPhotos]=React.useState([]);
+  const scrollAccum=React.useRef(0);
+  const containerRef=React.useRef(null);
+  const lastRefresh=React.useRef(0);
+
+  function pickRandom(pool){
+    const shuffled=[...pool].sort(()=>Math.random()-0.5);
+    return shuffled.slice(0,Math.min(10,shuffled.length));
+  }
 
   React.useEffect(()=>{
     const db=window._db;
     if(!db) return;
-    // Collect all sessionKeys from G4_SECTIONS
-    const keys=[];
-    G4_SECTIONS.forEach(s=>{
-      // sessionKey pattern: phaseId-sectionNumber
-      // We don't have phaseId here so query all docs in refs collection
+    const SECTION_IDS=G4_SECTIONS.map(s=>s.id);
+    const unsubs=[];
+    let loaded=0;
+    const dataMap={};
+    SECTION_IDS.forEach(sid=>{
+      const unsub=db.collection('sections').doc('shared-'+sid).onSnapshot(snap=>{
+        if(snap.exists) dataMap[sid]=snap.data();
+        loaded++;
+        if(loaded>=SECTION_IDS.length){
+          // Build flat photo list
+          const all=[];
+          SECTION_IDS.forEach(sid2=>{
+            const sec=G4_SECTIONS.find(s=>s.id===sid2);
+            const d=dataMap[sid2];
+            if(!d||!d.students) return;
+            d.students.forEach((st,idx)=>{
+              (st.portfolio||[]).forEach((p,pIdx)=>{
+                if(p.url) all.push({...p,studentName:st.name,studentIdx:idx,photoIdx:pIdx,sectionId:sid2,sectionName:sec?sec.name:sid2});
+              });
+            });
+          });
+          setAllPhotos(all);
+          const now=Date.now();
+          if(now-lastRefresh.current>7200000||photos.length===0){
+            lastRefresh.current=now;
+            setPhotos(pickRandom(all));
+            setActiveIdx(0);
+          }
+        }
+      },()=>{loaded++;});
+      unsubs.push(unsub);
     });
-    // Just fetch all docs in refs collection
-    db.collection('refs').get().then(snap=>{
-      const all=[];
-      snap.forEach(doc=>{
-        const d=doc.data();
-        // artistUploads: {idx: url}
-        if(d.artistUploads){
-          Object.values(d.artistUploads).forEach(url=>{
-            if(url&&typeof url==='string') all.push(url);
-          });
-        }
-        // manualCards: [{src, ...}]
-        if(d.manualCards){
-          d.manualCards.forEach(c=>{
-            if(c.src&&typeof c.src==='string') all.push(c.src);
-          });
-        }
-      });
-      // Shuffle randomly
-      for(let i=all.length-1;i>0;i--){
-        const j=Math.floor(Math.random()*(i+1));
-        [all[i],all[j]]=[all[j],all[i]];
+    // Refresh every 2hrs
+    const interval=setInterval(()=>{
+      if(allPhotos.length>0){
+        lastRefresh.current=Date.now();
+        setPhotos(pickRandom(allPhotos));
+        setActiveIdx(0);
       }
-      setImgs(all);
-    }).catch(()=>{});
+    },7200000);
+    return()=>{unsubs.forEach(u=>u());clearInterval(interval);};
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
-  if(imgs.length===0) return null;
+  // Attach wheel listener with passive:false
+  const callbackRef=React.useCallback(node=>{
+    if(!node) return;
+    containerRef.current=node;
+    function onWheel(e){
+      e.preventDefault();
+      scrollAccum.current+=(e.deltaX||e.deltaY);
+      const threshold=35;
+      if(scrollAccum.current>threshold){
+        setActiveIdx(i=>Math.min(photos.length-1,i+1));
+        scrollAccum.current=0;
+      } else if(scrollAccum.current<-threshold){
+        setActiveIdx(i=>Math.max(0,i-1));
+        scrollAccum.current=0;
+      }
+    }
+    node.addEventListener('wheel',onWheel,{passive:false});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+
+  if(photos.length===0) return null;
+  const n=photos.length;
 
   return(
     <div style={{flexShrink:0}}>
       <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',
-        textTransform:'uppercase',marginBottom:8}}>References</div>
-      <div style={{display:'flex',gap:10,overflowX:'auto',paddingBottom:6,
-        scrollbarWidth:'none',msOverflowStyle:'none'}}>
-        {imgs.map((src,i)=>(
-          <div key={i}
-            style={{flexShrink:0,width:CARD_W+'px',height:CARD_H+'px',
-              borderRadius:12,overflow:'hidden',cursor:'pointer',position:'relative'}}
-            onClick={()=>window.open(src,'_blank')}>
-            <img src={src} alt=""
-              style={{width:'100%',height:'100%',objectFit:'cover',display:'block',
-                transition:'transform .35s cubic-bezier(0.25,0.1,0.25,1)'}}
-              onMouseEnter={e=>e.currentTarget.style.transform='scale(1.04)'}
-              onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}/>
-          </div>
-        ))}
+        textTransform:'uppercase',marginBottom:8}}>Gallery highlights</div>
+      <div ref={callbackRef}
+        style={{position:'relative',height:CARD_H+'px',width:'100%',overflow:'hidden',userSelect:'none',cursor:'pointer'}}>
+        {photos.map((p,i)=>{
+          const dist=i-activeIdx;
+          const absDist=Math.abs(dist);
+          const scale=Math.max(0.62,1-absDist*0.1);
+          const xOffset=dist*Math.round(CARD_W*0.38);
+          const zIdx=100-absDist*10;
+          const isActive=i===activeIdx;
+          const sec=G4_SECTIONS.find(s=>s.id===p.sectionId);
+          return(
+            <div key={i}
+              onClick={()=>{if(!isActive){setActiveIdx(i);return;}setLightbox({photo:p,originIdx:i});}}
+              style={{position:'absolute',left:'50%',top:'50%',
+                width:CARD_W+'px',height:CARD_H+'px',
+                borderRadius:16,overflow:'hidden',
+                background:'#111',
+                border:`2px solid ${isActive?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.06)'}`,
+                transform:`translateX(calc(${xOffset}px - 50%)) translateY(-50%) scale(${scale})`,
+                transition:'transform .42s cubic-bezier(.25,0.1,.25,1), filter .42s',
+                zIndex:zIdx,
+                filter:absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)',
+                cursor:'pointer',
+              }}>
+              <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',pointerEvents:'none'}}/>
+              {/* Bottom meta — only on active */}
+              {isActive&&(
+                <div style={{position:'absolute',bottom:0,left:0,right:0,
+                  background:'linear-gradient(to top,rgba(0,0,0,0.82) 0%,transparent 100%)',
+                  padding:'28px 14px 12px',pointerEvents:'none'}}>
+                  {p.type==='documentation'?(
+                    <div style={{fontSize:11,color:'rgba(255,255,255,0.7)'}}>{p.resolvedLesson||'Documentation'}</div>
+                  ):(
+                    <div style={{fontSize:12,fontWeight:700,color:'#fff'}}>{p.studentName}</div>
+                  )}
+                  <div style={{display:'flex',alignItems:'center',gap:5,marginTop:3}}>
+                    <SectionDot sectionId={p.sectionId} size={6}/>
+                    <span style={{fontSize:9,color:'rgba(255,255,255,0.55)'}}>{p.sectionName}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {/* Dot indicators */}
+        <div style={{position:'absolute',bottom:8,left:'50%',transform:'translateX(-50%)',
+          display:'flex',gap:4,zIndex:200}}>
+          {photos.map((_,i)=>(
+            <div key={i} onClick={e=>{e.stopPropagation();setActiveIdx(i);}}
+              style={{width:i===activeIdx?14:5,height:5,borderRadius:3,
+                background:i===activeIdx?'#fff':'rgba(255,255,255,0.3)',
+                transition:'all .25s',cursor:'pointer'}}/>
+          ))}
+        </div>
       </div>
+
+      {/* Lightbox for strip */}
+      {lightbox&&ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:5000,background:'rgba(6,6,6,0.97)',
+          backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
+          onClick={()=>setLightbox(null)}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{position:'relative',maxWidth:'min(820px,90vw)',maxHeight:'88vh',
+              borderRadius:16,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.7)',
+              background:'#000',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <img src={lightbox.photo.url} alt=""
+              style={{display:'block',maxWidth:'100%',maxHeight:'88vh',objectFit:'contain'}}/>
+            {/* Meta */}
+            <div style={{position:'absolute',bottom:0,left:0,right:0,
+              background:'linear-gradient(to top,rgba(0,0,0,0.9) 0%,transparent 100%)',
+              padding:'36px 18px 18px',pointerEvents:'none'}}>
+              {lightbox.photo.type==='documentation'?(
+                <div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{lightbox.photo.resolvedLesson||'Documentation'}</div>
+              ):(
+                <div
+                  style={{fontSize:14,fontWeight:700,color:'#fff',cursor:'pointer',
+                    display:'inline-flex',alignItems:'center',gap:6,pointerEvents:'auto',
+                    textDecoration:'underline',textUnderlineOffset:3,textDecorationColor:'rgba(255,255,255,0.35)'}}
+                  onClick={e=>{e.stopPropagation();setStudentPopup({studentName:lightbox.photo.studentName,sectionId:lightbox.photo.sectionId});}}>
+                  {lightbox.photo.studentName}
+                </div>
+              )}
+              <div style={{display:'flex',alignItems:'center',gap:5,marginTop:4,pointerEvents:'none'}}>
+                <SectionDot sectionId={lightbox.photo.sectionId} size={6}/>
+                <span style={{fontSize:10,color:'rgba(255,255,255,0.5)'}}>{lightbox.photo.sectionName} · {lightbox.photo.date}</span>
+              </div>
+            </div>
+            {/* Close */}
+            <button onClick={()=>setLightbox(null)}
+              style={{position:'absolute',top:12,right:12,background:'rgba(0,0,0,0.5)',
+                border:'none',color:'#fff',fontSize:18,cursor:'pointer',padding:'4px 8px',borderRadius:8}}>✕</button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Student popup */}
+      {studentPopup&&(
+        <StudentPopup
+          studentName={studentPopup.studentName}
+          sectionId={studentPopup.sectionId}
+          allPhotos={allPhotos}
+          onClose={()=>setStudentPopup(null)}
+          onOpenPhoto={p=>{
+            // Save original lightbox photo, close popup, open new lightbox
+            // On close of new lightbox, go back to original
+            const orig=lightbox;
+            setStudentPopup(null);
+            setLightbox({photo:p,originIdx:lightbox?.originIdx,returnTo:orig});
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -10962,6 +11185,7 @@ function GalleryView({isVisitor}){
   const [lbPanY,setLbPanY]=React.useState(0);
   const [lbDragging,setLbDragging]=React.useState(false);
   const lbDragStart=React.useRef(null);
+  const [studentPopup,setStudentPopup]=React.useState(null); // {studentName,sectionId,returnLightbox}
   const {teacherMode}=React.useContext(KWContext);
   const allLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color})));
   const artworkTags=getArtworkTags();
@@ -11280,12 +11504,18 @@ function GalleryView({isVisitor}){
                   {p.type==='documentation'?(
                     <>
                       <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.resolvedLesson||'Documentation'}</div>
-                      <div style={{fontSize:9,color:'rgba(255,255,255,0.65)',marginTop:1}}>{p.sectionName} · 📸</div>
+                      <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
+                        <SectionDot sectionId={p.sectionId} size={6}/>
+                        <span style={{fontSize:9,color:'rgba(255,255,255,0.65)'}}>{p.sectionName} · 📸</span>
+                      </div>
                     </>
                   ):(
                     <>
                       <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.displayName||p.studentName}</div>
-                      <div style={{fontSize:9,color:'rgba(255,255,255,0.7)',marginTop:1}}>{p.sectionName}</div>
+                      <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
+                        <SectionDot sectionId={p.sectionId} size={6}/>
+                        <span style={{fontSize:9,color:'rgba(255,255,255,0.7)'}}>{p.sectionName}</span>
+                      </div>
                     </>
                   )}
                 </div>
@@ -11420,12 +11650,12 @@ function GalleryView({isVisitor}){
                   style={{display:'block',maxWidth:'100%',maxHeight:'88vh',objectFit:'contain',cursor:'pointer',userSelect:'none'}}
                   onClick={()=>setMetaVisible(v=>!v)}/>
 
-                {/* Top-right controls — ⛶ and ✕ — visible only when meta visible */}
+                {/* Top-right controls */}
                 <div style={{position:'absolute',top:12,right:12,display:'flex',gap:8,alignItems:'center',
                   opacity:metaVisible?1:0,transition:'opacity .25s',pointerEvents:metaVisible?'auto':'none'}}>
                   <button onClick={e=>{e.stopPropagation();setLbFullscreen(true);}}
                     style={{background:'none',border:'none',color:'rgba(255,255,255,0.9)',cursor:'pointer',fontSize:18,lineHeight:1,padding:'4px',textShadow:'0 1px 6px rgba(0,0,0,0.8)',display:'flex',alignItems:'center'}}>&#x26F6;</button>
-                  <button onClick={()=>setLightbox(null)}
+                  <button onClick={()=>{if(lightbox._returnTo){setLightbox(lightbox._returnTo);}else{setLightbox(null);}}}
                     style={{background:'none',border:'none',color:'rgba(255,255,255,0.9)',cursor:'pointer',fontSize:18,lineHeight:1,padding:'4px',textShadow:'0 1px 6px rgba(0,0,0,0.8)',display:'flex',alignItems:'center'}}>&#x2715;</button>
                 </div>
 
@@ -11449,15 +11679,24 @@ function GalleryView({isVisitor}){
                   pointerEvents:'none'}}>
                   <div style={{display:'flex',flexDirection:'column',gap:6}}>
                     <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                      <span style={{fontSize:14,fontWeight:700,fontFamily:"'DM Sans',sans-serif",color:'#fff'}}>
+                      <span
+                        style={{fontSize:14,fontWeight:700,fontFamily:"'DM Sans',sans-serif",color:'#fff',
+                          cursor:lightbox.type!=='documentation'?'pointer':'default',
+                          textDecoration:lightbox.type!=='documentation'?'underline':'none',
+                          textUnderlineOffset:3,textDecorationColor:'rgba(255,255,255,0.35)',
+                          pointerEvents:'auto'}}
+                        onClick={e=>{if(lightbox.type!=='documentation'){e.stopPropagation();setStudentPopup({studentName:lightbox.studentName,sectionId:lightbox.sectionId,returnLightbox:lightbox});}}}>
                         {lightbox.type==='documentation'
                           ?(lightbox.resolvedLesson||'Documentation')
                           :lightbox.studentName}
                       </span>
                       <span style={{fontSize:8,fontWeight:700,padding:'2px 7px',borderRadius:7,background:(lightbox.type||'artwork')==='documentation'?'rgba(155,127,232,0.35)':'rgba(59,191,160,0.35)',color:(lightbox.type||'artwork')==='documentation'?'#c4a8f8':'#7ee8cb'}}>{(lightbox.type||'artwork')==='documentation'?'DOCS':'ARTWORK'}</span>
                     </div>
-                    <div style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>
-                      {lightbox.sectionName} · {lightbox.date}
+                    <div style={{display:'flex',alignItems:'center',gap:5}}>
+                      <SectionDot sectionId={lightbox.sectionId} size={6}/>
+                      <span style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>
+                        {lightbox.sectionName} · {lightbox.date}
+                      </span>
                     </div>
                     {(lightbox.artTags||[]).length>0&&(
                       <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
@@ -11480,6 +11719,23 @@ function GalleryView({isVisitor}){
           );
         })(),
         document.body
+      )}
+
+      {/* Student popup — click student name in lightbox */}
+      {studentPopup&&(
+        <StudentPopup
+          studentName={studentPopup.studentName}
+          sectionId={studentPopup.sectionId}
+          allPhotos={allPhotos}
+          onClose={()=>setStudentPopup(null)}
+          onOpenPhoto={p=>{
+            const returnTo=studentPopup.returnLightbox;
+            setStudentPopup(null);
+            // Open the clicked student photo in a temporary lightbox
+            // On close, restore original lightbox
+            setLightbox({...p, _returnTo:returnTo});
+          }}
+        />
       )}
 
       {/* Fullscreen zoom overlay */}
