@@ -4078,7 +4078,7 @@ async function uploadRefImage(file,sessionKey,name){
 
 // ── REFS PANEL: inline filmstrip for slides, upload for all sessions ──
 // ── Individual reference card ──
-function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,onSaveEdit,onCancelEdit,onDragStart,onDragOver,onDrop}){
+function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUpload,onReplaceImg,teacherMode,editingCard,editTitle,setEditTitle,editSubtitle,setEditSubtitle,editWhy,setEditWhy,onSaveEdit,onCancelEdit,onPointerDown,onPointerMove,onPointerUp,isDraggingRef}){
   const CARD=350;
   const dist=i-activeIdx; // signed distance from active card
   const absDist=Math.abs(dist);
@@ -4092,11 +4092,12 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
 
   return(
     <div
-      draggable={teacherMode&&!isEditing}
-      onDragStart={e=>{e.stopPropagation();onDragStart&&onDragStart();}}
-      onDragOver={e=>{e.stopPropagation();onDragOver&&onDragOver(e);}}
-      onDrop={e=>{e.stopPropagation();onDrop&&onDrop();}}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      style={{touchAction:'none',cursor:teacherMode?'grab':'pointer'}}
       onClick={()=>{
+        if(isDraggingRef&&isDraggingRef.current) return;
         if(isEditing) return;
         if(!isActive){onSetActive(i);return;}
         if(card.isLink&&card.linkUrl){window.open(card.linkUrl,'_blank');return;}
@@ -4314,23 +4315,37 @@ function RefsPanel({refs,sessionKey}){
   },[setRefsData]);
   const [uploads]=useLocalStorage('uploads-'+sessionKey,[]);
 
-  // ── Drag to reorder ──
+  // ── Drag to reorder — pointer events (HTML5 drag unreliable on abs-positioned elements) ──
   const dragCardIdx=React.useRef(null);
   const dragOverIdx=React.useRef(null);
-  function onCardDragStart(i){dragCardIdx.current=i;}
-  function onCardDragOver(e,i){e.preventDefault();dragOverIdx.current=i;}
-  function onCardDrop(){
+  const isDragging=React.useRef(false);
+  const pointerStartPos=React.useRef(null);
+  function onCardPointerDown(e,i){
+    if(!teacherMode) return;
+    pointerStartPos.current={x:e.clientX,y:e.clientY};
+    dragCardIdx.current=i;
+    isDragging.current=false;
+  }
+  function onCardPointerMove(e,i){
+    if(dragCardIdx.current===null) return;
+    const dx=e.clientX-(pointerStartPos.current?.x||0);
+    const dy=e.clientY-(pointerStartPos.current?.y||0);
+    if(!isDragging.current&&Math.sqrt(dx*dx+dy*dy)>8) isDragging.current=true;
+    if(isDragging.current) dragOverIdx.current=i;
+  }
+  function onCardPointerUp(){
+    if(!isDragging.current){dragCardIdx.current=null;isDragging.current=false;return;}
     const from=dragCardIdx.current;
     const to=dragOverIdx.current;
-    if(from===null||to===null||from===to){dragCardIdx.current=null;dragOverIdx.current=null;return;}
-    // Reorder in Firestore: curriculum cards can't be reordered (they come from curriculum), only the manualCards array order
-    // Strategy: reorder the full fanCards list, then split back into manualCards
+    dragCardIdx.current=null;dragOverIdx.current=null;isDragging.current=false;
+    if(from===null||to===null||from===to) return;
     const reordered=[...fanCards];
     const [moved]=reordered.splice(from,1);
     reordered.splice(to,0,moved);
     const newManual=reordered.filter(c=>!c.isCurriculum).map(c=>manualCards[c.manualIdx]);
     setManualCards(newManual);
-    dragCardIdx.current=null;dragOverIdx.current=null;
+    const newCurriculumOrder=reordered.filter(c=>c.isCurriculum).map(c=>c.curriculumIdx);
+    setRefsData(prev=>({...prev,curriculumOrder:newCurriculumOrder}));
   }
 
   // ── Add card state ──
@@ -4343,9 +4358,21 @@ function RefsPanel({refs,sessionKey}){
   const [videoUrl,setVideoUrl]=React.useState('');
   const [videoTitle,setVideoTitle]=React.useState('');
 
-  function submitLinkCard(){
+  async function submitLinkCard(){
     if(!linkUrl.trim()) return;
-    setManualCards(prev=>[...prev,{src:null,title:linkTitle.trim()||linkUrl.trim(),subtitle:linkSubtitle.trim(),why:'',isLink:true,linkUrl:linkUrl.trim()}]);
+    // Try to fetch og:image via allorigins proxy (CORS-safe)
+    let ogImg=null;
+    try{
+      const res=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(linkUrl.trim())}`);
+      if(res.ok){
+        const data=await res.json();
+        const html=data.contents||'';
+        const match=html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+          ||html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+        if(match) ogImg=match[1];
+      }
+    }catch(e){/* silently skip if fetch fails */}
+    setManualCards(prev=>[...prev,{src:ogImg||null,title:linkTitle.trim()||linkUrl.trim(),subtitle:linkSubtitle.trim(),why:'',isLink:true,linkUrl:linkUrl.trim()}]);
     setLinkUrl('');setLinkTitle('');setLinkSubtitle('');setAddType(null);
   }
   function submitVideoCard(){
@@ -4474,9 +4501,8 @@ function RefsPanel({refs,sessionKey}){
   function openLb(cardIdx){
     const card=fanCards[cardIdx];
     if(!card?.src) return;
-    const lbI=lbItems.findIndex(it=>it.src===(card.isVideo
-      ?`https://www.youtube.com/embed/${ytId(nonSlideRefs[card.curriculumIdx]?.videoUrl||'')}`
-      :card.src));
+    // lbItems stores embed src for videos but thumb src for lookup — match by thumb
+    const lbI=lbItems.findIndex(it=>it.thumb===card.src);
     if(lbI>=0){setLbIdx(lbI);setMetaVisible(true);setZoom(1);setPanX(0);setPanY(0);}
   }
   function closeLb(){setLbIdx(null);setZoom(1);setPanX(0);setPanY(0);}
@@ -4598,9 +4624,10 @@ function RefsPanel({refs,sessionKey}){
                 editWhy={editWhy} setEditWhy={setEditWhy}
                 onSaveEdit={saveEdit}
                 onCancelEdit={()=>setEditingCard(null)}
-                onDragStart={()=>onCardDragStart(i)}
-                onDragOver={e=>onCardDragOver(e,i)}
-                onDrop={onCardDrop}
+                isDraggingRef={isDragging}
+                onPointerDown={e=>onCardPointerDown(e,i)}
+                onPointerMove={e=>onCardPointerMove(e,i)}
+                onPointerUp={()=>onCardPointerUp()}
               />
             ))}
             {/* Left arrow */}
@@ -10739,12 +10766,74 @@ function GalleryView({isVisitor}){
 
   // ── Gallery edit mode ──
   const [galleryEditMode,setGalleryEditMode]=React.useState(false);
-  const [editingPhoto,setEditingPhoto]=React.useState(null); // {photo, sectionIdx, studentIdx, photoIdx}
-  const [editPhotoType,setEditPhotoType]=React.useState('artwork');
-  const [editPhotoLesson,setEditPhotoLesson]=React.useState('');
-  const [editPhotoSection,setEditPhotoSection]=React.useState('');
-  const [editPhotoCaption,setEditPhotoCaption]=React.useState('');
-  const [editPhotoSaving,setEditPhotoSaving]=React.useState(false);
+  const [selectedPhotos,setSelectedPhotos]=React.useState(new Set()); // Set of "sectionId-studentIdx-photoIdx"
+  const [bulkEditOpen,setBulkEditOpen]=React.useState(false);
+  const [bulkEditType,setBulkEditType]=React.useState('');
+  const [bulkEditLesson,setBulkEditLesson]=React.useState('');
+  const [bulkEditSection,setBulkEditSection]=React.useState('');
+  const [bulkEditSaving,setBulkEditSaving]=React.useState(false);
+  const [confirmDelete,setConfirmDelete]=React.useState(false);
+
+  function photoKey(p){return`${p.sectionId}-${p.studentIdx}-${p.photoIdx}`;}
+  function toggleSelect(p){
+    const k=photoKey(p);
+    setSelectedPhotos(prev=>{const n=new Set(prev);n.has(k)?n.delete(k):n.add(k);return n;});
+  }
+  function exitEditMode(){setGalleryEditMode(false);setSelectedPhotos(new Set());setBulkEditOpen(false);setConfirmDelete(false);}
+
+  async function bulkSave(){
+    if(bulkEditSaving) return;
+    setBulkEditSaving(true);
+    // Group selected by sectionId for batch writes
+    const bySid={};
+    filtered.filter(p=>selectedPhotos.has(photoKey(p))).forEach(p=>{
+      if(!bySid[p.sectionId]) bySid[p.sectionId]=[];
+      bySid[p.sectionId].push(p);
+    });
+    for(const sid of Object.keys(bySid)){
+      try{
+        const snap=await window._db.collection('sections').doc('shared-'+sid).get();
+        if(!snap.exists) continue;
+        const d=snap.data();
+        bySid[sid].forEach(p=>{
+          const port=d.students[p.studentIdx].portfolio||[];
+          if(port[p.photoIdx]){
+            if(bulkEditType) port[p.photoIdx].type=bulkEditType;
+            if(bulkEditLesson!==undefined) port[p.photoIdx].lessons=bulkEditLesson?[bulkEditLesson]:[];
+          }
+        });
+        await window._db.collection('sections').doc('shared-'+sid).set(d);
+      }catch(e){console.error('bulk save failed',e);}
+    }
+    setBulkEditSaving(false);setBulkEditOpen(false);setSelectedPhotos(new Set());
+  }
+
+  async function bulkDelete(){
+    setBulkEditSaving(true);
+    const bySid={};
+    filtered.filter(p=>selectedPhotos.has(photoKey(p))).forEach(p=>{
+      if(!bySid[p.sectionId]) bySid[p.sectionId]=[];
+      bySid[p.sectionId].push(p);
+    });
+    for(const sid of Object.keys(bySid)){
+      try{
+        const snap=await window._db.collection('sections').doc('shared-'+sid).get();
+        if(!snap.exists) continue;
+        const d=snap.data();
+        // Delete in reverse index order so splicing doesn't shift indices
+        const groups={};
+        bySid[sid].forEach(p=>{if(!groups[p.studentIdx])groups[p.studentIdx]=[];groups[p.studentIdx].push(p.photoIdx);});
+        Object.keys(groups).forEach(si=>{
+          const idxs=groups[si].sort((a,b)=>b-a);
+          const port=d.students[si].portfolio||[];
+          idxs.forEach(pi=>port.splice(pi,1));
+          d.students[si].portfolio=port;
+        });
+        await window._db.collection('sections').doc('shared-'+sid).set(d);
+      }catch(e){console.error('bulk delete failed',e);}
+    }
+    setBulkEditSaving(false);setConfirmDelete(false);setSelectedPhotos(new Set());
+  }
   const [filterSection,setFilterSection]=React.useState('all');
   const [filterLesson,setFilterLesson]=React.useState(null);
   const [filterTag,setFilterTag]=React.useState(null);
@@ -10829,53 +10918,6 @@ function GalleryView({isVisitor}){
   const activeFilterCount=[filterType!=='all',filterSection!=='all',filterLesson!==null,filterTag!==null].filter(Boolean).length;
   const clearFilters=()=>{setFilterType('all');setFilterSection('all');setFilterLesson(null);setFilterTag(null);};
 
-  // ── Gallery edit helpers ──
-  function openPhotoEdit(p){
-    setEditingPhoto(p);
-    setEditPhotoType(p.type||'artwork');
-    setEditPhotoLesson((p.lessons||[])[0]||'');
-    setEditPhotoSection(p.sectionId||'');
-    setEditPhotoCaption(p.caption||'');
-  }
-  async function savePhotoEdit(){
-    if(!editingPhoto||editPhotoSaving) return;
-    setEditPhotoSaving(true);
-    try{
-      const sid=editingPhoto.sectionId;
-      const snap=await window._db.collection('sections').doc('shared-'+sid).get();
-      if(snap.exists){
-        const d=snap.data();
-        const port=d.students[editingPhoto.studentIdx].portfolio||[];
-        if(port[editingPhoto.photoIdx]){
-          port[editingPhoto.photoIdx]={
-            ...port[editingPhoto.photoIdx],
-            type:editPhotoType,
-            lessons:editPhotoLesson?[editPhotoLesson]:[],
-            caption:editPhotoCaption,
-          };
-          d.students[editingPhoto.studentIdx].portfolio=port;
-          await window._db.collection('sections').doc('shared-'+sid).set(d);
-        }
-      }
-    }catch(e){alert('Save failed: '+e.message);}
-    setEditPhotoSaving(false);
-    setEditingPhoto(null);
-  }
-  async function deletePhoto(p){
-    if(!window.confirm('Delete this photo? This cannot be undone.')) return;
-    try{
-      const sid=p.sectionId;
-      const snap=await window._db.collection('sections').doc('shared-'+sid).get();
-      if(snap.exists){
-        const d=snap.data();
-        const port=d.students[p.studentIdx].portfolio||[];
-        port.splice(p.photoIdx,1);
-        d.students[p.studentIdx].portfolio=port;
-        await window._db.collection('sections').doc('shared-'+sid).set(d);
-      }
-    }catch(e){alert('Delete failed: '+e.message);}
-  }
-
   // Lightbox keyboard nav
   const filteredRef=React.useRef(filtered);
   const lightboxRef=React.useRef(lightbox);
@@ -10940,13 +10982,23 @@ function GalleryView({isVisitor}){
           )}
           {/* Edit mode toggle — teacher only */}
           {teacherMode&&!isVisitor&&(
-            <button onClick={()=>setGalleryEditMode(v=>!v)}
+            <button onClick={()=>galleryEditMode?exitEditMode():setGalleryEditMode(true)}
               style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,
                 padding:'7px 16px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
                 border:galleryEditMode?'1px solid var(--yellow)':'1px solid var(--glass-border)',
                 background:galleryEditMode?'rgba(251,191,36,0.15)':'var(--glass-bg)',
                 color:galleryEditMode?'var(--yellow)':'var(--tx2)'}}>
-              {galleryEditMode?'✓ Done':'✏ Edit'}
+              {galleryEditMode?(
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Done
+                </>
+              ):(
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Edit
+                </>
+              )}
             </button>
           )}
           {/* ⚙ Filter button */}
@@ -11047,7 +11099,39 @@ function GalleryView({isVisitor}){
       {/* Click outside to close filter */}
       {showFilter&&<div style={{position:'fixed',inset:0,zIndex:499}} onClick={()=>setShowFilter(false)}/>}
 
-      {/* Gallery Upload Modal */}
+      {/* Selection action bar — visible in edit mode */}
+      {galleryEditMode&&(
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderRadius:12,
+          background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',flexShrink:0}}>
+          <div style={{fontSize:12,color:'var(--tx2)',flex:1,fontWeight:600}}>
+            {selectedPhotos.size===0?'Tap images to select them':`${selectedPhotos.size} selected`}
+          </div>
+          {selectedPhotos.size>0&&(
+            <>
+              <button onClick={()=>{
+                  setBulkEditType('');setBulkEditLesson('');setBulkEditSection('');setBulkEditOpen(true);
+                }}
+                style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,
+                  padding:'6px 14px',borderRadius:8,border:'1px solid var(--yellow)',
+                  background:'rgba(251,191,36,0.12)',color:'var(--yellow)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </button>
+              <button onClick={()=>setConfirmDelete(true)}
+                style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,
+                  padding:'6px 14px',borderRadius:8,border:'1px solid var(--coral)',
+                  background:'rgba(232,112,90,0.12)',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                Delete
+              </button>
+              <button onClick={()=>setSelectedPhotos(new Set())}
+                style={{fontSize:10,color:'var(--tx3)',background:'none',border:'none',cursor:'pointer',padding:'4px 6px'}}>
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {showUpload&&<GalleryUpload
         onClose={()=>setShowUpload(false)}
         onDone={()=>setShowUpload(false)}/>}
@@ -11062,73 +11146,77 @@ function GalleryView({isVisitor}){
         </div>
       ):(
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:12}}>
-          {filtered.map((p,i)=>(
-            <div key={i}
-              onClick={()=>{if(!galleryEditMode)setLightbox(p);}}
-              style={{borderRadius:12,overflow:'hidden',cursor:'pointer',position:'relative',transition:'transform .15s,box-shadow .15s',aspectRatio:'1'}}
-              onMouseEnter={e=>{if(!galleryEditMode){e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.4)';}}}
-              onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='';}}>
-              <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',filter:galleryEditMode?'brightness(0.7)':'none',transition:'filter .2s'}}/>
-              {/* Gradient overlay */}
-              <div style={{position:'absolute',inset:0,background:'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 45%, transparent 70%)',pointerEvents:'none'}}/>
-              {/* Name + Section on gradient */}
-              <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none'}}>
-                {p.type==='documentation'?(
-                  <>
-                    <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.resolvedLesson||'Documentation'}</div>
-                    <div style={{fontSize:9,color:'rgba(255,255,255,0.65)',marginTop:1}}>{p.sectionName} · 📸</div>
-                  </>
-                ):(
-                  <>
-                    <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.displayName||p.studentName}</div>
-                    <div style={{fontSize:9,color:'rgba(255,255,255,0.7)',marginTop:1}}>{p.sectionName}</div>
-                  </>
+          {filtered.map((p,i)=>{
+            const k=photoKey(p);
+            const sel=selectedPhotos.has(k);
+            return(
+              <div key={i}
+                onClick={()=>galleryEditMode?toggleSelect(p):setLightbox(p)}
+                style={{borderRadius:12,overflow:'hidden',cursor:'pointer',position:'relative',
+                  transition:'transform .15s,box-shadow .15s',aspectRatio:'1',
+                  outline:sel?'3px solid var(--teal)':'3px solid transparent',outlineOffset:'-3px'}}
+                onMouseEnter={e=>{if(!galleryEditMode){e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.4)';}}}
+                onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='';}}>
+                <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',
+                  filter:galleryEditMode&&!sel?'brightness(0.65)':'none',transition:'filter .2s'}}/>
+                <div style={{position:'absolute',inset:0,background:'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 45%, transparent 70%)',pointerEvents:'none'}}/>
+                <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none'}}>
+                  {p.type==='documentation'?(
+                    <>
+                      <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.resolvedLesson||'Documentation'}</div>
+                      <div style={{fontSize:9,color:'rgba(255,255,255,0.65)',marginTop:1}}>{p.sectionName} · 📸</div>
+                    </>
+                  ):(
+                    <>
+                      <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.displayName||p.studentName}</div>
+                      <div style={{fontSize:9,color:'rgba(255,255,255,0.7)',marginTop:1}}>{p.sectionName}</div>
+                    </>
+                  )}
+                </div>
+                {/* Selection circle — top right in edit mode */}
+                {galleryEditMode&&(
+                  <div style={{position:'absolute',top:8,right:8,width:22,height:22,borderRadius:'50%',
+                    border:`2px solid ${sel?'var(--teal)':'rgba(255,255,255,0.6)'}`,
+                    background:sel?'var(--teal)':'rgba(0,0,0,0.35)',
+                    display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}>
+                    {sel&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
                 )}
               </div>
-              {/* Edit mode overlays */}
-              {galleryEditMode&&(
-                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',gap:10}}>
-                  <button onClick={e=>{e.stopPropagation();openPhotoEdit(p);}}
-                    style={{width:38,height:38,borderRadius:10,border:'1px solid rgba(255,255,255,0.3)',
-                      background:'rgba(245,158,11,0.85)',color:'#000',fontSize:16,cursor:'pointer',
-                      display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>✏</button>
-                  <button onClick={e=>{e.stopPropagation();deletePhoto(p);}}
-                    style={{width:38,height:38,borderRadius:10,border:'1px solid rgba(255,255,255,0.3)',
-                      background:'rgba(232,112,90,0.85)',color:'#fff',fontSize:16,cursor:'pointer',
-                      display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>🗑</button>
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Photo edit panel */}
-      {editingPhoto&&ReactDOM.createPortal(
-        <div style={{position:'fixed',inset:0,zIndex:6500,background:'rgba(6,8,16,0.7)',backdropFilter:'blur(8px)',display:'flex',alignItems:'flex-end',justifyContent:'center'}}
-          onClick={()=>setEditingPhoto(null)}>
+      {/* Bulk edit modal — centred */}
+      {bulkEditOpen&&ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:6500,background:'rgba(6,8,16,0.8)',backdropFilter:'blur(10px)',
+          display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
+          onClick={()=>setBulkEditOpen(false)}>
           <div onClick={e=>e.stopPropagation()}
-            style={{width:'min(540px,100vw)',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',
-              borderRadius:'20px 20px 0 0',boxShadow:'0 -12px 48px rgba(0,0,0,0.5)',
-              padding:'20px 24px 32px',display:'flex',flexDirection:'column',gap:14}}>
-            {/* Handle */}
-            <div style={{width:40,height:4,borderRadius:2,background:'var(--glass-border2)',margin:'0 auto 4px'}}/>
+            style={{width:'min(480px,92vw)',background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',
+              borderRadius:18,boxShadow:'0 24px 64px rgba(0,0,0,0.6)',padding:'24px',
+              display:'flex',flexDirection:'column',gap:16}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <div style={{fontSize:14,fontWeight:800,color:'var(--tx)',fontFamily:"'DM Sans',sans-serif"}}>Edit photo details</div>
-              <button onClick={()=>setEditingPhoto(null)} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:18,cursor:'pointer'}}>✕</button>
+              <div style={{fontSize:15,fontWeight:800,color:'var(--tx)',fontFamily:"'DM Sans',sans-serif"}}>
+                Edit {selectedPhotos.size} photo{selectedPhotos.size!==1?'s':''}
+              </div>
+              <button onClick={()=>setBulkEditOpen(false)}
+                style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',padding:4,display:'flex',alignItems:'center'}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
-            {/* Preview */}
-            <img src={editingPhoto.url} alt="" style={{width:'100%',maxHeight:180,objectFit:'cover',borderRadius:10}}/>
+            <div style={{fontSize:10,color:'var(--tx3)'}}>Leave a field blank to keep existing values unchanged.</div>
             {/* Type */}
             <div>
               <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase',marginBottom:6}}>Type</div>
               <div style={{display:'flex',gap:6}}>
-                {[['artwork','🎨 Artwork'],['documentation','📸 Documentation']].map(([v,l])=>(
-                  <button key={v} onClick={()=>setEditPhotoType(v)}
+                {[['','— keep existing —'],['artwork','Artwork'],['documentation','Documentation']].map(([v,l])=>(
+                  <button key={v} onClick={()=>setBulkEditType(v)}
                     style={{flex:1,fontSize:11,fontWeight:700,height:32,borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                      border:`1px solid ${editPhotoType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--glass-border)'}`,
-                      background:editPhotoType===v?v==='artwork'?'rgba(59,191,160,0.15)':'rgba(155,127,232,0.15)':'var(--glass-bg)',
-                      color:editPhotoType===v?v==='artwork'?'var(--teal)':'var(--violet)':'var(--tx3)'}}>
+                      border:`1px solid ${bulkEditType===v?'var(--teal)':'var(--glass-border)'}`,
+                      background:bulkEditType===v?'rgba(59,191,160,0.15)':'var(--glass-bg)',
+                      color:bulkEditType===v?'var(--teal)':'var(--tx3)'}}>
                     {l}
                   </button>
                 ))}
@@ -11137,29 +11225,66 @@ function GalleryView({isVisitor}){
             {/* Lesson */}
             <div>
               <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
-              <select value={editPhotoLesson} onChange={e=>setEditPhotoLesson(e.target.value)}
-                style={{width:'100%',fontSize:12,height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',padding:'0 10px',cursor:'pointer'}}>
-                <option value="">— no lesson —</option>
-                {(()=>{const ll=[];PHASES.forEach(p=>p.sessions.forEach(s=>ll.push({key:p.id+':'+s.n,label:'S'+s.n+': '+s.title})));return ll.map((l,i)=><option key={i} value={l.key}>{l.label}</option>);})()}
+              <select value={bulkEditLesson} onChange={e=>setBulkEditLesson(e.target.value)}
+                style={{width:'100%',fontSize:12,height:34,borderRadius:8,border:'1px solid var(--glass-border2)',
+                  background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',padding:'0 10px',cursor:'pointer'}}>
+                <option value="">— keep existing —</option>
+                <option value="__none__">Remove lesson link</option>
+                {(()=>{const ll=[];PHASES.forEach(ph=>ph.sessions.forEach(s=>ll.push({key:ph.id+':'+s.n,label:'S'+s.n+': '+s.title})));return ll.map((l,i)=><option key={i} value={l.key}>{l.label}</option>);})()}
                 {getCustomLessons().length>0&&<option disabled>── My lessons ──</option>}
                 {getCustomLessons().map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
               </select>
             </div>
-            {/* Caption */}
+            {/* Section */}
             <div>
-              <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase',marginBottom:6}}>Caption</div>
-              <input value={editPhotoCaption} onChange={e=>setEditPhotoCaption(e.target.value)}
-                placeholder="Optional caption…"
-                style={{width:'100%',fontSize:12,height:34,borderRadius:8,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',padding:'0 10px'}}/>
+              <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',textTransform:'uppercase',marginBottom:6}}>Section</div>
+              <select value={bulkEditSection} onChange={e=>setBulkEditSection(e.target.value)}
+                style={{width:'100%',fontSize:12,height:34,borderRadius:8,border:'1px solid var(--glass-border2)',
+                  background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',padding:'0 10px',cursor:'pointer'}}>
+                <option value="">— keep existing —</option>
+                {G4_SECTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
             </div>
-            {/* Save */}
-            <button onClick={savePhotoEdit} disabled={editPhotoSaving}
-              style={{width:'100%',height:40,borderRadius:10,border:'none',
-                background:'var(--teal)',color:'#fff',fontSize:13,fontWeight:700,
-                cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                opacity:editPhotoSaving?0.6:1}}>
-              {editPhotoSaving?'Saving…':'Save changes'}
+            <button onClick={bulkSave} disabled={bulkEditSaving}
+              style={{height:40,borderRadius:10,border:'none',background:'var(--teal)',color:'#fff',
+                fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                opacity:bulkEditSaving?0.6:1}}>
+              {bulkEditSaving?'Saving…':'Apply changes'}
             </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Custom confirm delete modal */}
+      {confirmDelete&&ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:6600,background:'rgba(6,8,16,0.85)',backdropFilter:'blur(10px)',
+          display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
+          onClick={()=>setConfirmDelete(false)}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{width:'min(380px,92vw)',background:'var(--popup-bg)',border:'1px solid rgba(232,112,90,0.4)',
+              borderRadius:18,boxShadow:'0 24px 64px rgba(0,0,0,0.6)',padding:'28px 24px',
+              display:'flex',flexDirection:'column',gap:16,alignItems:'center',textAlign:'center'}}>
+            <div style={{width:44,height:44,borderRadius:12,background:'rgba(232,112,90,0.15)',
+              border:'1px solid rgba(232,112,90,0.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </div>
+            <div>
+              <div style={{fontSize:15,fontWeight:800,color:'var(--tx)',marginBottom:6}}>Delete {selectedPhotos.size} photo{selectedPhotos.size!==1?'s':''}?</div>
+              <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.5}}>This cannot be undone. The photos will be permanently removed from the gallery.</div>
+            </div>
+            <div style={{display:'flex',gap:10,width:'100%'}}>
+              <button onClick={()=>setConfirmDelete(false)}
+                style={{flex:1,height:38,borderRadius:10,border:'1px solid var(--glass-border2)',
+                  background:'var(--glass-bg)',color:'var(--tx2)',fontSize:12,fontWeight:700,
+                  cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+              <button onClick={bulkDelete} disabled={bulkEditSaving}
+                style={{flex:1,height:38,borderRadius:10,border:'none',background:'var(--coral)',
+                  color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                  opacity:bulkEditSaving?0.6:1}}>
+                {bulkEditSaving?'Deleting…':'Delete'}
+              </button>
+            </div>
           </div>
         </div>,
         document.body
