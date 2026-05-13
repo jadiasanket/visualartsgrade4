@@ -10885,19 +10885,24 @@ function StudentPopup({studentName,sectionId,allPhotos,onClose,onOpenPhoto}){
 }
 
 // ── Gallery fan/stack carousel strip ──
-// Shows 10 random gallery photos (artworks + docs), refreshes every 2hrs
-// Fan/stack layout identical to refs carousel, 4:3 ratio cards
 function RefsStrip_(){
-  const CARD_H=360;
+  const CARD_H=468; // 30% bigger than 360
   const CARD_W=Math.round(CARD_H*(4/3));
+  const START_ACTIVE=4; // start with 4 cards on left, active = index 4
   const [photos,setPhotos]=React.useState([]);
-  const [activeIdx,setActiveIdx]=React.useState(0);
-  const [lightbox,setLightbox]=React.useState(null); // {photo, originIdx}
-  const [studentPopup,setStudentPopup]=React.useState(null); // {studentName,sectionId}
+  const [activeIdx,setActiveIdx]=React.useState(START_ACTIVE);
+  const [lightbox,setLightbox]=React.useState(null);
+  const [lbZoom,setLbZoom]=React.useState(1);
+  const [studentPopup,setStudentPopup]=React.useState(null);
   const [allPhotos,setAllPhotos]=React.useState([]);
   const scrollAccum=React.useRef(0);
-  const containerRef=React.useRef(null);
   const lastRefresh=React.useRef(0);
+  const activeIdxRef=React.useRef(START_ACTIVE);
+  const photosRef=React.useRef([]);
+
+  // Keep refs in sync for wheel closure
+  React.useEffect(()=>{activeIdxRef.current=activeIdx;},[activeIdx]);
+  React.useEffect(()=>{photosRef.current=photos;},[photos]);
 
   function pickRandom(pool){
     const shuffled=[...pool].sort(()=>Math.random()-0.5);
@@ -10916,7 +10921,6 @@ function RefsStrip_(){
         if(snap.exists) dataMap[sid]=snap.data();
         loaded++;
         if(loaded>=SECTION_IDS.length){
-          // Build flat photo list
           const all=[];
           SECTION_IDS.forEach(sid2=>{
             const sec=G4_SECTIONS.find(s=>s.id===sid2);
@@ -10930,40 +10934,67 @@ function RefsStrip_(){
           });
           setAllPhotos(all);
           const now=Date.now();
-          if(now-lastRefresh.current>7200000||photos.length===0){
+          if(now-lastRefresh.current>7200000||photosRef.current.length===0){
             lastRefresh.current=now;
-            setPhotos(pickRandom(all));
-            setActiveIdx(0);
+            const picked=pickRandom(all);
+            setPhotos(picked);
+            photosRef.current=picked;
+            setActiveIdx(Math.min(START_ACTIVE,picked.length-1));
           }
         }
       },()=>{loaded++;});
       unsubs.push(unsub);
     });
-    // Refresh every 2hrs
     const interval=setInterval(()=>{
-      if(allPhotos.length>0){
+      const pool=allPhotos;
+      if(pool.length>0){
         lastRefresh.current=Date.now();
-        setPhotos(pickRandom(allPhotos));
-        setActiveIdx(0);
+        const picked=pickRandom(pool);
+        setPhotos(picked);
+        photosRef.current=picked;
+        setActiveIdx(Math.min(START_ACTIVE,picked.length-1));
       }
     },7200000);
     return()=>{unsubs.forEach(u=>u());clearInterval(interval);};
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
-  // Attach wheel listener with passive:false
+  // Keyboard nav for lightbox
+  React.useEffect(()=>{
+    if(!lightbox) return;
+    function onKey(e){
+      if(e.key==='Escape'){setLightbox(null);setLbZoom(1);}
+      if(e.key==='ArrowLeft') setLightbox(prev=>{
+        if(!prev) return prev;
+        const idx=photosRef.current.findIndex(p=>p.url===prev.photo.url);
+        return idx>0?{...prev,photo:photosRef.current[idx-1]}:prev;
+      });
+      if(e.key==='ArrowRight') setLightbox(prev=>{
+        if(!prev) return prev;
+        const idx=photosRef.current.findIndex(p=>p.url===prev.photo.url);
+        return idx<photosRef.current.length-1?{...prev,photo:photosRef.current[idx+1]}:prev;
+      });
+    }
+    window.addEventListener('keydown',onKey);
+    return()=>window.removeEventListener('keydown',onKey);
+  },[lightbox]);
+
+  // Attach wheel listener with passive:false — reads from refs to avoid stale closure
   const callbackRef=React.useCallback(node=>{
     if(!node) return;
-    containerRef.current=node;
     function onWheel(e){
       e.preventDefault();
       scrollAccum.current+=(e.deltaX||e.deltaY);
       const threshold=35;
       if(scrollAccum.current>threshold){
-        setActiveIdx(i=>Math.min(photos.length-1,i+1));
+        const next=Math.min(photosRef.current.length-1,activeIdxRef.current+1);
+        activeIdxRef.current=next;
+        setActiveIdx(next);
         scrollAccum.current=0;
       } else if(scrollAccum.current<-threshold){
-        setActiveIdx(i=>Math.max(0,i-1));
+        const next=Math.max(0,activeIdxRef.current-1);
+        activeIdxRef.current=next;
+        setActiveIdx(next);
         scrollAccum.current=0;
       }
     }
@@ -10972,14 +11003,16 @@ function RefsStrip_(){
   },[]);
 
   if(photos.length===0) return null;
-  const n=photos.length;
+  const lbIdx=lightbox?photos.findIndex(p=>p.url===lightbox.photo.url):-1;
 
   return(
     <div style={{flexShrink:0}}>
       <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',
         textTransform:'uppercase',marginBottom:8}}>Gallery highlights</div>
+
+      {/* Carousel */}
       <div ref={callbackRef}
-        style={{position:'relative',height:CARD_H+'px',width:'100%',overflow:'hidden',userSelect:'none',cursor:'pointer'}}>
+        style={{position:'relative',height:CARD_H+'px',width:'100%',overflow:'hidden',userSelect:'none'}}>
         {photos.map((p,i)=>{
           const dist=i-activeIdx;
           const absDist=Math.abs(dist);
@@ -10987,32 +11020,25 @@ function RefsStrip_(){
           const xOffset=dist*Math.round(CARD_W*0.38);
           const zIdx=100-absDist*10;
           const isActive=i===activeIdx;
-          const sec=G4_SECTIONS.find(s=>s.id===p.sectionId);
           return(
             <div key={i}
-              onClick={()=>{if(!isActive){setActiveIdx(i);return;}setLightbox({photo:p,originIdx:i});}}
+              onClick={()=>{if(!isActive){setActiveIdx(i);return;}setLightbox({photo:p});setLbZoom(1);}}
               style={{position:'absolute',left:'50%',top:'50%',
                 width:CARD_W+'px',height:CARD_H+'px',
-                borderRadius:16,overflow:'hidden',
-                background:'#111',
+                borderRadius:16,overflow:'hidden',background:'#111',
                 border:`2px solid ${isActive?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.06)'}`,
                 transform:`translateX(calc(${xOffset}px - 50%)) translateY(-50%) scale(${scale})`,
                 transition:'transform .42s cubic-bezier(.25,0.1,.25,1), filter .42s',
-                zIndex:zIdx,
-                filter:absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)',
-                cursor:'pointer',
-              }}>
+                zIndex:zIdx,cursor:'pointer',
+                filter:absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)'}}>
               <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',pointerEvents:'none'}}/>
-              {/* Bottom meta — only on active */}
               {isActive&&(
                 <div style={{position:'absolute',bottom:0,left:0,right:0,
                   background:'linear-gradient(to top,rgba(0,0,0,0.82) 0%,transparent 100%)',
                   padding:'28px 14px 12px',pointerEvents:'none'}}>
-                  {p.type==='documentation'?(
-                    <div style={{fontSize:11,color:'rgba(255,255,255,0.7)'}}>{p.resolvedLesson||'Documentation'}</div>
-                  ):(
-                    <div style={{fontSize:12,fontWeight:700,color:'#fff'}}>{p.studentName}</div>
-                  )}
+                  {p.type==='documentation'
+                    ?<div style={{fontSize:11,color:'rgba(255,255,255,0.7)'}}>{p.resolvedLesson||'Documentation'}</div>
+                    :<div style={{fontSize:12,fontWeight:700,color:'#fff'}}>{p.studentName}</div>}
                   <div style={{display:'flex',alignItems:'center',gap:5,marginTop:3}}>
                     <SectionDot sectionId={p.sectionId} size={6}/>
                     <span style={{fontSize:9,color:'rgba(255,255,255,0.55)'}}>{p.sectionName}</span>
@@ -11022,54 +11048,75 @@ function RefsStrip_(){
             </div>
           );
         })}
-        {/* Dot indicators */}
-        <div style={{position:'absolute',bottom:8,left:'50%',transform:'translateX(-50%)',
-          display:'flex',gap:4,zIndex:200}}>
-          {photos.map((_,i)=>(
-            <div key={i} onClick={e=>{e.stopPropagation();setActiveIdx(i);}}
-              style={{width:i===activeIdx?14:5,height:5,borderRadius:3,
-                background:i===activeIdx?'#fff':'rgba(255,255,255,0.3)',
-                transition:'all .25s',cursor:'pointer'}}/>
-          ))}
-        </div>
       </div>
 
-      {/* Lightbox for strip */}
+      {/* Dot indicators — below the strip, with breathing room */}
+      <div style={{display:'flex',gap:4,justifyContent:'center',marginTop:12,marginBottom:4}}>
+        {photos.map((_,i)=>(
+          <div key={i} onClick={()=>setActiveIdx(i)}
+            style={{width:i===activeIdx?14:5,height:5,borderRadius:3,cursor:'pointer',
+              background:i===activeIdx?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.25)',
+              transition:'all .25s'}}/>
+        ))}
+      </div>
+
+      {/* Lightbox */}
       {lightbox&&ReactDOM.createPortal(
         <div style={{position:'fixed',inset:0,zIndex:5000,background:'rgba(6,6,6,0.97)',
-          backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}
-          onClick={()=>setLightbox(null)}>
+          backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={()=>{setLightbox(null);setLbZoom(1);}}>
           <div onClick={e=>e.stopPropagation()}
-            style={{position:'relative',maxWidth:'min(820px,90vw)',maxHeight:'88vh',
+            style={{position:'relative',maxWidth:'min(860px,90vw)',maxHeight:'90vh',
               borderRadius:16,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.7)',
               background:'#000',display:'flex',alignItems:'center',justifyContent:'center'}}>
             <img src={lightbox.photo.url} alt=""
-              style={{display:'block',maxWidth:'100%',maxHeight:'88vh',objectFit:'contain'}}/>
+              style={{display:'block',maxWidth:'100%',maxHeight:'90vh',objectFit:'contain',
+                transform:`scale(${lbZoom})`,transition:lbZoom===1?'transform .2s':'none',
+                userSelect:'none',pointerEvents:'none'}}/>
             {/* Meta */}
             <div style={{position:'absolute',bottom:0,left:0,right:0,
               background:'linear-gradient(to top,rgba(0,0,0,0.9) 0%,transparent 100%)',
               padding:'36px 18px 18px',pointerEvents:'none'}}>
-              {lightbox.photo.type==='documentation'?(
-                <div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{lightbox.photo.resolvedLesson||'Documentation'}</div>
-              ):(
-                <div
+              {lightbox.photo.type==='documentation'
+                ?<div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{lightbox.photo.resolvedLesson||'Documentation'}</div>
+                :<div
                   style={{fontSize:14,fontWeight:700,color:'#fff',cursor:'pointer',
                     display:'inline-flex',alignItems:'center',gap:6,pointerEvents:'auto',
                     textDecoration:'underline',textUnderlineOffset:3,textDecorationColor:'rgba(255,255,255,0.35)'}}
                   onClick={e=>{e.stopPropagation();setStudentPopup({studentName:lightbox.photo.studentName,sectionId:lightbox.photo.sectionId});}}>
                   {lightbox.photo.studentName}
-                </div>
-              )}
+                </div>}
               <div style={{display:'flex',alignItems:'center',gap:5,marginTop:4,pointerEvents:'none'}}>
                 <SectionDot sectionId={lightbox.photo.sectionId} size={6}/>
                 <span style={{fontSize:10,color:'rgba(255,255,255,0.5)'}}>{lightbox.photo.sectionName} · {lightbox.photo.date}</span>
               </div>
             </div>
             {/* Close */}
-            <button onClick={()=>setLightbox(null)}
+            <button onClick={()=>{setLightbox(null);setLbZoom(1);}}
               style={{position:'absolute',top:12,right:12,background:'rgba(0,0,0,0.5)',
-                border:'none',color:'#fff',fontSize:18,cursor:'pointer',padding:'4px 8px',borderRadius:8}}>✕</button>
+                border:'none',color:'#fff',fontSize:18,cursor:'pointer',padding:'4px 8px',borderRadius:8,zIndex:10}}>✕</button>
+            {/* Vertical zoom bar — right side */}
+            <div style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',
+              display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}>
+              {[2,1.5,1].map(z=>(
+                <button key={z} onClick={e=>{e.stopPropagation();setLbZoom(z);}}
+                  style={{width:28,height:28,borderRadius:7,border:`1px solid ${lbZoom===z?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.15)'}`,
+                    background:lbZoom===z?'rgba(255,255,255,0.15)':'rgba(0,0,0,0.4)',
+                    color:'rgba(255,255,255,0.8)',fontSize:10,fontWeight:700,cursor:'pointer'}}>
+                  {z}×
+                </button>
+              ))}
+            </div>
           </div>
+          {/* Arrow nav — outside popup */}
+          {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx-1]});setLbZoom(1);}}
+            style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',
+              background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
+              borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer',zIndex:10}}>&#8249;</button>}
+          {lbIdx<photos.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx+1]});setLbZoom(1);}}
+            style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',
+              background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
+              borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer',zIndex:10}}>&#8250;</button>}
         </div>,
         document.body
       )}
@@ -11082,11 +11129,10 @@ function RefsStrip_(){
           allPhotos={allPhotos}
           onClose={()=>setStudentPopup(null)}
           onOpenPhoto={p=>{
-            // Save original lightbox photo, close popup, open new lightbox
-            // On close of new lightbox, go back to original
             const orig=lightbox;
             setStudentPopup(null);
-            setLightbox({photo:p,originIdx:lightbox?.originIdx,returnTo:orig});
+            setLightbox({photo:p,returnTo:orig});
+            setLbZoom(1);
           }}
         />
       )}
@@ -11494,13 +11540,21 @@ function GalleryView({isVisitor}){
                 style={{borderRadius:12,overflow:'hidden',cursor:'pointer',position:'relative',
                   aspectRatio:'1',
                   outline:sel?'3px solid var(--teal)':'3px solid transparent',outlineOffset:'-3px'}}
-                onMouseEnter={e=>{if(!galleryEditMode){const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1.08)';}}}
-                onMouseLeave={e=>{if(!galleryEditMode){const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1)';}}}>
+                onMouseEnter={e=>{
+                  if(!galleryEditMode){const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1.08)';}
+                  const meta=e.currentTarget.querySelector('.tile-meta');if(meta)meta.style.opacity='1';
+                  const grad=e.currentTarget.querySelector('.tile-grad');if(grad)grad.style.opacity='1';
+                }}
+                onMouseLeave={e=>{
+                  if(!galleryEditMode){const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1)';}
+                  const meta=e.currentTarget.querySelector('.tile-meta');if(meta)meta.style.opacity='0';
+                  const grad=e.currentTarget.querySelector('.tile-grad');if(grad)grad.style.opacity='0';
+                }}>
                 <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',
                   transform:'scale(1)',transition:'transform .35s cubic-bezier(0.25,0.1,0.25,1)',
                   filter:galleryEditMode&&!sel?'brightness(0.65)':'none'}}/>
-                <div style={{position:'absolute',inset:0,background:'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 45%, transparent 70%)',pointerEvents:'none'}}/>
-                <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none'}}>
+                <div className="tile-grad" style={{position:'absolute',inset:0,background:'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 45%, transparent 70%)',pointerEvents:'none',opacity:0,transition:'opacity .25s'}}/>
+                <div className="tile-meta" style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none',opacity:0,transition:'opacity .25s'}}>
                   {p.type==='documentation'?(
                     <>
                       <div style={{fontSize:11,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.resolvedLesson||'Documentation'}</div>
