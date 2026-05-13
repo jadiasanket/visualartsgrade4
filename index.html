@@ -4391,15 +4391,24 @@ function RefsPanel({refs,sessionKey}){
         setTimeout(()=>{suppressNextClick.current=false;},300);
         if(from!==null&&to!==null&&from!==to){
           const fc=fanCardsRef.current;
-          const mc=manualCardsRef.current;
           const reordered=[...fc];
           const [moved]=reordered.splice(from,1);
           reordered.splice(to,0,moved);
-          // Single write — merge both manualCards and curriculumOrder in one setRefsData call
-          // to avoid two Firestore writes racing and wiping each other
+          // Build newManual directly from card data — NOT via manualIdx
+          // manualIdx is the original position and doesn't change after splice,
+          // so mapping through it always produces the original order
           const newManual=reordered
-            .filter(c=>!c.isCurriculum&&c.manualIdx!=null&&mc[c.manualIdx]!==undefined)
-            .map(c=>mc[c.manualIdx]);
+            .filter(c=>!c.isCurriculum)
+            .map(c=>({
+              src:c.src||null,
+              title:c.title||'',
+              subtitle:c.subtitle||'',
+              why:c.why||'',
+              isLink:!!c.isLink,
+              linkUrl:c.linkUrl||'',
+              isVideo:!!c.isVideo,
+              videoUrl:c.videoUrl||'',
+            }));
           const newCurriculumOrder=reordered
             .filter(c=>c.isCurriculum&&c.curriculumIdx!=null)
             .map(c=>c.curriculumIdx);
