@@ -4468,6 +4468,17 @@ function RefsPanel({refs,sessionKey}){
     })
   ,[fanCards]);
 
+  // Preload all lightbox images in the background as soon as they're available
+  // so clicking a card opens instantly from browser cache
+  React.useEffect(()=>{
+    lbItems.forEach(item=>{
+      if(item.type==='image'&&item.src){
+        const img=new Image();
+        img.src=item.src;
+      }
+    });
+  },[lbItems]);
+
   // ── Keyboard nav ──
   React.useEffect(()=>{
     if(lbIdx===null) return;
