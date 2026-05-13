@@ -4094,7 +4094,9 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
   return(
     <div
       data-refcard={i}
+      draggable="false"
       onPointerDown={onPointerDown}
+      onDragStart={e=>e.preventDefault()}
       onMouseEnter={()=>setHovered(true)}
       onMouseLeave={()=>setHovered(false)}
       onClick={()=>{
@@ -4334,6 +4336,7 @@ function RefsPanel({refs,sessionKey}){
 
   function onCardPointerDown(e,i){
     if(!teacherMode||e.button!==0) return;
+    e.preventDefault();
     e.stopPropagation();
     // If this is a non-active card, activating it should not also open lightbox/link
     if(i!==activeIdx){
