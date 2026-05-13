@@ -4390,22 +4390,20 @@ function RefsPanel({refs,sessionKey}){
         suppressNextClick.current=true;
         setTimeout(()=>{suppressNextClick.current=false;},300);
         if(from!==null&&to!==null&&from!==to){
-          // Read latest values directly — no stale closure issue
           const fc=fanCardsRef.current;
           const mc=manualCardsRef.current;
           const reordered=[...fc];
           const [moved]=reordered.splice(from,1);
           reordered.splice(to,0,moved);
-          // Rebuild manualCards in new order — use the manualIdx to look up from mc
-          // Only include entries where manualIdx is a valid index
+          // Single write — merge both manualCards and curriculumOrder in one setRefsData call
+          // to avoid two Firestore writes racing and wiping each other
           const newManual=reordered
             .filter(c=>!c.isCurriculum&&c.manualIdx!=null&&mc[c.manualIdx]!==undefined)
             .map(c=>mc[c.manualIdx]);
-          setManualCards(newManual);
           const newCurriculumOrder=reordered
             .filter(c=>c.isCurriculum&&c.curriculumIdx!=null)
             .map(c=>c.curriculumIdx);
-          setRefsData(prev=>({...prev,curriculumOrder:newCurriculumOrder}));
+          setRefsData(prev=>({...prev,manualCards:newManual,curriculumOrder:newCurriculumOrder}));
         }
       }
     }
@@ -4951,6 +4949,12 @@ function RefsPanel({refs,sessionKey}){
             const delta=e.deltaY>0?-0.08:0.08;
             setZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));
               if(nz===1){setPanX(0);setPanY(0);}return nz;});}}}>
+
+          {/* Hidden preload for prev/next images so navigation feels instant */}
+          {lbIdx>0&&lbItems[lbIdx-1]?.type==='image'&&
+            <img src={lbItems[lbIdx-1].src} alt="" style={{display:'none'}} aria-hidden="true"/>}
+          {lbIdx<lbItems.length-1&&lbItems[lbIdx+1]?.type==='image'&&
+            <img src={lbItems[lbIdx+1].src} alt="" style={{display:'none'}} aria-hidden="true"/>}
 
           {curItem.type==='image'&&(
             /* Fixed starting box — zoom expands beyond this via scale() */
