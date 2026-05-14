@@ -11458,14 +11458,7 @@ function RefsStrip_(){
   const [photos,setPhotos]=React.useState([]);
   const [activeIdx,setActiveIdx]=React.useState(START_ACTIVE);
   const [lightbox,setLightbox]=React.useState(null);
-  const [hlMetaVisible,setHlMetaVisible]=React.useState(true);
-  const [hlZoom,setHlZoom]=React.useState(1);
-  const [hlPanX,setHlPanX]=React.useState(0);
-  const [hlPanY,setHlPanY]=React.useState(0);
-  const [hlDragging,setHlDragging]=React.useState(false);
-  const [hlHint,setHlHint]=React.useState(false); // show "click to see info" hint on first open
-  const hlDragStart=React.useRef(null);
-  const hlHintTimer=React.useRef(null);
+  const [lbZoom,setLbZoom]=React.useState(1);
   const [studentPopup,setStudentPopup]=React.useState(null);
   const [allPhotos,setAllPhotos]=React.useState([]);
   const scrollAccum=React.useRef(0);
@@ -11532,33 +11525,20 @@ function RefsStrip_(){
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
-  function openHlLightbox(photo){
-    setLightbox({photo});
-    setHlZoom(1);setHlPanX(0);setHlPanY(0);
-    setHlMetaVisible(true);
-    // Show hint for 2.5s then fade out
-    setHlHint(true);
-    clearTimeout(hlHintTimer.current);
-    hlHintTimer.current=setTimeout(()=>setHlHint(false),2500);
-  }
-  function closeHlLightbox(){setLightbox(null);setHlZoom(1);setHlPanX(0);setHlPanY(0);}
-
   // Keyboard nav for lightbox
   React.useEffect(()=>{
     if(!lightbox) return;
     function onKey(e){
-      if(e.key==='Escape'){closeHlLightbox();}
+      if(e.key==='Escape'){setLightbox(null);setLbZoom(1);}
       if(e.key==='ArrowLeft') setLightbox(prev=>{
         if(!prev) return prev;
         const idx=photosRef.current.findIndex(p=>p.url===prev.photo.url);
-        if(idx>0){setHlZoom(1);setHlPanX(0);setHlPanY(0);return{photo:photosRef.current[idx-1]};}
-        return prev;
+        return idx>0?{...prev,photo:photosRef.current[idx-1]}:prev;
       });
       if(e.key==='ArrowRight') setLightbox(prev=>{
         if(!prev) return prev;
         const idx=photosRef.current.findIndex(p=>p.url===prev.photo.url);
-        if(idx<photosRef.current.length-1){setHlZoom(1);setHlPanX(0);setHlPanY(0);return{photo:photosRef.current[idx+1]};}
-        return prev;
+        return idx<photosRef.current.length-1?{...prev,photo:photosRef.current[idx+1]}:prev;
       });
     }
     window.addEventListener('keydown',onKey);
@@ -11608,7 +11588,7 @@ function RefsStrip_(){
           const isActive=i===activeIdx;
           return(
             <div key={i}
-              onClick={()=>{if(!isActive){setActiveIdx(i);return;}openHlLightbox(p);}}
+              onClick={()=>{if(!isActive){setActiveIdx(i);return;}setLightbox({photo:p});setLbZoom(1);}}
               style={{position:'absolute',left:'50%',top:'50%',
                 width:CARD_W+'px',height:CARD_H+'px',
                 borderRadius:16,overflow:'hidden',background:'#111',
@@ -11646,174 +11626,68 @@ function RefsStrip_(){
         ))}
       </div>
 
-      {/* Lightbox — true fullscreen, zoom/pan, meta overlay, click-outside nav */}
-      {lightbox&&lightbox.photo&&ReactDOM.createPortal(
-        <div style={{position:'fixed',inset:0,zIndex:5000,
-          background:'rgba(6,6,6,0.93)',
-          backdropFilter:'blur(20px)',
-          display:'flex',alignItems:'center',justifyContent:'center',
-          overflow:'hidden',
-          cursor:hlZoom>1?(hlDragging?'grabbing':'grab'):'default'}}
-          onWheel={e=>{e.preventDefault();
-            const delta=e.deltaY>0?-0.08:0.08;
-            setHlZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));
-              if(nz===1){setHlPanX(0);setHlPanY(0);}return nz;});}}
-          onMouseDown={e=>{if(hlZoom>1){e.preventDefault();setHlDragging(true);hlDragStart.current={x:e.clientX-hlPanX,y:e.clientY-hlPanY,moved:false};}}}
-          onMouseMove={e=>{if(!hlDragging||!hlDragStart.current)return;
-            const dx=e.clientX-hlDragStart.current.x-hlPanX,dy=e.clientY-hlDragStart.current.y-hlPanY;
-            if(Math.abs(dx)>3||Math.abs(dy)>3)hlDragStart.current.moved=true;
-            setHlPanX(e.clientX-hlDragStart.current.x);setHlPanY(e.clientY-hlDragStart.current.y);}}
-          onMouseUp={()=>{setHlDragging(false);setTimeout(()=>{if(hlDragStart.current)hlDragStart.current.moved=false;},50);}}
-          onMouseLeave={()=>setHlDragging(false)}
-          onClick={e=>{
-            // Click outside image area: left half = prev, right half = next
-            if(hlZoom>1) return;
-            if(hlDragStart.current&&hlDragStart.current.moved) return;
-            const half=window.innerWidth/2;
-            if(e.clientX<half){if(lbIdx>0){setLightbox({photo:photos[lbIdx-1]});setHlZoom(1);setHlPanX(0);setHlPanY(0);}}
-            else{if(lbIdx<photos.length-1){setLightbox({photo:photos[lbIdx+1]});setHlZoom(1);setHlPanX(0);setHlPanY(0);}}
-          }}>
-
-          {lbIdx>0&&photos[lbIdx-1]&&<img src={photos[lbIdx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
-          {lbIdx>=0&&lbIdx<photos.length-1&&photos[lbIdx+1]&&<img src={photos[lbIdx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
-
-          {/* Image — click toggles meta (when not zoomed); drag when zoomed */}
-          {(()=>{
-            const photo=lightbox.photo;
-            const hasInfo=!!(photo.studentName||photo.resolvedLesson||(photo.lessons&&photo.lessons[0]));
-            const lessonLabel=photo.resolvedLesson||(photo.lessons&&photo.lessons[0])||null;
-            const resolvedLesson=(()=>{
-              if(!lessonLabel) return null;
-              if(lessonLabel.includes(':')&&!lessonLabel.startsWith('custom:')){
-                const parts=lessonLabel.split(':');
-                const sessionN=parseInt(parts[1]);
-                const found=PHASES.flatMap(ph=>ph.sessions).find(s=>s.n===sessionN);
-                return found?`S${found.n}: ${found.title}`:lessonLabel;
-              }
-              if(lessonLabel.startsWith('custom:')){
-                const cl=getCustomLessons().find(c=>'custom:'+c.id===lessonLabel);
-                return cl?cl.label:lessonLabel;
-              }
-              return lessonLabel;
-            })();
-            return(
-              <div style={{position:'relative',
-                width:'min(88vw,960px)',height:'min(84vh,760px)',
-                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}
-                onClick={e=>{
-                  e.stopPropagation();
-                  if(hlZoom>1) return; // zoomed: handled by mousedown/drag
-                  if(hlDragStart.current&&hlDragStart.current.moved) return;
-                  if(hasInfo) setHlMetaVisible(v=>!v);
-                }}>
-
-                <img src={photo.url} alt="" draggable={false}
-                  style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
-                    transform:`scale(${hlZoom}) translate(${hlPanX/hlZoom}px,${hlPanY/hlZoom}px)`,
-                    transition:hlDragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1), filter .3s ease',
-                    willChange:'transform',
-                    filter:hlMetaVisible&&hasInfo?'blur(6px) brightness(0.78)':'none',
-                    cursor:hlZoom>1?(hlDragging?'grabbing':'grab'):'pointer',
-                    userSelect:'none',imageRendering:'high-quality',borderRadius:4}}/>
-
-                {/* Meta overlay — centred over image */}
-                {hasInfo&&(
-                  <div style={{position:'absolute',inset:0,
-                    display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-                    padding:'24px 32px',pointerEvents:'none',
-                    opacity:hlMetaVisible?1:0,transition:'opacity .3s ease'}}>
-                    <div style={{maxWidth:480,textAlign:'center'}}>
-                      {photo.type!=='documentation'&&photo.studentName&&(
-                        <div style={{fontSize:22,fontWeight:700,color:'#fff',
-                          fontFamily:"'DM Sans',sans-serif",letterSpacing:'-.01em',
-                          marginBottom:4,textShadow:'0 2px 12px rgba(0,0,0,0.5)',
-                          pointerEvents:'auto',cursor:'pointer'}}
-                          onClick={e=>{e.stopPropagation();setStudentPopup({studentName:photo.studentName,sectionId:photo.sectionId});}}>
-                          {photo.studentName}
-                        </div>
-                      )}
-                      {resolvedLesson&&(
-                        <div style={{fontSize:15,color:'rgba(255,255,255,0.85)',
-                          fontFamily:"'DM Sans',sans-serif",marginBottom:6,
-                          textShadow:'0 1px 8px rgba(0,0,0,0.5)'}}>{resolvedLesson}</div>
-                      )}
-                      {photo.type==='documentation'&&!resolvedLesson&&(
-                        <div style={{fontSize:20,fontWeight:700,color:'#fff',
-                          fontFamily:"'DM Sans',sans-serif",marginBottom:6,
-                          textShadow:'0 2px 12px rgba(0,0,0,0.5)'}}>Documentation</div>
-                      )}
-                      <div style={{display:'inline-flex',alignItems:'center',gap:6,marginTop:2}}>
-                        <SectionDot sectionId={photo.sectionId} size={7}/>
-                        <span style={{fontSize:13,color:'rgba(255,255,255,0.65)',
-                          textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>{photo.sectionName}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Hint — "click image to show info" — fades out after 2.5s */}
-                {hasInfo&&(
-                  <div style={{position:'absolute',bottom:16,left:'50%',transform:'translateX(-50%)',
-                    background:'rgba(0,0,0,0.55)',color:'rgba(255,255,255,0.55)',
-                    fontSize:11,fontFamily:"'DM Sans',sans-serif",fontWeight:600,
-                    padding:'5px 14px',borderRadius:20,whiteSpace:'nowrap',pointerEvents:'none',
-                    opacity:hlHint?1:0,transition:'opacity .6s ease'}}>
-                    Click image to {hlMetaVisible?'hide':'show'} info
-                  </div>
-                )}
+      {/* Lightbox */}
+      {lightbox&&ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:5000,background:'rgba(6,6,6,0.97)',
+          backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={()=>{setLightbox(null);setLbZoom(1);}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{position:'relative',maxWidth:'min(860px,90vw)',maxHeight:'90vh',
+              borderRadius:16,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.7)',
+              background:'#000',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <img src={lightbox.photo.url} alt=""
+              style={{display:'block',maxWidth:'100%',maxHeight:'90vh',objectFit:'contain',
+                transform:`scale(${lbZoom})`,transition:lbZoom===1?'transform .2s':'none',
+                userSelect:'none',pointerEvents:'none'}}/>
+            {/* Meta */}
+            <div style={{position:'absolute',bottom:0,left:0,right:0,
+              background:'linear-gradient(to top,rgba(0,0,0,0.9) 0%,transparent 100%)',
+              padding:'36px 18px 18px',pointerEvents:'none'}}>
+              {lightbox.photo.type==='documentation'
+                ?<div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{(()=>{
+                    const raw=lightbox.photo.resolvedLesson||(lightbox.photo.lessons&&lightbox.photo.lessons[0])||'Documentation';
+                    if(raw&&raw.includes(':')&&!raw.startsWith('custom:')){const n=parseInt(raw.split(':')[1]);const f=PHASES.flatMap(ph=>ph.sessions).find(s=>s.n===n);return f?`S${f.n}: ${f.title}`:raw;}
+                    if(raw&&raw.startsWith('custom:')){const cl=getCustomLessons().find(c=>'custom:'+c.id===raw);return cl?cl.label:raw;}
+                    return raw;
+                  })()}</div>
+                :<div
+                  style={{fontSize:14,fontWeight:700,color:'#fff',cursor:'pointer',
+                    display:'inline-flex',alignItems:'center',gap:6,pointerEvents:'auto',
+                    textDecoration:'underline',textUnderlineOffset:3,textDecorationColor:'rgba(255,255,255,0.35)'}}
+                  onClick={e=>{e.stopPropagation();setStudentPopup({studentName:lightbox.photo.studentName,sectionId:lightbox.photo.sectionId});}}>
+                  {lightbox.photo.studentName}
+                </div>}
+              <div style={{display:'flex',alignItems:'center',gap:5,marginTop:4,pointerEvents:'none'}}>
+                <SectionDot sectionId={lightbox.photo.sectionId} size={6}/>
+                <span style={{fontSize:10,color:'rgba(255,255,255,0.5)'}}>{lightbox.photo.sectionName} · {lightbox.photo.date}</span>
               </div>
-            );
-          })()}
-
-          {/* Left / right arrows — outside image, subtle */}
-          {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx-1]});setHlZoom(1);setHlPanX(0);setHlPanY(0);}}
-            style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',
-              background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',
-              borderRadius:10,color:'rgba(255,255,255,0.5)',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10,
-              transition:'all .15s'}}
-            onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.14)';e.currentTarget.style.color='rgba(255,255,255,0.85)';}}
-            onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>&#8249;</button>}
-          {lbIdx<photos.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx+1]});setHlZoom(1);setHlPanX(0);setHlPanY(0);}}
-            style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',
-              background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',
-              borderRadius:10,color:'rgba(255,255,255,0.5)',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10,
-              transition:'all .15s'}}
-            onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.14)';e.currentTarget.style.color='rgba(255,255,255,0.85)';}}
-            onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>&#8250;</button>}
-
-          {/* Close */}
-          <button onClick={e=>{e.stopPropagation();closeHlLightbox();}}
-            style={{position:'absolute',top:14,right:14,background:'rgba(255,255,255,0.1)',
-              border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',
-              fontSize:13,padding:'0 14px',height:32,cursor:'pointer',
-              fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>✕</button>
-
-          {/* Counter */}
-          {photos.length>1&&<div style={{position:'absolute',top:14,left:'50%',
-            transform:'translateX(-50%)',background:'rgba(0,0,0,0.5)',
-            color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 14px',
-            borderRadius:12,pointerEvents:'none'}}>
-            {lbIdx+1} / {photos.length}
-          </div>}
-
-          {/* Vertical zoom slider — right edge */}
-          <div style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',
-            display:'flex',flexDirection:'column',alignItems:'center',gap:8,zIndex:10}}
-            onClick={e=>e.stopPropagation()}
-            onMouseDown={e=>e.stopPropagation()}
-            onMouseMove={e=>e.stopPropagation()}
-            onMouseUp={e=>e.stopPropagation()}>
-            <span style={{color:'rgba(255,255,255,0.4)',fontSize:9,fontFamily:"'DM Sans',sans-serif"}}>4×</span>
-            <input type="range" min={100} max={400} step={5} value={Math.round(hlZoom*100)}
-              onChange={e=>{const v=Number(e.target.value)/100;setHlZoom(v);if(v===1){setHlPanX(0);setHlPanY(0);}}}
-              style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',height:140,
-                accentColor:'rgba(255,255,255,0.7)',cursor:'pointer'}}/>
-            <span style={{color:'rgba(255,255,255,0.4)',fontSize:9,fontFamily:"'DM Sans',sans-serif"}}>1×</span>
+            </div>
+            {/* Close */}
+            <button onClick={()=>{setLightbox(null);setLbZoom(1);}}
+              style={{position:'absolute',top:12,right:12,background:'rgba(0,0,0,0.5)',
+                border:'none',color:'#fff',fontSize:18,cursor:'pointer',padding:'4px 8px',borderRadius:8,zIndex:10}}>✕</button>
+            {/* Vertical zoom bar — right side */}
+            <div style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',
+              display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}>
+              {[2,1.5,1].map(z=>(
+                <button key={z} onClick={e=>{e.stopPropagation();setLbZoom(z);}}
+                  style={{width:28,height:28,borderRadius:7,border:`1px solid ${lbZoom===z?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.15)'}`,
+                    background:lbZoom===z?'rgba(255,255,255,0.15)':'rgba(0,0,0,0.4)',
+                    color:'rgba(255,255,255,0.8)',fontSize:10,fontWeight:700,cursor:'pointer'}}>
+                  {z}×
+                </button>
+              ))}
+            </div>
           </div>
-          {hlZoom>1&&<div style={{position:'fixed',bottom:56,left:'50%',
-            transform:'translateX(-50%)',background:'rgba(0,0,0,0.55)',
-            color:'rgba(255,255,255,0.5)',fontSize:10,padding:'3px 12px',
-            borderRadius:10,pointerEvents:'none',zIndex:5011}}>{Math.round(hlZoom*100)}% · drag to pan</div>}
+          {/* Arrow nav — outside popup */}
+          {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx-1]});setLbZoom(1);}}
+            style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',
+              background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
+              borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer',zIndex:10}}>&#8249;</button>}
+          {lbIdx<photos.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx+1]});setLbZoom(1);}}
+            style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',
+              background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
+              borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer',zIndex:10}}>&#8250;</button>}
         </div>,
         document.body
       )}
@@ -11828,7 +11702,8 @@ function RefsStrip_(){
           onOpenPhoto={p=>{
             const orig=lightbox;
             setStudentPopup(null);
-            openHlLightbox(p);
+            setLightbox({photo:p,returnTo:orig});
+            setLbZoom(1);
           }}
         />
       )}
