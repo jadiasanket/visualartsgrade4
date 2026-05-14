@@ -11647,7 +11647,7 @@ function RefsStrip_(){
       </div>
 
       {/* Lightbox — true fullscreen, zoom/pan, meta overlay, click-outside nav */}
-      {lightbox&&ReactDOM.createPortal(
+      {lightbox&&lightbox.photo&&ReactDOM.createPortal(
         <div style={{position:'fixed',inset:0,zIndex:5000,
           background:'rgba(6,6,6,0.93)',
           backdropFilter:'blur(20px)',
@@ -11674,9 +11674,8 @@ function RefsStrip_(){
             else{if(lbIdx<photos.length-1){setLightbox({photo:photos[lbIdx+1]});setHlZoom(1);setHlPanX(0);setHlPanY(0);}}
           }}>
 
-          {/* Preload neighbours */}
-          {lbIdx>0&&<img src={photos[lbIdx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
-          {lbIdx<photos.length-1&&<img src={photos[lbIdx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
+          {lbIdx>0&&photos[lbIdx-1]&&<img src={photos[lbIdx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
+          {lbIdx>=0&&lbIdx<photos.length-1&&photos[lbIdx+1]&&<img src={photos[lbIdx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
 
           {/* Image — click toggles meta (when not zoomed); drag when zoomed */}
           {(()=>{
