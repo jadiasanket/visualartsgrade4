@@ -11683,6 +11683,20 @@ function RefsStrip_(){
             const photo=lightbox.photo;
             const hasInfo=!!(photo.studentName||photo.resolvedLesson||(photo.lessons&&photo.lessons[0]));
             const lessonLabel=photo.resolvedLesson||(photo.lessons&&photo.lessons[0])||null;
+            const resolvedLesson=(()=>{
+              if(!lessonLabel) return null;
+              if(lessonLabel.includes(':')&&!lessonLabel.startsWith('custom:')){
+                const parts=lessonLabel.split(':');
+                const sessionN=parseInt(parts[1]);
+                const found=PHASES.flatMap(ph=>ph.sessions).find(s=>s.n===sessionN);
+                return found?`S${found.n}: ${found.title}`:lessonLabel;
+              }
+              if(lessonLabel.startsWith('custom:')){
+                const cl=getCustomLessons().find(c=>'custom:'+c.id===lessonLabel);
+                return cl?cl.label:lessonLabel;
+              }
+              return lessonLabel;
+            })();
             return(
               <div style={{position:'relative',
                 width:'min(88vw,960px)',height:'min(84vh,760px)',
@@ -11719,12 +11733,12 @@ function RefsStrip_(){
                           {photo.studentName}
                         </div>
                       )}
-                      {lessonLabel&&(
+                      {resolvedLesson&&(
                         <div style={{fontSize:15,color:'rgba(255,255,255,0.85)',
                           fontFamily:"'DM Sans',sans-serif",marginBottom:6,
-                          textShadow:'0 1px 8px rgba(0,0,0,0.5)'}}>{lessonLabel}</div>
+                          textShadow:'0 1px 8px rgba(0,0,0,0.5)'}}>{resolvedLesson}</div>
                       )}
-                      {photo.type==='documentation'&&!lessonLabel&&(
+                      {photo.type==='documentation'&&!resolvedLesson&&(
                         <div style={{fontSize:20,fontWeight:700,color:'#fff',
                           fontFamily:"'DM Sans',sans-serif",marginBottom:6,
                           textShadow:'0 2px 12px rgba(0,0,0,0.5)'}}>Documentation</div>
@@ -12371,22 +12385,41 @@ function GalleryView({isVisitor}){
         document.body
       )}
 
-      {/* Lightbox — true fullscreen, zoom/pan, meta overlay, click-outside nav */}
+      {/* Lightbox — pixel-precise match to reference design */}
       {lightbox&&ReactDOM.createPortal(
         (()=>{
           const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);
           const isDoc=(lightbox.type||'artwork')==='documentation';
           const lessonLabel=lightbox.resolvedLesson||(lightbox.lessons&&lightbox.lessons[0])||null;
-          const hasInfo=!!(lightbox.studentName||lessonLabel||lightbox.date);
+          // Fix: if lessonLabel looks like a raw lesson key (e.g. "phase1:3"), resolve it
+          const resolvedLesson=(()=>{
+            if(!lessonLabel) return null;
+            if(lessonLabel.includes(':')&&!lessonLabel.startsWith('custom:')){
+              const parts=lessonLabel.split(':');
+              const sessionN=parseInt(parts[1]);
+              const found=PHASES.flatMap(ph=>ph.sessions).find(s=>s.n===sessionN);
+              return found?`S${found.n}: ${found.title}`:lessonLabel;
+            }
+            if(lessonLabel.startsWith('custom:')){
+              const cl=getCustomLessons().find(c=>'custom:'+c.id===lessonLabel);
+              return cl?cl.label:lessonLabel;
+            }
+            return lessonLabel;
+          })();
+          const infoVisible=lbZoom<=1;
+
+          // Layout: image takes upper portion, info sits below
+          // Image area: max 860px wide, max 560px tall (leaves ~140px for info + gaps)
+          // Vertically: image centred in top 75% of screen, info in bottom 25%
           return(
             <div style={{position:'fixed',inset:0,zIndex:4000,
-              background:'rgba(6,6,6,0.93)',
-              backdropFilter:'blur(20px)',
-              display:'flex',alignItems:'center',justifyContent:'center',
+              background:'#000000',
+              display:'flex',flexDirection:'column',alignItems:'center',
+              justifyContent:'center',
               overflow:'hidden',
               cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'default'}}
               onWheel={e=>{e.preventDefault();
-                const delta=e.deltaY>0?-0.08:0.08;
+                const delta=e.deltaY>0?-0.15:0.15;
                 setLbZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));
                   if(nz===1){setLbPanX(0);setLbPanY(0);}return nz;});}}
               onMouseDown={e=>{if(lbZoom>1){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY,moved:false};}}}
@@ -12404,149 +12437,166 @@ function GalleryView({isVisitor}){
                 else{if(idx<filtered.length-1){setLightbox(filtered[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
               }}>
 
+              {/* Preload neighbours */}
               {idx>0&&<img src={filtered[idx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
               {idx<filtered.length-1&&<img src={filtered[idx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
 
-              {/* Image container */}
-              <div style={{position:'relative',
-                width:'min(88vw,960px)',height:'min(84vh,760px)',
-                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}
-                onClick={e=>{
-                  e.stopPropagation();
-                  if(lbZoom>1) return;
-                  if(lbDragStart.current&&lbDragStart.current.moved) return;
-                  if(hasInfo) setMetaVisible(v=>!v);
-                }}>
-
+              {/* IMAGE — rounded corners, upper portion of screen */}
+              <div style={{
+                width:'min(86vw,860px)',
+                height:'min(57vh,560px)',
+                borderRadius:16,
+                overflow:'hidden',
+                flexShrink:0,
+                position:'relative',
+                background:'#111'
+              }}>
                 <img src={lightbox.url} alt="" draggable={false}
-                  style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
+                  style={{
+                    width:'100%',height:'100%',
+                    objectFit:'contain',
+                    display:'block',
                     transform:`scale(${lbZoom}) translate(${lbPanX/lbZoom}px,${lbPanY/lbZoom}px)`,
-                    transition:lbDragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1), filter .3s ease',
+                    transition:lbDragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1)',
                     willChange:'transform',
-                    filter:metaVisible&&hasInfo?'blur(6px) brightness(0.78)':'none',
-                    cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'pointer',
-                    userSelect:'none',imageRendering:'high-quality',borderRadius:4}}/>
-
-                {/* Meta overlay */}
-                {hasInfo&&(
-                  <div style={{position:'absolute',inset:0,
-                    display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-                    padding:'24px 48px',pointerEvents:'none',
-                    opacity:metaVisible?1:0,transition:'opacity .3s ease'}}>
-                    <div style={{maxWidth:520,textAlign:'center',display:'flex',flexDirection:'column',gap:5}}>
-                      {!isDoc&&lightbox.studentName&&(
-                        <div style={{fontSize:22,fontWeight:700,color:'#fff',
-                          fontFamily:"'DM Sans',sans-serif",letterSpacing:'-.01em',
-                          textShadow:'0 2px 12px rgba(0,0,0,0.5)',
-                          pointerEvents:'auto',cursor:'pointer'}}
-                          onClick={e=>{e.stopPropagation();setStudentPopup({studentName:lightbox.studentName,sectionId:lightbox.sectionId,returnLightbox:lightbox});}}>
-                          {lightbox.studentName}
-                        </div>
-                      )}
-                      {isDoc&&(lessonLabel||'Documentation')&&(
-                        <div style={{fontSize:22,fontWeight:700,color:'#fff',
-                          fontFamily:"'DM Sans',sans-serif",letterSpacing:'-.01em',
-                          textShadow:'0 2px 12px rgba(0,0,0,0.5)'}}>
-                          {lessonLabel||'Documentation'}
-                        </div>
-                      )}
-                      {!isDoc&&lessonLabel&&(
-                        <div style={{fontSize:15,color:'rgba(255,255,255,0.85)',
-                          fontFamily:"'DM Sans',sans-serif",
-                          textShadow:'0 1px 8px rgba(0,0,0,0.5)'}}>
-                          {lessonLabel}
-                        </div>
-                      )}
-                      <div style={{display:'inline-flex',alignItems:'center',gap:6,justifyContent:'center'}}>
-                        <SectionDot sectionId={lightbox.sectionId} size={7}/>
-                        <span style={{fontSize:13,color:'rgba(255,255,255,0.7)',
-                          textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>
-                          {lightbox.sectionName}
-                        </span>
-                        <span style={{fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:7,
-                          background:isDoc?'rgba(155,127,232,0.35)':'rgba(59,191,160,0.35)',
-                          color:isDoc?'#c4a8f8':'#7ee8cb'}}>
-                          {isDoc?'DOCS':'ARTWORK'}
-                        </span>
-                      </div>
-                      {(lightbox.artTags||[]).length>0&&(
-                        <div style={{display:'flex',flexWrap:'wrap',gap:4,justifyContent:'center',marginTop:2}}>
-                          {(lightbox.artTags||[]).map(t=>{const td=artworkTags.find(x=>x.label===t);return<span key={t} style={{fontSize:10,padding:'2px 7px',borderRadius:7,background:'rgba(255,255,255,0.08)',border:`1px solid ${td?tagColors[td.color]:'rgba(255,255,255,0.18)'}`,color:td?tagColors[td.color]:'rgba(255,255,255,0.65)'}}>{t}</span>;})}
-                        </div>
-                      )}
-                      {isDoc&&lightbox.date&&(
-                        <div style={{fontSize:11,color:'rgba(255,255,255,0.45)',
-                          textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>
-                          {lightbox.date}
-                        </div>
-                      )}
-                      {lightbox.caption&&(
-                        <div style={{fontSize:11,color:'rgba(255,255,255,0.6)',fontStyle:'italic',
-                          textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}>"{lightbox.caption}"</div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Hint — fades in on open, auto-hides */}
-                {hasInfo&&(
-                  <div style={{position:'absolute',bottom:16,left:'50%',transform:'translateX(-50%)',
-                    background:'rgba(0,0,0,0.55)',color:'rgba(255,255,255,0.55)',
-                    fontSize:11,fontFamily:"'DM Sans',sans-serif",fontWeight:600,
-                    padding:'5px 14px',borderRadius:20,whiteSpace:'nowrap',pointerEvents:'none',
-                    opacity:lbHint?1:0,transition:'opacity .6s ease'}}>
-                    Click image to {metaVisible?'hide':'show'} info
-                  </div>
-                )}
+                    cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'default',
+                    userSelect:'none',
+                    imageRendering:'high-quality'
+                  }}/>
               </div>
 
-              {/* Arrows — outside image, subtle */}
-              {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',
-                  background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',
-                  borderRadius:10,color:'rgba(255,255,255,0.5)',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10,transition:'all .15s'}}
-                onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.14)';e.currentTarget.style.color='rgba(255,255,255,0.85)';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>&#8249;</button>}
-              {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',
-                  background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',
-                  borderRadius:10,color:'rgba(255,255,255,0.5)',fontSize:26,padding:'6px 13px',cursor:'pointer',zIndex:10,transition:'all .15s'}}
-                onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.14)';e.currentTarget.style.color='rgba(255,255,255,0.85)';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>&#8250;</button>}
+              {/* INFO BLOCK — always below image, hides when zoomed */}
+              <div style={{
+                marginTop:28,
+                display:'flex',flexDirection:'column',alignItems:'center',
+                gap:0,
+                opacity:infoVisible?1:0,
+                transition:'opacity .25s ease',
+                pointerEvents:infoVisible?'auto':'none',
+                flexShrink:0
+              }}>
+                {/* Line 1 — NAME / TITLE (large, bold, white) */}
+                <div style={{
+                  fontSize:20,fontWeight:800,color:'#ffffff',
+                  fontFamily:"'Bricolage Grotesque','DM Sans',sans-serif",
+                  letterSpacing:'0.04em',
+                  textAlign:'center',
+                  cursor:(!isDoc&&lightbox.studentName)?'pointer':'default',
+                  marginBottom:6
+                }}
+                  onClick={e=>{
+                    if(!isDoc&&lightbox.studentName){
+                      e.stopPropagation();
+                      setStudentPopup({studentName:lightbox.studentName,sectionId:lightbox.sectionId,returnLightbox:lightbox});
+                    }
+                  }}>
+                  {isDoc
+                    ?(resolvedLesson||'Documentation')
+                    :(lightbox.studentName||'—')}
+                </div>
 
-              {/* Close */}
-              <button onClick={e=>{e.stopPropagation();if(lightbox._returnTo){setLightbox(lightbox._returnTo);setMetaVisible(true);}else{setLightbox(null);}setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',top:14,right:14,background:'rgba(255,255,255,0.1)',
-                  border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,color:'#fff',
-                  fontSize:13,padding:'0 14px',height:32,cursor:'pointer',
-                  fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>✕</button>
+                {/* Line 2 — Title/Subtitle (lesson for artwork, section name for doc) */}
+                <div style={{
+                  fontSize:14,fontWeight:400,
+                  color:'rgba(255,255,255,0.65)',
+                  fontFamily:"'DM Sans',sans-serif",
+                  textAlign:'center',
+                  marginBottom:5
+                }}>
+                  {isDoc
+                    ?(lightbox.sectionName||'')
+                    :(resolvedLesson||'—')}
+                </div>
 
-              {/* Counter */}
-              {filtered.length>1&&<div style={{position:'absolute',top:14,left:'50%',
-                transform:'translateX(-50%)',background:'rgba(0,0,0,0.5)',
-                color:'rgba(255,255,255,0.6)',fontSize:11,padding:'4px 14px',
-                borderRadius:12,pointerEvents:'none'}}>
+                {/* Line 3 — Class Section / date (dimmer) */}
+                <div style={{
+                  fontSize:12,fontWeight:400,
+                  color:'rgba(255,255,255,0.38)',
+                  fontFamily:"'DM Sans',sans-serif",
+                  display:'flex',alignItems:'center',gap:6,
+                  textAlign:'center',
+                  marginBottom:8
+                }}>
+                  <SectionDot sectionId={lightbox.sectionId} size={6}/>
+                  {isDoc
+                    ?(lightbox.date||'')
+                    :(lightbox.sectionName||(lightbox.date?'· '+lightbox.date:''))}
+                </div>
+
+                {/* Line 4 — Artwork/Documentation pill tag */}
+                <div style={{
+                  fontSize:10,fontWeight:500,
+                  color:'rgba(255,255,255,0.45)',
+                  fontFamily:"'DM Sans',sans-serif",
+                  border:'1px solid rgba(255,255,255,0.18)',
+                  background:'rgba(255,255,255,0.06)',
+                  borderRadius:20,
+                  padding:'3px 12px',
+                }}>
+                  {isDoc?'Documentation':'Artwork'}
+                </div>
+              </div>
+
+              {/* ✕ CLOSE — top right of screen, plain text */}
+              <button onClick={e=>{e.stopPropagation();if(lightbox._returnTo){setLightbox(lightbox._returnTo);}else{setLightbox(null);}setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',top:18,right:20,
+                  background:'none',border:'none',
+                  color:'rgba(255,255,255,0.55)',fontSize:16,
+                  cursor:'pointer',padding:'4px 6px',lineHeight:1,
+                  fontFamily:"'DM Sans',sans-serif"}}>✕</button>
+
+              {/* COUNTER — top centre */}
+              {filtered.length>1&&<div style={{
+                position:'absolute',top:18,left:'50%',transform:'translateX(-50%)',
+                color:'rgba(255,255,255,0.4)',fontSize:11,
+                fontFamily:"'DM Sans',sans-serif",
+                pointerEvents:'none',whiteSpace:'nowrap'}}>
                 {idx+1} / {filtered.length}
               </div>}
 
-              {/* Vertical zoom slider */}
-              <div style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',
-                display:'flex',flexDirection:'column',alignItems:'center',gap:8,zIndex:10}}
+              {/* LEFT ARROW — far left, vertically centred on image */}
+              {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',left:24,top:'50%',transform:'translateY(-calc(50% + 60px))',
+                  background:'none',border:'none',
+                  color:'rgba(255,255,255,0.35)',fontSize:28,
+                  cursor:'pointer',padding:'8px 4px',lineHeight:1,
+                  fontFamily:'serif',transition:'color .15s'}}
+                onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
+                onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>‹</button>}
+
+              {/* RIGHT ARROW — far right (left of zoom slider), same vertical */}
+              {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',right:56,top:'50%',transform:'translateY(-calc(50% + 60px))',
+                  background:'none',border:'none',
+                  color:'rgba(255,255,255,0.35)',fontSize:28,
+                  cursor:'pointer',padding:'8px 4px',lineHeight:1,
+                  fontFamily:'serif',transition:'color .15s'}}
+                onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
+                onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>›</button>}
+
+              {/* ZOOM SLIDER — far right edge, vertically centred on image, native appearance */}
+              <div style={{position:'absolute',right:14,top:'50%',transform:'translateY(-calc(50% + 60px))',
+                display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}
                 onClick={e=>e.stopPropagation()}
                 onMouseDown={e=>e.stopPropagation()}
                 onMouseMove={e=>e.stopPropagation()}
                 onMouseUp={e=>e.stopPropagation()}>
-                <span style={{color:'rgba(255,255,255,0.4)',fontSize:9,fontFamily:"'DM Sans',sans-serif"}}>4×</span>
-                <input type="range" min={100} max={400} step={5} value={Math.round(lbZoom*100)}
+                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,fontFamily:"'DM Sans',sans-serif",lineHeight:1}}>+</span>
+                <input type="range" min={100} max={400} step={5}
+                  value={Math.round(lbZoom*100)}
                   onChange={e=>{const v=Number(e.target.value)/100;setLbZoom(v);if(v===1){setLbPanX(0);setLbPanY(0);}}}
-                  style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',height:140,
-                    accentColor:'rgba(255,255,255,0.7)',cursor:'pointer'}}/>
-                <span style={{color:'rgba(255,255,255,0.4)',fontSize:9,fontFamily:"'DM Sans',sans-serif"}}>1×</span>
+                  style={{
+                    writingMode:'vertical-lr',
+                    direction:'rtl',
+                    WebkitAppearance:'slider-vertical',
+                    height:120,
+                    width:8,
+                    cursor:'pointer',
+                    accentColor:'rgba(255,255,255,0.6)'
+                  }}/>
+                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,fontFamily:"'DM Sans',sans-serif",lineHeight:1}}>−</span>
               </div>
-              {lbZoom>1&&<div style={{position:'fixed',bottom:56,left:'50%',
-                transform:'translateX(-50%)',background:'rgba(0,0,0,0.55)',
-                color:'rgba(255,255,255,0.5)',fontSize:10,padding:'3px 12px',
-                borderRadius:10,pointerEvents:'none',zIndex:5011}}>{Math.round(lbZoom*100)}% · drag to pan</div>}
+
             </div>
           );
         })(),
