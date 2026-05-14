@@ -11634,6 +11634,7 @@ function RefsStrip_(){
       {lightbox&&ReactDOM.createPortal(
         (()=>{
           const photo=lightbox.photo;
+          if(!photo) return null;
           const isDoc=photo.type==='documentation';
           const raw=photo.resolvedLesson||(photo.lessons&&photo.lessons[0])||null;
           const resolvedLesson=(()=>{
@@ -11643,11 +11644,12 @@ function RefsStrip_(){
             return raw;
           })();
           const zoomed=lbZoom>1;
+          const prevPhoto=lbIdx>0?photos[lbIdx-1]:null;
+          const nextPhoto=lbIdx>=0&&lbIdx<photos.length-1?photos[lbIdx+1]:null;
           return(
-            <div style={{position:'fixed',inset:0,zIndex:5000,background:'#000',
-              display:'flex',flexDirection:'column',alignItems:'center',
-              overflow:'hidden',cursor:zoomed?(lbDragging?'grabbing':'grab'):'default'}}
-              onWheel={e=>{e.preventDefault();const delta=e.deltaY>0?-0.15:0.15;setLbZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));if(nz===1){setLbPanX(0);setLbPanY(0);}return nz;});}}
+            <div style={{position:'fixed',inset:0,zIndex:5000,background:'#000',overflow:'hidden',
+              cursor:zoomed?(lbDragging?'grabbing':'grab'):'default'}}
+              onWheel={e=>{e.preventDefault();const d=e.deltaY>0?-0.15:0.15;setLbZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+d)).toFixed(2));if(nz===1){setLbPanX(0);setLbPanY(0);}return nz;});}}
               onMouseDown={e=>{if(zoomed){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY,moved:false};}}}
               onMouseMove={e=>{if(!lbDragging||!lbDragStart.current)return;const dx=e.clientX-lbDragStart.current.x-lbPanX,dy=e.clientY-lbDragStart.current.y-lbPanY;if(Math.abs(dx)>3||Math.abs(dy)>3)lbDragStart.current.moved=true;setLbPanX(e.clientX-lbDragStart.current.x);setLbPanY(e.clientY-lbDragStart.current.y);}}
               onMouseUp={()=>{setLbDragging(false);setTimeout(()=>{if(lbDragStart.current)lbDragStart.current.moved=false;},50);}}
@@ -11655,100 +11657,90 @@ function RefsStrip_(){
               onClick={e=>{
                 if(zoomed) return;
                 if(lbDragStart.current&&lbDragStart.current.moved) return;
+                if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT') return;
                 const half=window.innerWidth/2;
-                if(e.clientX<half){if(lbIdx>0){setLightbox({photo:photos[lbIdx-1]});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                else{if(lbIdx<photos.length-1){setLightbox({photo:photos[lbIdx+1]});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                if(e.clientX<half){if(prevPhoto){setLightbox({photo:prevPhoto});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                else{if(nextPhoto){setLightbox({photo:nextPhoto});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
               }}>
-
-              {/* Preload neighbours */}
-              {lbIdx>0&&photos[lbIdx-1]&&<img src={photos[lbIdx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
-              {lbIdx>=0&&lbIdx<photos.length-1&&photos[lbIdx+1]&&<img src={photos[lbIdx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
-
+              {prevPhoto&&<img src={prevPhoto.url} alt="" style={{display:'none'}} aria-hidden="true"/>}
+              {nextPhoto&&<img src={nextPhoto.url} alt="" style={{display:'none'}} aria-hidden="true"/>}
               {zoomed?(
-                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
                   <img src={photo.url} alt="" draggable={false}
                     style={{maxWidth:'100vw',maxHeight:'100vh',objectFit:'contain',display:'block',
                       transform:`scale(${lbZoom}) translate(${lbPanX/lbZoom}px,${lbPanY/lbZoom}px)`,
-                      transition:'none',willChange:'transform',
-                      cursor:lbDragging?'grabbing':'grab',userSelect:'none',imageRendering:'high-quality'}}/>
+                      transition:'none',willChange:'transform',cursor:lbDragging?'grabbing':'grab',userSelect:'none'}}/>
                 </div>
               ):(
                 <>
-                  <div style={{height:'16.5vh',flexShrink:0}}/>
-                  <img src={photo.url} alt="" draggable={false}
-                    style={{maxWidth:'61vw',maxHeight:'67vh',objectFit:'contain',display:'block',
-                      borderRadius:16,flexShrink:0,userSelect:'none',imageRendering:'high-quality'}}/>
-                  <div style={{marginTop:'3.3vh',display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,gap:0}}>
-                    <div style={{fontSize:'clamp(16px,1.4vw,20px)',fontWeight:800,color:'#fff',
+                  <div style={{position:'absolute',top:'8vh',bottom:'22vh',left:'4vw',right:'4vw',
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <img src={photo.url} alt="" draggable={false}
+                      style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
+                        borderRadius:16,userSelect:'none',imageRendering:'high-quality'}}/>
+                  </div>
+                  <div style={{position:'absolute',bottom:0,left:0,right:0,height:'22vh',
+                    display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'0.8vh'}}>
+                    <div style={{fontSize:'clamp(14px,2vh,20px)',fontWeight:800,color:'#fff',
                       fontFamily:"'Bricolage Grotesque','DM Sans',sans-serif",
-                      letterSpacing:'0.04em',textAlign:'center',marginBottom:6,
+                      letterSpacing:'0.04em',textAlign:'center',lineHeight:1.2,
                       cursor:(!isDoc&&photo.studentName)?'pointer':'default'}}
                       onClick={e=>{if(!isDoc&&photo.studentName){e.stopPropagation();setStudentPopup({studentName:photo.studentName,sectionId:photo.sectionId});}}}>
                       {isDoc?(resolvedLesson||'Documentation'):(photo.studentName||'—')}
                     </div>
-                    <div style={{fontSize:'clamp(12px,1vw,14px)',fontWeight:400,color:'rgba(255,255,255,0.65)',
-                      fontFamily:"'DM Sans',sans-serif",textAlign:'center',marginBottom:5}}>
+                    <div style={{fontSize:'clamp(11px,1.6vh,14px)',color:'rgba(255,255,255,0.65)',
+                      fontFamily:"'DM Sans',sans-serif",textAlign:'center',lineHeight:1.2}}>
                       {isDoc?(photo.sectionName||''):(resolvedLesson||'—')}
                     </div>
-                    <div style={{fontSize:'clamp(10px,0.85vw,12px)',color:'rgba(255,255,255,0.38)',
-                      fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
+                    <div style={{fontSize:'clamp(10px,1.4vh,12px)',color:'rgba(255,255,255,0.38)',
+                      fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:6}}>
                       <SectionDot sectionId={photo.sectionId} size={6}/>
                       {isDoc?(photo.date||''):(photo.sectionName||'')}
                     </div>
-                    <div style={{fontSize:10,color:'rgba(255,255,255,0.45)',fontFamily:"'DM Sans',sans-serif",
-                      border:'1px solid rgba(255,255,255,0.18)',background:'rgba(255,255,255,0.06)',
-                      borderRadius:20,padding:'3px 12px'}}>
+                    <div style={{fontSize:'clamp(9px,1.2vh,11px)',color:'rgba(255,255,255,0.45)',
+                      fontFamily:"'DM Sans',sans-serif",border:'1px solid rgba(255,255,255,0.18)',
+                      background:'rgba(255,255,255,0.06)',borderRadius:20,padding:'2px 12px',lineHeight:1.6}}>
                       {isDoc?'Documentation':'Artwork'}
                     </div>
                   </div>
                 </>
               )}
-
-              {/* ✕ Close */}
               <button onClick={e=>{e.stopPropagation();setLightbox(null);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',top:'2.1vh',right:20,background:'none',border:'none',
-                  color:'rgba(255,255,255,0.55)',fontSize:16,cursor:'pointer',padding:'4px 6px',lineHeight:1}}>✕</button>
-
-              {/* Counter */}
-              {photos.length>1&&<div style={{position:'absolute',top:'2.1vh',left:'50%',transform:'translateX(-50%)',
-                color:'rgba(255,255,255,0.4)',fontSize:11,pointerEvents:'none',whiteSpace:'nowrap'}}>
-                {lbIdx+1} / {photos.length}
+                style={{position:'absolute',top:'2vh',right:'1.5vw',background:'none',border:'none',
+                  color:'rgba(255,255,255,0.55)',fontSize:'clamp(14px,2vh,18px)',cursor:'pointer',padding:'4px 6px',lineHeight:1}}>✕</button>
+              {photos.length>1&&<div style={{position:'absolute',top:'2vh',left:'50%',
+                transform:'translateX(-50%)',color:'rgba(255,255,255,0.4)',
+                fontSize:'clamp(10px,1.4vh,12px)',pointerEvents:'none',whiteSpace:'nowrap'}}>
+                {lbIdx>=0?lbIdx+1:'—'} / {photos.length}
               </div>}
-
-              {/* Left arrow */}
-              {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx-1]});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',left:24,top:'50vh',transform:'translateY(-50%)',
-                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:28,
-                  cursor:'pointer',padding:'8px 4px',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
+              {prevPhoto&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:prevPhoto});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',left:'1.5vw',top:'50%',transform:'translateY(-50%)',
+                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',
+                  fontSize:'clamp(20px,3vh,32px)',cursor:'pointer',padding:'1vh 0.5vw',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
                 onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>‹</button>}
-
-              {/* Right arrow */}
-              {lbIdx<photos.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx+1]});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',right:56,top:'50vh',transform:'translateY(-50%)',
-                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:28,
-                  cursor:'pointer',padding:'8px 4px',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
+              {nextPhoto&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:nextPhoto});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',right:'4vw',top:'50%',transform:'translateY(-50%)',
+                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',
+                  fontSize:'clamp(20px,3vh,32px)',cursor:'pointer',padding:'1vh 0.5vw',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
                 onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>›</button>}
-
-              {/* Zoom slider */}
-              <div style={{position:'absolute',right:14,top:'50vh',transform:'translateY(-50%)',
-                display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}
+              <div style={{position:'absolute',right:'1vw',top:'50%',transform:'translateY(-50%)',
+                display:'flex',flexDirection:'column',alignItems:'center',gap:'0.8vh',zIndex:10}}
                 onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
                 onMouseMove={e=>e.stopPropagation()} onMouseUp={e=>e.stopPropagation()}>
-                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,lineHeight:1}}>+</span>
+                <span style={{color:'rgba(255,255,255,0.38)',fontSize:'clamp(10px,1.4vh,13px)',lineHeight:1}}>+</span>
                 <input type="range" min={100} max={400} step={5} value={Math.round(lbZoom*100)}
                   onChange={e=>{const v=Number(e.target.value)/100;setLbZoom(v);if(v===1){setLbPanX(0);setLbPanY(0);}}}
                   style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',
-                    height:120,width:8,cursor:'pointer',accentColor:'rgba(255,255,255,0.6)'}}/>
-                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,lineHeight:1}}>−</span>
+                    height:'14vh',width:8,cursor:'pointer',accentColor:'rgba(255,255,255,0.6)'}}/>
+                <span style={{color:'rgba(255,255,255,0.38)',fontSize:'clamp(10px,1.4vh,13px)',lineHeight:1}}>−</span>
               </div>
             </div>
           );
         })(),
         document.body
       )}
-
       {/* Student popup */}
       {studentPopup&&(
         <StudentPopup
@@ -12319,7 +12311,7 @@ function GalleryView({isVisitor}){
       {/* Lightbox */}
       {lightbox&&ReactDOM.createPortal(
         (()=>{
-          const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);
+          const idx=filtered.findIndex(p=>p.url===lightbox.url);
           const isDoc=(lightbox.type||'artwork')==='documentation';
           const lessonLabel=lightbox.resolvedLesson||(lightbox.lessons&&lightbox.lessons[0])||null;
           const resolvedLesson=(()=>{
@@ -12336,144 +12328,98 @@ function GalleryView({isVisitor}){
             return lessonLabel;
           })();
           const zoomed=lbZoom>1;
-
+          const prev=idx>0?filtered[idx-1]:null;
+          const next=idx>=0&&idx<filtered.length-1?filtered[idx+1]:null;
           return(
-            <div style={{position:'fixed',inset:0,zIndex:4000,background:'#000',
-              display:'flex',flexDirection:'column',alignItems:'center',
-              overflow:'hidden',
+            <div style={{position:'fixed',inset:0,zIndex:4000,background:'#000',overflow:'hidden',
               cursor:zoomed?(lbDragging?'grabbing':'grab'):'default'}}
-              onWheel={e=>{e.preventDefault();
-                const delta=e.deltaY>0?-0.15:0.15;
-                setLbZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));
-                  if(nz===1){setLbPanX(0);setLbPanY(0);}return nz;});}}
+              onWheel={e=>{e.preventDefault();const d=e.deltaY>0?-0.15:0.15;setLbZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+d)).toFixed(2));if(nz===1){setLbPanX(0);setLbPanY(0);}return nz;});}}
               onMouseDown={e=>{if(zoomed){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY,moved:false};}}}
-              onMouseMove={e=>{if(!lbDragging||!lbDragStart.current)return;
-                const dx=e.clientX-lbDragStart.current.x-lbPanX,dy=e.clientY-lbDragStart.current.y-lbPanY;
-                if(Math.abs(dx)>3||Math.abs(dy)>3)lbDragStart.current.moved=true;
-                setLbPanX(e.clientX-lbDragStart.current.x);setLbPanY(e.clientY-lbDragStart.current.y);}}
+              onMouseMove={e=>{if(!lbDragging||!lbDragStart.current)return;const dx=e.clientX-lbDragStart.current.x-lbPanX,dy=e.clientY-lbDragStart.current.y-lbPanY;if(Math.abs(dx)>3||Math.abs(dy)>3)lbDragStart.current.moved=true;setLbPanX(e.clientX-lbDragStart.current.x);setLbPanY(e.clientY-lbDragStart.current.y);}}
               onMouseUp={()=>{setLbDragging(false);setTimeout(()=>{if(lbDragStart.current)lbDragStart.current.moved=false;},50);}}
               onMouseLeave={()=>setLbDragging(false)}
               onClick={e=>{
                 if(zoomed) return;
                 if(lbDragStart.current&&lbDragStart.current.moved) return;
+                if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT') return;
                 const half=window.innerWidth/2;
-                if(e.clientX<half){if(idx>0){setLightbox(filtered[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                else{if(idx<filtered.length-1){setLightbox(filtered[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                if(e.clientX<half){if(prev){setLightbox(prev);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                else{if(next){setLightbox(next);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
               }}>
-
-              {/* Preload neighbours */}
-              {idx>0&&filtered[idx-1]&&<img src={filtered[idx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
-              {idx>=0&&idx<filtered.length-1&&filtered[idx+1]&&<img src={filtered[idx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
-
-              {/* When zoomed: full-screen image centred in viewport */}
+              {prev&&<img src={prev.url} alt="" style={{display:'none'}} aria-hidden="true"/>}
+              {next&&<img src={next.url} alt="" style={{display:'none'}} aria-hidden="true"/>}
               {zoomed?(
-                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
                   <img src={lightbox.url} alt="" draggable={false}
                     style={{maxWidth:'100vw',maxHeight:'100vh',objectFit:'contain',display:'block',
                       transform:`scale(${lbZoom}) translate(${lbPanX/lbZoom}px,${lbPanY/lbZoom}px)`,
-                      transition:'none',willChange:'transform',
-                      cursor:lbDragging?'grabbing':'grab',
-                      userSelect:'none',imageRendering:'high-quality'}}/>
+                      transition:'none',willChange:'transform',cursor:lbDragging?'grabbing':'grab',userSelect:'none'}}/>
                 </div>
               ):(
-                /* At 1×: image in upper portion, info below */
                 <>
-                  {/* Spacer — 16.5% of screen height from top to image top */}
-                  <div style={{height:'16.5vh',flexShrink:0}}/>
-
-                  {/* IMAGE — self-sizes by maxWidth/maxHeight, portrait uses height, landscape uses width */}
-                  <img src={lightbox.url} alt="" draggable={false}
-                    style={{
-                      maxWidth:'61vw',
-                      maxHeight:'67vh',
-                      objectFit:'contain',
-                      display:'block',
-                      borderRadius:16,
-                      flexShrink:0,
-                      userSelect:'none',
-                      imageRendering:'high-quality'
-                    }}/>
-
-                  {/* INFO BLOCK — below image */}
-                  <div style={{marginTop:'3.3vh',display:'flex',flexDirection:'column',
-                    alignItems:'center',flexShrink:0,gap:0}}>
-
-                    <div style={{fontSize:'clamp(16px,1.4vw,20px)',fontWeight:800,color:'#fff',
+                  <div style={{position:'absolute',top:'8vh',bottom:'22vh',left:'4vw',right:'4vw',
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <img src={lightbox.url} alt="" draggable={false}
+                      style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
+                        borderRadius:16,userSelect:'none',imageRendering:'high-quality'}}/>
+                  </div>
+                  <div style={{position:'absolute',bottom:0,left:0,right:0,height:'22vh',
+                    display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'0.8vh'}}>
+                    <div style={{fontSize:'clamp(14px,2vh,20px)',fontWeight:800,color:'#fff',
                       fontFamily:"'Bricolage Grotesque','DM Sans',sans-serif",
-                      letterSpacing:'0.04em',textAlign:'center',marginBottom:6,
+                      letterSpacing:'0.04em',textAlign:'center',lineHeight:1.2,
                       cursor:(!isDoc&&lightbox.studentName)?'pointer':'default'}}
                       onClick={e=>{if(!isDoc&&lightbox.studentName){e.stopPropagation();setStudentPopup({studentName:lightbox.studentName,sectionId:lightbox.sectionId,returnLightbox:lightbox});}}}>
                       {isDoc?(resolvedLesson||'Documentation'):(lightbox.studentName||'—')}
                     </div>
-
-                    <div style={{fontSize:'clamp(12px,1vw,14px)',fontWeight:400,
-                      color:'rgba(255,255,255,0.65)',fontFamily:"'DM Sans',sans-serif",
-                      textAlign:'center',marginBottom:5}}>
+                    <div style={{fontSize:'clamp(11px,1.6vh,14px)',color:'rgba(255,255,255,0.65)',
+                      fontFamily:"'DM Sans',sans-serif",textAlign:'center',lineHeight:1.2}}>
                       {isDoc?(lightbox.sectionName||''):(resolvedLesson||'—')}
                     </div>
-
-                    <div style={{fontSize:'clamp(10px,0.85vw,12px)',fontWeight:400,
-                      color:'rgba(255,255,255,0.38)',fontFamily:"'DM Sans',sans-serif",
-                      display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
+                    <div style={{fontSize:'clamp(10px,1.4vh,12px)',color:'rgba(255,255,255,0.38)',
+                      fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:6}}>
                       <SectionDot sectionId={lightbox.sectionId} size={6}/>
                       {isDoc?(lightbox.date||''):(lightbox.sectionName||'')}
                     </div>
-
-                    <div style={{fontSize:10,color:'rgba(255,255,255,0.45)',
-                      fontFamily:"'DM Sans',sans-serif",
-                      border:'1px solid rgba(255,255,255,0.18)',
-                      background:'rgba(255,255,255,0.06)',
-                      borderRadius:20,padding:'3px 12px'}}>
+                    <div style={{fontSize:'clamp(9px,1.2vh,11px)',color:'rgba(255,255,255,0.45)',
+                      fontFamily:"'DM Sans',sans-serif",border:'1px solid rgba(255,255,255,0.18)',
+                      background:'rgba(255,255,255,0.06)',borderRadius:20,padding:'2px 12px',lineHeight:1.6}}>
                       {isDoc?'Documentation':'Artwork'}
                     </div>
                   </div>
                 </>
               )}
-
-              {/* ✕ CLOSE */}
               <button onClick={e=>{e.stopPropagation();if(lightbox._returnTo){setLightbox(lightbox._returnTo);}else{setLightbox(null);}setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',top:'2.1vh',right:20,background:'none',border:'none',
-                  color:'rgba(255,255,255,0.55)',fontSize:16,cursor:'pointer',
-                  padding:'4px 6px',lineHeight:1,fontFamily:"'DM Sans',sans-serif"}}>✕</button>
-
-              {/* COUNTER */}
-              {filtered.length>1&&<div style={{position:'absolute',top:'2.1vh',left:'50%',
-                transform:'translateX(-50%)',color:'rgba(255,255,255,0.4)',fontSize:11,
-                fontFamily:"'DM Sans',sans-serif",pointerEvents:'none',whiteSpace:'nowrap'}}>
-                {idx+1} / {filtered.length}
+                style={{position:'absolute',top:'2vh',right:'1.5vw',background:'none',border:'none',
+                  color:'rgba(255,255,255,0.55)',fontSize:'clamp(14px,2vh,18px)',cursor:'pointer',padding:'4px 6px',lineHeight:1}}>✕</button>
+              {filtered.length>1&&<div style={{position:'absolute',top:'2vh',left:'50%',
+                transform:'translateX(-50%)',color:'rgba(255,255,255,0.4)',
+                fontSize:'clamp(10px,1.4vh,12px)',pointerEvents:'none',whiteSpace:'nowrap'}}>
+                {idx>=0?idx+1:'—'} / {filtered.length}
               </div>}
-
-              {/* LEFT ARROW — vertically centred on image area (top 16.5vh + 67vh/2 = 50vh from top) */}
-              {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',left:24,top:'50vh',transform:'translateY(-50%)',
-                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:28,
-                  cursor:'pointer',padding:'8px 4px',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
+              {prev&&<button onClick={e=>{e.stopPropagation();setLightbox(prev);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',left:'1.5vw',top:'50%',transform:'translateY(-50%)',
+                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',
+                  fontSize:'clamp(20px,3vh,32px)',cursor:'pointer',padding:'1vh 0.5vw',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
                 onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>‹</button>}
-
-              {/* RIGHT ARROW */}
-              {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',right:56,top:'50vh',transform:'translateY(-50%)',
-                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:28,
-                  cursor:'pointer',padding:'8px 4px',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
+              {next&&<button onClick={e=>{e.stopPropagation();setLightbox(next);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',right:'4vw',top:'50%',transform:'translateY(-50%)',
+                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',
+                  fontSize:'clamp(20px,3vh,32px)',cursor:'pointer',padding:'1vh 0.5vw',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
                 onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>›</button>}
-
-              {/* ZOOM SLIDER — right edge, centred on image */}
-              <div style={{position:'absolute',right:14,top:'50vh',transform:'translateY(-50%)',
-                display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}
-                onClick={e=>e.stopPropagation()}
-                onMouseDown={e=>e.stopPropagation()}
-                onMouseMove={e=>e.stopPropagation()}
-                onMouseUp={e=>e.stopPropagation()}>
-                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,lineHeight:1}}>+</span>
+              <div style={{position:'absolute',right:'1vw',top:'50%',transform:'translateY(-50%)',
+                display:'flex',flexDirection:'column',alignItems:'center',gap:'0.8vh',zIndex:10}}
+                onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
+                onMouseMove={e=>e.stopPropagation()} onMouseUp={e=>e.stopPropagation()}>
+                <span style={{color:'rgba(255,255,255,0.38)',fontSize:'clamp(10px,1.4vh,13px)',lineHeight:1}}>+</span>
                 <input type="range" min={100} max={400} step={5} value={Math.round(lbZoom*100)}
                   onChange={e=>{const v=Number(e.target.value)/100;setLbZoom(v);if(v===1){setLbPanX(0);setLbPanY(0);}}}
                   style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',
-                    height:120,width:8,cursor:'pointer',accentColor:'rgba(255,255,255,0.6)'}}/>
-                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,lineHeight:1}}>−</span>
+                    height:'14vh',width:8,cursor:'pointer',accentColor:'rgba(255,255,255,0.6)'}}/>
+                <span style={{color:'rgba(255,255,255,0.38)',fontSize:'clamp(10px,1.4vh,13px)',lineHeight:1}}>−</span>
               </div>
-
             </div>
           );
         })(),
