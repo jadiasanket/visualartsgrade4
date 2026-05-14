@@ -12135,6 +12135,17 @@ function GalleryView({isVisitor}){
     return()=>unsubs.forEach(u=>u());
   },[]);
 
+  // ── search-open-photo: fired by GlobalSearch when user clicks a photo result ──
+  React.useEffect(()=>{
+    function onSearchOpenPhoto(e){
+      const photo=e.detail;
+      if(!photo) return;
+      setLightbox(photo);
+    }
+    window.addEventListener('search-open-photo',onSearchOpenPhoto);
+    return()=>window.removeEventListener('search-open-photo',onSearchOpenPhoto);
+  },[]);
+
   const allPhotos=React.useMemo(()=>{
     const photos=[];
     const customLessons=getCustomLessons();
@@ -12678,14 +12689,16 @@ function GlobalSearch({isVisitor,onNav,onPhase,onSection}){
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[isVisitor]);
 
-  // ── Cmd+K listener ───────────────────────────────────────────────────────
+  // ── Cmd+K / search-toggle listener ─────────────────────────────────────────
   React.useEffect(()=>{
     function onKey(e){
       if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();setOpen(o=>!o);}
       if(e.key==='Escape') setOpen(false);
     }
+    function onToggle(){setOpen(o=>!o);}
     window.addEventListener('keydown',onKey);
-    return()=>window.removeEventListener('keydown',onKey);
+    window.addEventListener('search-toggle',onToggle);
+    return()=>{window.removeEventListener('keydown',onKey);window.removeEventListener('search-toggle',onToggle);};
   },[]);
 
   // ── Focus input when opened ──────────────────────────────────────────────
@@ -13090,6 +13103,7 @@ function App(){
           {view==='notes'&&(isVisitor?<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--tx3)',fontSize:13}}>Sign in to access Unit Notes.</div>:<GlobalNotes/>)}
           {view==='section'&&section&&<SectionView section={section} phases={PHASES} onOpenLinkedSession={handleOpenLinkedSession} teacherMode={teacherMode} subSectionId={subSectionId} setSubSectionId={setSubSectionId} userId={userId} onSignIn={()=>setShowSignIn(true)}/>}
         </div>
+        <GlobalSearch isVisitor={isVisitor} onNav={handleNav} onPhase={handlePhase} onSection={handleSection}/>
         <GlobalKWPopup activeKw={activeKw} onClose={()=>setActiveKw(null)}/>
         <Timer/>
         <AIChatbot phases={PHASES} sections={G4_SECTIONS} teacherMode={teacherMode} currentView={view} currentPhase={phase} currentSection={section}/>
