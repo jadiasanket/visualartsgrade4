@@ -12231,7 +12231,7 @@ function GalleryView({isVisitor}){
             const sel=selectedPhotos.has(k);
             return(
               <div key={i}
-                onClick={()=>{if(galleryEditMode){toggleSelect(p);}else{setLightbox(p);setMetaVisible(true);setLbZoom(1);setLbPanX(0);setLbPanY(0);setLbHint(true);clearTimeout(lbHintTimer.current);lbHintTimer.current=setTimeout(()=>setLbHint(false),2500);}}}
+                onClick={()=>{if(galleryEditMode){toggleSelect(p);}else{setLightbox(p);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}}
                 style={{borderRadius:12,overflow:'hidden',cursor:'pointer',position:'relative',
                   aspectRatio:'1',
                   outline:sel?'3px solid var(--teal)':'3px solid transparent',outlineOffset:'-3px'}}
@@ -12556,7 +12556,7 @@ function GalleryView({isVisitor}){
 
               {/* LEFT ARROW — far left, vertically centred on image */}
               {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',left:24,top:'50%',transform:'translateY(-calc(50% + 60px))',
+                style={{position:'absolute',left:24,top:'50%',transform:'translateY(calc(-50% - 60px))',
                   background:'none',border:'none',
                   color:'rgba(255,255,255,0.35)',fontSize:28,
                   cursor:'pointer',padding:'8px 4px',lineHeight:1,
@@ -12566,7 +12566,7 @@ function GalleryView({isVisitor}){
 
               {/* RIGHT ARROW — far right (left of zoom slider), same vertical */}
               {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',right:56,top:'50%',transform:'translateY(-calc(50% + 60px))',
+                style={{position:'absolute',right:56,top:'50%',transform:'translateY(calc(-50% - 60px))',
                   background:'none',border:'none',
                   color:'rgba(255,255,255,0.35)',fontSize:28,
                   cursor:'pointer',padding:'8px 4px',lineHeight:1,
@@ -12575,7 +12575,7 @@ function GalleryView({isVisitor}){
                 onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>›</button>}
 
               {/* ZOOM SLIDER — far right edge, vertically centred on image, native appearance */}
-              <div style={{position:'absolute',right:14,top:'50%',transform:'translateY(-calc(50% + 60px))',
+              <div style={{position:'absolute',right:14,top:'50%',transform:'translateY(calc(-50% - 60px))',
                 display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}
                 onClick={e=>e.stopPropagation()}
                 onMouseDown={e=>e.stopPropagation()}
