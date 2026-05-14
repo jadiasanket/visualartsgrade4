@@ -11459,6 +11459,10 @@ function RefsStrip_(){
   const [activeIdx,setActiveIdx]=React.useState(START_ACTIVE);
   const [lightbox,setLightbox]=React.useState(null);
   const [lbZoom,setLbZoom]=React.useState(1);
+  const [lbPanX,setLbPanX]=React.useState(0);
+  const [lbPanY,setLbPanY]=React.useState(0);
+  const [lbDragging,setLbDragging]=React.useState(false);
+  const lbDragStart=React.useRef(null);
   const [studentPopup,setStudentPopup]=React.useState(null);
   const [allPhotos,setAllPhotos]=React.useState([]);
   const scrollAccum=React.useRef(0);
@@ -11626,69 +11630,122 @@ function RefsStrip_(){
         ))}
       </div>
 
-      {/* Lightbox */}
+      {/* Lightbox — same design as gallery lightbox */}
       {lightbox&&ReactDOM.createPortal(
-        <div style={{position:'fixed',inset:0,zIndex:5000,background:'rgba(6,6,6,0.97)',
-          backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center'}}
-          onClick={()=>{setLightbox(null);setLbZoom(1);}}>
-          <div onClick={e=>e.stopPropagation()}
-            style={{position:'relative',maxWidth:'min(860px,90vw)',maxHeight:'90vh',
-              borderRadius:16,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.7)',
-              background:'#000',display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <img src={lightbox.photo.url} alt=""
-              style={{display:'block',maxWidth:'100%',maxHeight:'90vh',objectFit:'contain',
-                transform:`scale(${lbZoom})`,transition:lbZoom===1?'transform .2s':'none',
-                userSelect:'none',pointerEvents:'none'}}/>
-            {/* Meta */}
-            <div style={{position:'absolute',bottom:0,left:0,right:0,
-              background:'linear-gradient(to top,rgba(0,0,0,0.9) 0%,transparent 100%)',
-              padding:'36px 18px 18px',pointerEvents:'none'}}>
-              {lightbox.photo.type==='documentation'
-                ?<div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{(()=>{
-                    const raw=lightbox.photo.resolvedLesson||(lightbox.photo.lessons&&lightbox.photo.lessons[0])||'Documentation';
-                    if(raw&&raw.includes(':')&&!raw.startsWith('custom:')){const n=parseInt(raw.split(':')[1]);const f=PHASES.flatMap(ph=>ph.sessions).find(s=>s.n===n);return f?`S${f.n}: ${f.title}`:raw;}
-                    if(raw&&raw.startsWith('custom:')){const cl=getCustomLessons().find(c=>'custom:'+c.id===raw);return cl?cl.label:raw;}
-                    return raw;
-                  })()}</div>
-                :<div
-                  style={{fontSize:14,fontWeight:700,color:'#fff',cursor:'pointer',
-                    display:'inline-flex',alignItems:'center',gap:6,pointerEvents:'auto',
-                    textDecoration:'underline',textUnderlineOffset:3,textDecorationColor:'rgba(255,255,255,0.35)'}}
-                  onClick={e=>{e.stopPropagation();setStudentPopup({studentName:lightbox.photo.studentName,sectionId:lightbox.photo.sectionId});}}>
-                  {lightbox.photo.studentName}
-                </div>}
-              <div style={{display:'flex',alignItems:'center',gap:5,marginTop:4,pointerEvents:'none'}}>
-                <SectionDot sectionId={lightbox.photo.sectionId} size={6}/>
-                <span style={{fontSize:10,color:'rgba(255,255,255,0.5)'}}>{lightbox.photo.sectionName} · {lightbox.photo.date}</span>
+        (()=>{
+          const photo=lightbox.photo;
+          const isDoc=photo.type==='documentation';
+          const raw=photo.resolvedLesson||(photo.lessons&&photo.lessons[0])||null;
+          const resolvedLesson=(()=>{
+            if(!raw) return null;
+            if(raw.includes(':')&&!raw.startsWith('custom:')){const n=parseInt(raw.split(':')[1]);const f=PHASES.flatMap(ph=>ph.sessions).find(s=>s.n===n);return f?`S${f.n}: ${f.title}`:raw;}
+            if(raw.startsWith('custom:')){const cl=getCustomLessons().find(c=>'custom:'+c.id===raw);return cl?cl.label:raw;}
+            return raw;
+          })();
+          const zoomed=lbZoom>1;
+          return(
+            <div style={{position:'fixed',inset:0,zIndex:5000,background:'#000',
+              display:'flex',flexDirection:'column',alignItems:'center',
+              overflow:'hidden',cursor:zoomed?(lbDragging?'grabbing':'grab'):'default'}}
+              onWheel={e=>{e.preventDefault();const delta=e.deltaY>0?-0.15:0.15;setLbZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));if(nz===1){setLbPanX(0);setLbPanY(0);}return nz;});}}
+              onMouseDown={e=>{if(zoomed){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY,moved:false};}}}
+              onMouseMove={e=>{if(!lbDragging||!lbDragStart.current)return;const dx=e.clientX-lbDragStart.current.x-lbPanX,dy=e.clientY-lbDragStart.current.y-lbPanY;if(Math.abs(dx)>3||Math.abs(dy)>3)lbDragStart.current.moved=true;setLbPanX(e.clientX-lbDragStart.current.x);setLbPanY(e.clientY-lbDragStart.current.y);}}
+              onMouseUp={()=>{setLbDragging(false);setTimeout(()=>{if(lbDragStart.current)lbDragStart.current.moved=false;},50);}}
+              onMouseLeave={()=>setLbDragging(false)}
+              onClick={e=>{
+                if(zoomed) return;
+                if(lbDragStart.current&&lbDragStart.current.moved) return;
+                const half=window.innerWidth/2;
+                if(e.clientX<half){if(lbIdx>0){setLightbox({photo:photos[lbIdx-1]});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                else{if(lbIdx<photos.length-1){setLightbox({photo:photos[lbIdx+1]});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+              }}>
+
+              {/* Preload neighbours */}
+              {lbIdx>0&&photos[lbIdx-1]&&<img src={photos[lbIdx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
+              {lbIdx>=0&&lbIdx<photos.length-1&&photos[lbIdx+1]&&<img src={photos[lbIdx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
+
+              {zoomed?(
+                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                  <img src={photo.url} alt="" draggable={false}
+                    style={{maxWidth:'100vw',maxHeight:'100vh',objectFit:'contain',display:'block',
+                      transform:`scale(${lbZoom}) translate(${lbPanX/lbZoom}px,${lbPanY/lbZoom}px)`,
+                      transition:'none',willChange:'transform',
+                      cursor:lbDragging?'grabbing':'grab',userSelect:'none',imageRendering:'high-quality'}}/>
+                </div>
+              ):(
+                <>
+                  <div style={{height:'16.5vh',flexShrink:0}}/>
+                  <img src={photo.url} alt="" draggable={false}
+                    style={{maxWidth:'61vw',maxHeight:'67vh',objectFit:'contain',display:'block',
+                      borderRadius:16,flexShrink:0,userSelect:'none',imageRendering:'high-quality'}}/>
+                  <div style={{marginTop:'3.3vh',display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,gap:0}}>
+                    <div style={{fontSize:'clamp(16px,1.4vw,20px)',fontWeight:800,color:'#fff',
+                      fontFamily:"'Bricolage Grotesque','DM Sans',sans-serif",
+                      letterSpacing:'0.04em',textAlign:'center',marginBottom:6,
+                      cursor:(!isDoc&&photo.studentName)?'pointer':'default'}}
+                      onClick={e=>{if(!isDoc&&photo.studentName){e.stopPropagation();setStudentPopup({studentName:photo.studentName,sectionId:photo.sectionId});}}}>
+                      {isDoc?(resolvedLesson||'Documentation'):(photo.studentName||'—')}
+                    </div>
+                    <div style={{fontSize:'clamp(12px,1vw,14px)',fontWeight:400,color:'rgba(255,255,255,0.65)',
+                      fontFamily:"'DM Sans',sans-serif",textAlign:'center',marginBottom:5}}>
+                      {isDoc?(photo.sectionName||''):(resolvedLesson||'—')}
+                    </div>
+                    <div style={{fontSize:'clamp(10px,0.85vw,12px)',color:'rgba(255,255,255,0.38)',
+                      fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
+                      <SectionDot sectionId={photo.sectionId} size={6}/>
+                      {isDoc?(photo.date||''):(photo.sectionName||'')}
+                    </div>
+                    <div style={{fontSize:10,color:'rgba(255,255,255,0.45)',fontFamily:"'DM Sans',sans-serif",
+                      border:'1px solid rgba(255,255,255,0.18)',background:'rgba(255,255,255,0.06)',
+                      borderRadius:20,padding:'3px 12px'}}>
+                      {isDoc?'Documentation':'Artwork'}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ✕ Close */}
+              <button onClick={e=>{e.stopPropagation();setLightbox(null);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',top:'2.1vh',right:20,background:'none',border:'none',
+                  color:'rgba(255,255,255,0.55)',fontSize:16,cursor:'pointer',padding:'4px 6px',lineHeight:1}}>✕</button>
+
+              {/* Counter */}
+              {photos.length>1&&<div style={{position:'absolute',top:'2.1vh',left:'50%',transform:'translateX(-50%)',
+                color:'rgba(255,255,255,0.4)',fontSize:11,pointerEvents:'none',whiteSpace:'nowrap'}}>
+                {lbIdx+1} / {photos.length}
+              </div>}
+
+              {/* Left arrow */}
+              {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx-1]});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',left:24,top:'50vh',transform:'translateY(-50%)',
+                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:28,
+                  cursor:'pointer',padding:'8px 4px',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
+                onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
+                onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>‹</button>}
+
+              {/* Right arrow */}
+              {lbIdx<photos.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx+1]});setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
+                style={{position:'absolute',right:56,top:'50vh',transform:'translateY(-50%)',
+                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:28,
+                  cursor:'pointer',padding:'8px 4px',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
+                onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
+                onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>›</button>}
+
+              {/* Zoom slider */}
+              <div style={{position:'absolute',right:14,top:'50vh',transform:'translateY(-50%)',
+                display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}
+                onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
+                onMouseMove={e=>e.stopPropagation()} onMouseUp={e=>e.stopPropagation()}>
+                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,lineHeight:1}}>+</span>
+                <input type="range" min={100} max={400} step={5} value={Math.round(lbZoom*100)}
+                  onChange={e=>{const v=Number(e.target.value)/100;setLbZoom(v);if(v===1){setLbPanX(0);setLbPanY(0);}}}
+                  style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',
+                    height:120,width:8,cursor:'pointer',accentColor:'rgba(255,255,255,0.6)'}}/>
+                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,lineHeight:1}}>−</span>
               </div>
             </div>
-            {/* Close */}
-            <button onClick={()=>{setLightbox(null);setLbZoom(1);}}
-              style={{position:'absolute',top:12,right:12,background:'rgba(0,0,0,0.5)',
-                border:'none',color:'#fff',fontSize:18,cursor:'pointer',padding:'4px 8px',borderRadius:8,zIndex:10}}>✕</button>
-            {/* Vertical zoom bar — right side */}
-            <div style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',
-              display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}>
-              {[2,1.5,1].map(z=>(
-                <button key={z} onClick={e=>{e.stopPropagation();setLbZoom(z);}}
-                  style={{width:28,height:28,borderRadius:7,border:`1px solid ${lbZoom===z?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.15)'}`,
-                    background:lbZoom===z?'rgba(255,255,255,0.15)':'rgba(0,0,0,0.4)',
-                    color:'rgba(255,255,255,0.8)',fontSize:10,fontWeight:700,cursor:'pointer'}}>
-                  {z}×
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* Arrow nav — outside popup */}
-          {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx-1]});setLbZoom(1);}}
-            style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',
-              background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
-              borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer',zIndex:10}}>&#8249;</button>}
-          {lbIdx<photos.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox({photo:photos[lbIdx+1]});setLbZoom(1);}}
-            style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',
-              background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
-              borderRadius:10,color:'#fff',fontSize:28,padding:'6px 14px',cursor:'pointer',zIndex:10}}>&#8250;</button>}
-        </div>,
+          );
+        })(),
         document.body
       )}
 
@@ -12305,8 +12362,8 @@ function GalleryView({isVisitor}){
               }}>
 
               {/* Preload neighbours */}
-              {idx>0&&<img src={filtered[idx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
-              {idx<filtered.length-1&&<img src={filtered[idx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
+              {idx>0&&filtered[idx-1]&&<img src={filtered[idx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
+              {idx>=0&&idx<filtered.length-1&&filtered[idx+1]&&<img src={filtered[idx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
 
               {/* When zoomed: full-screen image centred in viewport */}
               {zoomed?(
