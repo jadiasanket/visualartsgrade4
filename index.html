@@ -12289,7 +12289,8 @@ function GalleryView({isVisitor}){
             <div style={{position:'fixed',inset:0,zIndex:4000,
               background:'#000000',
               display:'flex',flexDirection:'column',alignItems:'center',
-              justifyContent:'center',
+              justifyContent:'flex-start',
+              paddingTop:138,
               overflow:'hidden',
               cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'default'}}
               onWheel={e=>{e.preventDefault();
@@ -12315,10 +12316,10 @@ function GalleryView({isVisitor}){
               {idx>0&&<img src={filtered[idx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
               {idx<filtered.length-1&&<img src={filtered[idx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
 
-              {/* IMAGE — rounded corners, upper portion of screen */}
+              {/* IMAGE — fixed size matching reference: ~860×550, rounded corners */}
               <div style={{
-                width:'min(86vw,860px)',
-                height:'min(57vh,560px)',
+                width:'min(61vw,856px)',
+                height:'min(67vh,562px)',
                 borderRadius:16,
                 overflow:'hidden',
                 flexShrink:0,
@@ -12411,7 +12412,7 @@ function GalleryView({isVisitor}){
                 </div>
               </div>
 
-              {/* ✕ CLOSE — top right of screen, plain text */}
+              {/* ✕ CLOSE — top right */}
               <button onClick={e=>{e.stopPropagation();if(lightbox._returnTo){setLightbox(lightbox._returnTo);}else{setLightbox(null);}setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
                 style={{position:'absolute',top:18,right:20,
                   background:'none',border:'none',
@@ -12428,9 +12429,9 @@ function GalleryView({isVisitor}){
                 {idx+1} / {filtered.length}
               </div>}
 
-              {/* LEFT ARROW — far left, vertically centred on image */}
+              {/* LEFT ARROW — far left, centred on image (top 138 + height 562/2 = 419px) */}
               {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',left:24,top:'50%',transform:'translateY(calc(-50% - 60px))',
+                style={{position:'absolute',left:24,top:419,transform:'translateY(-50%)',
                   background:'none',border:'none',
                   color:'rgba(255,255,255,0.35)',fontSize:28,
                   cursor:'pointer',padding:'8px 4px',lineHeight:1,
@@ -12440,7 +12441,7 @@ function GalleryView({isVisitor}){
 
               {/* RIGHT ARROW — far right (left of zoom slider), same vertical */}
               {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',right:56,top:'50%',transform:'translateY(calc(-50% - 60px))',
+                style={{position:'absolute',right:56,top:419,transform:'translateY(-50%)',
                   background:'none',border:'none',
                   color:'rgba(255,255,255,0.35)',fontSize:28,
                   cursor:'pointer',padding:'8px 4px',lineHeight:1,
@@ -12448,8 +12449,8 @@ function GalleryView({isVisitor}){
                 onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
                 onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>›</button>}
 
-              {/* ZOOM SLIDER — far right edge, vertically centred on image, native appearance */}
-              <div style={{position:'absolute',right:14,top:'50%',transform:'translateY(calc(-50% - 60px))',
+              {/* ZOOM SLIDER — far right edge, centred on image */}
+              <div style={{position:'absolute',right:14,top:419,transform:'translateY(-50%)',
                 display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}
                 onClick={e=>e.stopPropagation()}
                 onMouseDown={e=>e.stopPropagation()}
