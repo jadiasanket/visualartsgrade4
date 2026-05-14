@@ -12259,20 +12259,18 @@ function GalleryView({isVisitor}){
         document.body
       )}
 
-      {/* Lightbox — pixel-precise match to reference design */}
+      {/* Lightbox */}
       {lightbox&&ReactDOM.createPortal(
         (()=>{
           const idx=filtered.findIndex(p=>p.url===lightbox.url&&p.studentName===lightbox.studentName);
           const isDoc=(lightbox.type||'artwork')==='documentation';
           const lessonLabel=lightbox.resolvedLesson||(lightbox.lessons&&lightbox.lessons[0])||null;
-          // Fix: if lessonLabel looks like a raw lesson key (e.g. "phase1:3"), resolve it
           const resolvedLesson=(()=>{
             if(!lessonLabel) return null;
             if(lessonLabel.includes(':')&&!lessonLabel.startsWith('custom:')){
-              const parts=lessonLabel.split(':');
-              const sessionN=parseInt(parts[1]);
-              const found=PHASES.flatMap(ph=>ph.sessions).find(s=>s.n===sessionN);
-              return found?`S${found.n}: ${found.title}`:lessonLabel;
+              const n=parseInt(lessonLabel.split(':')[1]);
+              const f=PHASES.flatMap(ph=>ph.sessions).find(s=>s.n===n);
+              return f?`S${f.n}: ${f.title}`:lessonLabel;
             }
             if(lessonLabel.startsWith('custom:')){
               const cl=getCustomLessons().find(c=>'custom:'+c.id===lessonLabel);
@@ -12280,24 +12278,18 @@ function GalleryView({isVisitor}){
             }
             return lessonLabel;
           })();
-          const infoVisible=lbZoom<=1;
+          const zoomed=lbZoom>1;
 
-          // Layout: image takes upper portion, info sits below
-          // Image area: max 860px wide, max 560px tall (leaves ~140px for info + gaps)
-          // Vertically: image centred in top 75% of screen, info in bottom 25%
           return(
-            <div style={{position:'fixed',inset:0,zIndex:4000,
-              background:'#000000',
+            <div style={{position:'fixed',inset:0,zIndex:4000,background:'#000',
               display:'flex',flexDirection:'column',alignItems:'center',
-              justifyContent:'flex-start',
-              paddingTop:138,
               overflow:'hidden',
-              cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'default'}}
+              cursor:zoomed?(lbDragging?'grabbing':'grab'):'default'}}
               onWheel={e=>{e.preventDefault();
                 const delta=e.deltaY>0?-0.15:0.15;
                 setLbZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));
                   if(nz===1){setLbPanX(0);setLbPanY(0);}return nz;});}}
-              onMouseDown={e=>{if(lbZoom>1){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY,moved:false};}}}
+              onMouseDown={e=>{if(zoomed){e.preventDefault();setLbDragging(true);lbDragStart.current={x:e.clientX-lbPanX,y:e.clientY-lbPanY,moved:false};}}}
               onMouseMove={e=>{if(!lbDragging||!lbDragStart.current)return;
                 const dx=e.clientX-lbDragStart.current.x-lbPanX,dy=e.clientY-lbDragStart.current.y-lbPanY;
                 if(Math.abs(dx)>3||Math.abs(dy)>3)lbDragStart.current.moved=true;
@@ -12305,7 +12297,7 @@ function GalleryView({isVisitor}){
               onMouseUp={()=>{setLbDragging(false);setTimeout(()=>{if(lbDragStart.current)lbDragStart.current.moved=false;},50);}}
               onMouseLeave={()=>setLbDragging(false)}
               onClick={e=>{
-                if(lbZoom>1) return;
+                if(zoomed) return;
                 if(lbDragStart.current&&lbDragStart.current.moved) return;
                 const half=window.innerWidth/2;
                 if(e.clientX<half){if(idx>0){setLightbox(filtered[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
@@ -12316,160 +12308,113 @@ function GalleryView({isVisitor}){
               {idx>0&&<img src={filtered[idx-1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
               {idx<filtered.length-1&&<img src={filtered[idx+1].url} alt="" style={{display:'none'}} aria-hidden="true"/>}
 
-              {/* IMAGE — fixed size matching reference: ~860×550, rounded corners */}
-              <div style={{
-                width:'min(61vw,856px)',
-                height:'min(67vh,562px)',
-                borderRadius:16,
-                overflow:'hidden',
-                flexShrink:0,
-                position:'relative',
-                background:'#111'
-              }}>
-                <img src={lightbox.url} alt="" draggable={false}
-                  style={{
-                    width:'100%',height:'100%',
-                    objectFit:'contain',
-                    display:'block',
-                    transform:`scale(${lbZoom}) translate(${lbPanX/lbZoom}px,${lbPanY/lbZoom}px)`,
-                    transition:lbDragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1)',
-                    willChange:'transform',
-                    cursor:lbZoom>1?(lbDragging?'grabbing':'grab'):'default',
-                    userSelect:'none',
-                    imageRendering:'high-quality'
-                  }}/>
-              </div>
-
-              {/* INFO BLOCK — always below image, hides when zoomed */}
-              <div style={{
-                marginTop:28,
-                display:'flex',flexDirection:'column',alignItems:'center',
-                gap:0,
-                opacity:infoVisible?1:0,
-                transition:'opacity .25s ease',
-                pointerEvents:infoVisible?'auto':'none',
-                flexShrink:0
-              }}>
-                {/* Line 1 — NAME / TITLE (large, bold, white) */}
-                <div style={{
-                  fontSize:20,fontWeight:800,color:'#ffffff',
-                  fontFamily:"'Bricolage Grotesque','DM Sans',sans-serif",
-                  letterSpacing:'0.04em',
-                  textAlign:'center',
-                  cursor:(!isDoc&&lightbox.studentName)?'pointer':'default',
-                  marginBottom:6
-                }}
-                  onClick={e=>{
-                    if(!isDoc&&lightbox.studentName){
-                      e.stopPropagation();
-                      setStudentPopup({studentName:lightbox.studentName,sectionId:lightbox.sectionId,returnLightbox:lightbox});
-                    }
-                  }}>
-                  {isDoc
-                    ?(resolvedLesson||'Documentation')
-                    :(lightbox.studentName||'—')}
+              {/* When zoomed: full-screen image centred in viewport */}
+              {zoomed?(
+                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                  <img src={lightbox.url} alt="" draggable={false}
+                    style={{maxWidth:'100vw',maxHeight:'100vh',objectFit:'contain',display:'block',
+                      transform:`scale(${lbZoom}) translate(${lbPanX/lbZoom}px,${lbPanY/lbZoom}px)`,
+                      transition:'none',willChange:'transform',
+                      cursor:lbDragging?'grabbing':'grab',
+                      userSelect:'none',imageRendering:'high-quality'}}/>
                 </div>
+              ):(
+                /* At 1×: image in upper portion, info below */
+                <>
+                  {/* Spacer — 16.5% of screen height from top to image top */}
+                  <div style={{height:'16.5vh',flexShrink:0}}/>
 
-                {/* Line 2 — Title/Subtitle (lesson for artwork, section name for doc) */}
-                <div style={{
-                  fontSize:14,fontWeight:400,
-                  color:'rgba(255,255,255,0.65)',
-                  fontFamily:"'DM Sans',sans-serif",
-                  textAlign:'center',
-                  marginBottom:5
-                }}>
-                  {isDoc
-                    ?(lightbox.sectionName||'')
-                    :(resolvedLesson||'—')}
-                </div>
+                  {/* IMAGE — self-sizes by maxWidth/maxHeight, portrait uses height, landscape uses width */}
+                  <img src={lightbox.url} alt="" draggable={false}
+                    style={{
+                      maxWidth:'61vw',
+                      maxHeight:'67vh',
+                      objectFit:'contain',
+                      display:'block',
+                      borderRadius:16,
+                      flexShrink:0,
+                      userSelect:'none',
+                      imageRendering:'high-quality'
+                    }}/>
 
-                {/* Line 3 — Class Section / date (dimmer) */}
-                <div style={{
-                  fontSize:12,fontWeight:400,
-                  color:'rgba(255,255,255,0.38)',
-                  fontFamily:"'DM Sans',sans-serif",
-                  display:'flex',alignItems:'center',gap:6,
-                  textAlign:'center',
-                  marginBottom:8
-                }}>
-                  <SectionDot sectionId={lightbox.sectionId} size={6}/>
-                  {isDoc
-                    ?(lightbox.date||'')
-                    :(lightbox.sectionName||(lightbox.date?'· '+lightbox.date:''))}
-                </div>
+                  {/* INFO BLOCK — below image */}
+                  <div style={{marginTop:'3.3vh',display:'flex',flexDirection:'column',
+                    alignItems:'center',flexShrink:0,gap:0}}>
 
-                {/* Line 4 — Artwork/Documentation pill tag */}
-                <div style={{
-                  fontSize:10,fontWeight:500,
-                  color:'rgba(255,255,255,0.45)',
-                  fontFamily:"'DM Sans',sans-serif",
-                  border:'1px solid rgba(255,255,255,0.18)',
-                  background:'rgba(255,255,255,0.06)',
-                  borderRadius:20,
-                  padding:'3px 12px',
-                }}>
-                  {isDoc?'Documentation':'Artwork'}
-                </div>
-              </div>
+                    <div style={{fontSize:'clamp(16px,1.4vw,20px)',fontWeight:800,color:'#fff',
+                      fontFamily:"'Bricolage Grotesque','DM Sans',sans-serif",
+                      letterSpacing:'0.04em',textAlign:'center',marginBottom:6,
+                      cursor:(!isDoc&&lightbox.studentName)?'pointer':'default'}}
+                      onClick={e=>{if(!isDoc&&lightbox.studentName){e.stopPropagation();setStudentPopup({studentName:lightbox.studentName,sectionId:lightbox.sectionId,returnLightbox:lightbox});}}}>
+                      {isDoc?(resolvedLesson||'Documentation'):(lightbox.studentName||'—')}
+                    </div>
 
-              {/* ✕ CLOSE — top right */}
+                    <div style={{fontSize:'clamp(12px,1vw,14px)',fontWeight:400,
+                      color:'rgba(255,255,255,0.65)',fontFamily:"'DM Sans',sans-serif",
+                      textAlign:'center',marginBottom:5}}>
+                      {isDoc?(lightbox.sectionName||''):(resolvedLesson||'—')}
+                    </div>
+
+                    <div style={{fontSize:'clamp(10px,0.85vw,12px)',fontWeight:400,
+                      color:'rgba(255,255,255,0.38)',fontFamily:"'DM Sans',sans-serif",
+                      display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
+                      <SectionDot sectionId={lightbox.sectionId} size={6}/>
+                      {isDoc?(lightbox.date||''):(lightbox.sectionName||'')}
+                    </div>
+
+                    <div style={{fontSize:10,color:'rgba(255,255,255,0.45)',
+                      fontFamily:"'DM Sans',sans-serif",
+                      border:'1px solid rgba(255,255,255,0.18)',
+                      background:'rgba(255,255,255,0.06)',
+                      borderRadius:20,padding:'3px 12px'}}>
+                      {isDoc?'Documentation':'Artwork'}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ✕ CLOSE */}
               <button onClick={e=>{e.stopPropagation();if(lightbox._returnTo){setLightbox(lightbox._returnTo);}else{setLightbox(null);}setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',top:18,right:20,
-                  background:'none',border:'none',
-                  color:'rgba(255,255,255,0.55)',fontSize:16,
-                  cursor:'pointer',padding:'4px 6px',lineHeight:1,
-                  fontFamily:"'DM Sans',sans-serif"}}>✕</button>
+                style={{position:'absolute',top:'2.1vh',right:20,background:'none',border:'none',
+                  color:'rgba(255,255,255,0.55)',fontSize:16,cursor:'pointer',
+                  padding:'4px 6px',lineHeight:1,fontFamily:"'DM Sans',sans-serif"}}>✕</button>
 
-              {/* COUNTER — top centre */}
-              {filtered.length>1&&<div style={{
-                position:'absolute',top:18,left:'50%',transform:'translateX(-50%)',
-                color:'rgba(255,255,255,0.4)',fontSize:11,
-                fontFamily:"'DM Sans',sans-serif",
-                pointerEvents:'none',whiteSpace:'nowrap'}}>
+              {/* COUNTER */}
+              {filtered.length>1&&<div style={{position:'absolute',top:'2.1vh',left:'50%',
+                transform:'translateX(-50%)',color:'rgba(255,255,255,0.4)',fontSize:11,
+                fontFamily:"'DM Sans',sans-serif",pointerEvents:'none',whiteSpace:'nowrap'}}>
                 {idx+1} / {filtered.length}
               </div>}
 
-              {/* LEFT ARROW — far left, centred on image (top 138 + height 562/2 = 419px) */}
+              {/* LEFT ARROW — vertically centred on image area (top 16.5vh + 67vh/2 = 50vh from top) */}
               {idx>0&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx-1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',left:24,top:419,transform:'translateY(-50%)',
-                  background:'none',border:'none',
-                  color:'rgba(255,255,255,0.35)',fontSize:28,
-                  cursor:'pointer',padding:'8px 4px',lineHeight:1,
-                  fontFamily:'serif',transition:'color .15s'}}
+                style={{position:'absolute',left:24,top:'50vh',transform:'translateY(-50%)',
+                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:28,
+                  cursor:'pointer',padding:'8px 4px',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
                 onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>‹</button>}
 
-              {/* RIGHT ARROW — far right (left of zoom slider), same vertical */}
+              {/* RIGHT ARROW */}
               {idx<filtered.length-1&&<button onClick={e=>{e.stopPropagation();setLightbox(filtered[idx+1]);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}
-                style={{position:'absolute',right:56,top:419,transform:'translateY(-50%)',
-                  background:'none',border:'none',
-                  color:'rgba(255,255,255,0.35)',fontSize:28,
-                  cursor:'pointer',padding:'8px 4px',lineHeight:1,
-                  fontFamily:'serif',transition:'color .15s'}}
+                style={{position:'absolute',right:56,top:'50vh',transform:'translateY(-50%)',
+                  background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:28,
+                  cursor:'pointer',padding:'8px 4px',lineHeight:1,fontFamily:'serif',transition:'color .15s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
                 onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>›</button>}
 
-              {/* ZOOM SLIDER — far right edge, centred on image */}
-              <div style={{position:'absolute',right:14,top:419,transform:'translateY(-50%)',
+              {/* ZOOM SLIDER — right edge, centred on image */}
+              <div style={{position:'absolute',right:14,top:'50vh',transform:'translateY(-50%)',
                 display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}
                 onClick={e=>e.stopPropagation()}
                 onMouseDown={e=>e.stopPropagation()}
                 onMouseMove={e=>e.stopPropagation()}
                 onMouseUp={e=>e.stopPropagation()}>
-                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,fontFamily:"'DM Sans',sans-serif",lineHeight:1}}>+</span>
-                <input type="range" min={100} max={400} step={5}
-                  value={Math.round(lbZoom*100)}
+                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,lineHeight:1}}>+</span>
+                <input type="range" min={100} max={400} step={5} value={Math.round(lbZoom*100)}
                   onChange={e=>{const v=Number(e.target.value)/100;setLbZoom(v);if(v===1){setLbPanX(0);setLbPanY(0);}}}
-                  style={{
-                    writingMode:'vertical-lr',
-                    direction:'rtl',
-                    WebkitAppearance:'slider-vertical',
-                    height:120,
-                    width:8,
-                    cursor:'pointer',
-                    accentColor:'rgba(255,255,255,0.6)'
-                  }}/>
-                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,fontFamily:"'DM Sans',sans-serif",lineHeight:1}}>−</span>
+                  style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',
+                    height:120,width:8,cursor:'pointer',accentColor:'rgba(255,255,255,0.6)'}}/>
+                <span style={{color:'rgba(255,255,255,0.38)',fontSize:11,lineHeight:1}}>−</span>
               </div>
 
             </div>
