@@ -12264,13 +12264,13 @@ function CropOverlay({imgSrc,onCommit}){
         const b={x:clamp(r.left+(r.width-visW)/2,s.x,s.x+s.w-visW),y:clamp(r.top+(r.height-visH)/2,s.y,s.y+s.h-visH),w:visW,h:visH};
         boxRef.current=b;setBox({...b});
       }}>
-      <div style={{position:'absolute',left:`${MARGIN_H*100}vw`,top:`${MARGIN_V*100}vh`,right:`${MARGIN_H*100}vw`,bottom:`${MARGIN_V*100}vh`,display:'flex',alignItems:'center',justifyContent:'center',
+      <div style={{position:'absolute',left:`${_CROP_MARGIN_H*100}vw`,top:`${_CROP_MARGIN_V*100}vh`,right:`${_CROP_MARGIN_H*100}vw`,bottom:`${_CROP_MARGIN_V*100}vh`,display:'flex',alignItems:'center',justifyContent:'center',
         visibility:cropActive?'visible':'hidden',pointerEvents:cropActive?'auto':'none'}}>
         <img ref={imgRef} src={imgSrc} alt="" draggable={false} onLoad={onImgLoad} crossOrigin="anonymous"
           style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',transformOrigin:'center center',willChange:'transform'}}/>
       </div>
       {!cropActive&&(
-        <div style={{position:'absolute',left:`${MARGIN_H*100}vw`,top:`${MARGIN_V*100}vh`,right:`${MARGIN_H*100}vw`,bottom:`${MARGIN_V*100}vh`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+        <div style={{position:'absolute',left:`${_CROP_MARGIN_H*100}vw`,top:`${_CROP_MARGIN_V*100}vh`,right:`${_CROP_MARGIN_H*100}vw`,bottom:`${_CROP_MARGIN_V*100}vh`,display:'flex',alignItems:'center',justifyContent:'center'}}>
           {croppedUrl&&<img src={croppedUrl} alt="Cropped" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',borderRadius:2}}/>}
         </div>
       )}
@@ -12364,7 +12364,7 @@ function CropOverlay({imgSrc,onCommit}){
           ))}
         </div>
       )}
-      <div style={{position:'fixed',bottom:0,height:`${MARGIN_V*100}vh`,left:0,right:0,display:'flex',alignItems:'center',justifyContent:'center',gap:8,zIndex:20,pointerEvents:'none'}}
+      <div style={{position:'fixed',bottom:0,height:`${_CROP_MARGIN_V*100}vh`,left:0,right:0,display:'flex',alignItems:'center',justifyContent:'center',gap:8,zIndex:20,pointerEvents:'none'}}
         onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
         <div style={{display:'flex',alignItems:'center',gap:12,pointerEvents:'all'}}>
           {iconBtn(()=>{setKsCorners(null);rotate90('ccw');},<IcoCCW/>,'Rotate 90° CCW')}
@@ -13106,9 +13106,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
         rafRef.current=requestAnimationFrame(applyTransform);
       }}>
 
-      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',padding:`${MARGIN_V*100}vh ${MARGIN_H*100}vw`}}>
+      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',padding:`${_CROP_MARGIN_V*100}vh ${_CROP_MARGIN_H*100}vw`}}>
         <img ref={imgRef} src={currentUrl} alt="" draggable={false}
-          style={{maxWidth:`${(1-MARGIN_H*2)*100}vw`,maxHeight:`${(1-MARGIN_V*2)*100}vh`,objectFit:'contain',display:'block',imageRendering:'high-quality',WebkitImageRendering:'crisp-edges',transformOrigin:'center center',willChange:'transform',borderRadius:12,transition:'border-radius 0.4s ease',filter:filterStyle||undefined}}/>
+          style={{maxWidth:`${(1-_CROP_MARGIN_H*2)*100}vw`,maxHeight:`${(1-_CROP_MARGIN_V*2)*100}vh`,objectFit:'contain',display:'block',imageRendering:'high-quality',WebkitImageRendering:'crisp-edges',transformOrigin:'center center',willChange:'transform',borderRadius:12,transition:'border-radius 0.4s ease',filter:filterStyle||undefined}}/>
       </div>
 
       {/* ZOOM SLIDER */}
