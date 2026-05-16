@@ -11786,7 +11786,7 @@ function CropOverlay({imgSrc,onCommit}){
     if(!natW||!natH)return; // image not loaded yet
     const rot=((baseRotRef.current%360)+360)%360;
     const swapped=rot===90||rot===270;
-    const sz=safeZone();
+    const sz=_cropSafeZone();
     const maxCssW=swapped?sz.h:sz.w,maxCssH=swapped?sz.w:sz.h;
     const scale=Math.min(maxCssW/natW,maxCssH/natH);
     const cssW=natW*scale,cssH=natH*scale;
@@ -11940,7 +11940,7 @@ function CropOverlay({imgSrc,onCommit}){
       const el=imgRef.current;if(!el)return;
       const totalDeg=((baseRotRef.current%360)+360)%360;
       const swapped=totalDeg===90||totalDeg===270;
-      const sz=safeZone();
+      const sz=_cropSafeZone();
       // Use stored native aspect ratio — immune to CORS and CSS constraint artifacts
       const ar=nativeArRef.current||1;
       // Compute unrotated image dims that fit safe zone
@@ -12260,7 +12260,7 @@ function CropOverlay({imgSrc,onCommit}){
         if(!r.width||!r.height)return;
         const rot=((baseRotRef.current%360)+360)%360,swapped=rot===90||rot===270;
         const visW=swapped?r.height:r.width,visH=swapped?r.width:r.height;
-        const s=safeZone();
+        const s=_cropSafeZone();
         const b={x:_cropClamp(r.left+(r.width-visW)/2,s.x,s.x+s.w-visW),y:_cropClamp(r.top+(r.height-visH)/2,s.y,s.y+s.h-visH),w:visW,h:visH};
         boxRef.current=b;setBox({...b});
       }}>
