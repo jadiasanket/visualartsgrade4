@@ -11813,13 +11813,13 @@ function CropOverlay({imgSrc,onCommit}){
     function onWheel(e){
       e.preventDefault();
       if(e.ctrlKey||Math.abs(e.deltaY)>Math.abs(e.deltaX)){
-        zoomRef.current=clamp(zoomRef.current*(e.deltaY>0?0.96:1.04),1,6);
+        zoomRef.current=_cropClamp(zoomRef.current*(e.deltaY>0?0.96:1.04),1,6);
         if(zoomRef.current<=1.001){zoomRef.current=1;panXRef.current=0;panYRef.current=0;}
       }else if(zoomRef.current>1.01){
-        panXRef.current=clamp(panXRef.current-e.deltaX,-500,500);
-        panYRef.current=clamp(panYRef.current-e.deltaY,-500,500);
+        panXRef.current=_cropClamp(panXRef.current-e.deltaX,-500,500);
+        panYRef.current=_cropClamp(panYRef.current-e.deltaY,-500,500);
       }else{
-        const newRot=clamp(fineRotRef.current-e.deltaX*0.2,-BAR_RANGE,BAR_RANGE);
+        const newRot=_cropClamp(fineRotRef.current-e.deltaX*0.2,-_CROP_BAR_RANGE,_CROP_BAR_RANGE);
         fineRotRef.current=Math.round(newRot*10)/10;
         computeFillScale();renderBar(fineRotRef.current);setFineRot(fineRotRef.current);
       }
@@ -11837,7 +11837,7 @@ function CropOverlay({imgSrc,onCommit}){
     const trackH=track.offsetHeight||150;
     const thumbH=parseInt(thumb.dataset.h||'30');
     const pad=-3,travel=trackH-thumbH-pad*2;
-    const frac=(clamp(deg,-BAR_RANGE,BAR_RANGE)+BAR_RANGE)/(BAR_RANGE*2);
+    const frac=(_cropClamp(deg,-_CROP_BAR_RANGE,_CROP_BAR_RANGE)+_CROP_BAR_RANGE)/(_CROP_BAR_RANGE*2);
     thumb.style.top=(pad+(1-frac)*travel)+'px';
     const thumbCentrePx=pad+(1-frac)*travel+thumbH/2,centrePx=trackH/2;
     fill.style.top=Math.min(centrePx,thumbCentrePx)+'px';
@@ -11858,7 +11858,7 @@ function CropOverlay({imgSrc,onCommit}){
 
   function hitTest(cx,cy){
     const b=boxRef.current;if(!b)return null;
-    const{x,y,w,h}=b,E=EDGE_HIT,R=ROT_OUT;
+    const{x,y,w,h}=b,E=_CROP_EDGE_HIT,R=_CROP_ROT_OUT;
     if(cx<x-R||cx>x+w+R||cy<y-R||cy>y+h+R)return null;
     if(cx>=x-E&&cx<=x+w+E&&cy>=y-E&&cy<=y+h+E){
       const nL=cx<=x+E,nR=cx>=x+w-E,nT=cy<=y+E,nB=cy>=y+h-E;
@@ -11909,11 +11909,11 @@ function CropOverlay({imgSrc,onCommit}){
       const snap={...boxRef.current},sx=e.clientX,sy=e.clientY,dir=hit.dir;
       function move(ev){
         const dx=ev.clientX-sx,dy=ev.clientY-sy;let{x,y,w,h}=snap;
-        if(dir.includes('e'))w=Math.max(MIN_BOX,snap.w+dx);
-        if(dir.includes('s'))h=Math.max(MIN_BOX,snap.h+dy);
-        if(dir.includes('w')){w=Math.max(MIN_BOX,snap.w-dx);x=snap.x+snap.w-w;}
-        if(dir.includes('n')){h=Math.max(MIN_BOX,snap.h-dy);y=snap.y+snap.h-h;}
-        const c=clampToSafe({x,y,w,h});boxRef.current=c;raf(()=>setBox({...c}));
+        if(dir.includes('e'))w=Math.max(_CROP_MIN_BOX,snap.w+dx);
+        if(dir.includes('s'))h=Math.max(_CROP_MIN_BOX,snap.h+dy);
+        if(dir.includes('w')){w=Math.max(_CROP_MIN_BOX,snap.w-dx);x=snap.x+snap.w-w;}
+        if(dir.includes('n')){h=Math.max(_CROP_MIN_BOX,snap.h-dy);y=snap.y+snap.h-h;}
+        const c=_cropClampToSafe({x,y,w,h});boxRef.current=c;raf(()=>setBox({...c}));
       }
       function up(){dragRef.current=null;setCursor('default');window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up);}
       window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);
@@ -11924,7 +11924,7 @@ function CropOverlay({imgSrc,onCommit}){
       function move(ev){
         const a=Math.atan2(ev.clientY-cy,ev.clientX-cx)*(180/Math.PI);
         let delta=a-a0;if(delta>180)delta-=360;if(delta<-180)delta+=360;
-        fineRotRef.current=clamp(r0+delta,-BAR_RANGE,BAR_RANGE);
+        fineRotRef.current=_cropClamp(r0+delta,-_CROP_BAR_RANGE,_CROP_BAR_RANGE);
         if(Math.abs(fineRotRef.current)<0.5)fineRotRef.current=0;
         computeFillScale();raf(()=>applyTransform());renderBar(fineRotRef.current);
       }
@@ -12177,7 +12177,7 @@ function CropOverlay({imgSrc,onCommit}){
     }
     // Correction: how far is this angle from 0/180?
     let corr=best>90?best-180:best; // in [-90,90]
-    corr=clamp(-corr,-BAR_RANGE,BAR_RANGE);
+    corr=_cropClamp(-corr,-_CROP_BAR_RANGE,_CROP_BAR_RANGE);
     barApplyDeg(corr);setFineRot(corr);
   }
 
@@ -12261,7 +12261,7 @@ function CropOverlay({imgSrc,onCommit}){
         const rot=((baseRotRef.current%360)+360)%360,swapped=rot===90||rot===270;
         const visW=swapped?r.height:r.width,visH=swapped?r.width:r.height;
         const s=safeZone();
-        const b={x:clamp(r.left+(r.width-visW)/2,s.x,s.x+s.w-visW),y:clamp(r.top+(r.height-visH)/2,s.y,s.y+s.h-visH),w:visW,h:visH};
+        const b={x:_cropClamp(r.left+(r.width-visW)/2,s.x,s.x+s.w-visW),y:_cropClamp(r.top+(r.height-visH)/2,s.y,s.y+s.h-visH),w:visW,h:visH};
         boxRef.current=b;setBox({...b});
       }}>
       <div style={{position:'absolute',left:`${_CROP_MARGIN_H*100}vw`,top:`${_CROP_MARGIN_V*100}vh`,right:`${_CROP_MARGIN_H*100}vw`,bottom:`${_CROP_MARGIN_V*100}vh`,display:'flex',alignItems:'center',justifyContent:'center',
@@ -12295,7 +12295,7 @@ function CropOverlay({imgSrc,onCommit}){
         <button style={{background:'none',border:'none',cursor:'pointer',padding:0,color:'rgba(255,255,255,0.35)',fontSize:20,fontWeight:300,lineHeight:1}}
           onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.9)'}
           onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}
-          onClick={()=>{barApplyDeg(clamp(fineRotRef.current+1,-BAR_RANGE,BAR_RANGE));setFineRot(fineRotRef.current);}}>+</button>
+          onClick={()=>{barApplyDeg(_cropClamp(fineRotRef.current+1,-_CROP_BAR_RANGE,_CROP_BAR_RANGE));setFineRot(fineRotRef.current);}}>+</button>
         <div ref={barTrackRef} style={{position:'relative',width:13,height:150,cursor:'ns-resize'}}
           onPointerDown={e=>{
             e.preventDefault();barTrackRef.current.setPointerCapture(e.pointerId);
@@ -12306,8 +12306,8 @@ function CropOverlay({imgSrc,onCommit}){
             const r=barTrackRef.current.getBoundingClientRect();
             const pad=-3,thumbH=33;
             const topEdge=r.top+pad+thumbH/2,botEdge=r.bottom-pad-thumbH/2;
-            const frac=clamp(1-(e.clientY-topEdge)/(botEdge-topEdge),0,1);
-            barApplyDeg((frac*2-1)*BAR_RANGE);
+            const frac=_cropClamp(1-(e.clientY-topEdge)/(botEdge-topEdge),0,1);
+            barApplyDeg((frac*2-1)*_CROP_BAR_RANGE);
           }}
           onPointerMove={e=>{
             if(!(e.buttons&1))return;
@@ -12331,7 +12331,7 @@ function CropOverlay({imgSrc,onCommit}){
         <button style={{background:'none',border:'none',cursor:'pointer',padding:0,color:'rgba(255,255,255,0.35)',fontSize:20,fontWeight:300,lineHeight:1}}
           onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.9)'}
           onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}
-          onClick={()=>{barApplyDeg(clamp(fineRotRef.current-1,-BAR_RANGE,BAR_RANGE));setFineRot(fineRotRef.current);}}>−</button>
+          onClick={()=>{barApplyDeg(_cropClamp(fineRotRef.current-1,-_CROP_BAR_RANGE,_CROP_BAR_RANGE));setFineRot(fineRotRef.current);}}>−</button>
         <div ref={barLabelRef}
           onClick={()=>{fineRotRef.current=0;setFineRot(0);computeFillScale();raf(()=>applyTransform());renderBar(0);}}
           style={{fontSize:10,fontFamily:"'DM Sans',sans-serif",fontWeight:600,marginTop:2,cursor:'pointer',color:'rgba(255,255,255,0.25)',letterSpacing:'0.03em',width:44,textAlign:'center'}}>0°</div>
