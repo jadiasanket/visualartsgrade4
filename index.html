@@ -1994,6 +1994,68 @@ body, [data-theme="dark"] body, [data-theme="light"] body {
 .cv-float-exit { border-radius: 100px !important; background: var(--coral) !important; color: #fff !important; border: none !important; }
 .cv-float-exit:hover { background: #C33C2C !important; }
 
+/* ── PhotoLightbox v2 — ToolbarPill + ZoomSlider + CropOverlay + EditPanel ── */
+@keyframes pill-pop{
+  0%  {opacity:0;transform:scale(0.7)}
+  70% {opacity:1;transform:scale(1.06)}
+  100%{opacity:1;transform:scale(1)}
+}
+@keyframes pill-fade{
+  from{opacity:1;transform:scale(1)}
+  to  {opacity:0;transform:scale(0.85)}
+}
+@keyframes panel-in{
+  from{opacity:0;transform:translateY(-6px) scale(0.97)}
+  to  {opacity:1;transform:translateY(0)    scale(1)}
+}
+@keyframes border-sharpen{
+  from{border-radius:12px}
+  to  {border-radius:0px}
+}
+.zs-wrap{
+  position:absolute;right:44px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:10px;z-index:10;
+}
+.zs-btn{
+  background:none;border:none;cursor:pointer;
+  color:rgba(255,255,255,0.4);font-size:20px;font-weight:300;line-height:1;
+  padding:0;display:flex;align-items:center;justify-content:center;
+  transition:color 0.15s;user-select:none;
+}
+.zs-btn:hover{color:rgba(255,255,255,0.9);}
+.zs-track-wrap{
+  position:relative;width:13px;height:150px;flex-shrink:0;
+}
+.zs-track{
+  position:absolute;inset:0;border-radius:100px;cursor:pointer;
+  background:rgba(30,30,35,0.52);
+  border:1px solid rgba(255,255,255,0.12);
+  box-shadow:0 2px 12px rgba(0,0,0,0.5),0 0 0 1px rgba(0,0,0,0.2);
+  overflow:hidden;
+}
+.zs-fill{
+  position:absolute;left:0;right:0;bottom:0;
+  border-radius:0 0 100px 100px;
+  pointer-events:none;
+  background:rgba(255,255,255,0.22);
+}
+.zs-thumb{
+  position:absolute;left:50%;transform:translateX(-50%);
+  width:17px;height:30px;border-radius:100px;
+  background:rgba(220,220,230,0.90);
+  border:1px solid rgba(255,255,255,0.45);
+  box-shadow:0 2px 8px rgba(0,0,0,0.55),0 0 0 1px rgba(0,0,0,0.12);
+  pointer-events:none;z-index:2;
+  transition:height .12s cubic-bezier(0.34,1.56,0.64,1),
+             width .12s cubic-bezier(0.34,1.56,0.64,1),
+             background .12s ease;
+}
+.zs-thumb.active{
+  height:33px;width:20px;
+  background:rgba(245,245,255,0.98);
+  box-shadow:0 3px 12px rgba(0,0,0,0.6),0 0 0 1px rgba(0,0,0,0.18);
+}
+
 </style>
 <style>
 /* ══════════════════════════════════════════════════════════
@@ -11653,28 +11715,1214 @@ function RefsStrip_(){
   );
 }
 
+// ── CropOverlay constants & helpers ─────────────────────────────────────────
+const _CROP_MIN_BOX=80,_CROP_EDGE_HIT=14,_CROP_ROT_OUT=22,_CROP_BAR_RANGE=45,_CROP_MARGIN_V=0.12,_CROP_MARGIN_H=0.10;
+function _cropClamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function _cropSafeZone(){const vw=window.innerWidth,vh=window.innerHeight;return{x:vw*_CROP_MARGIN_H,y:vh*_CROP_MARGIN_V,w:vw*(1-_CROP_MARGIN_H*2),h:vh*(1-_CROP_MARGIN_V*2)};}
+function _cropClampToSafe(b){const s=_cropSafeZone();let{x,y,w,h}=b;w=_cropClamp(w,_CROP_MIN_BOX,s.w);h=_cropClamp(h,_CROP_MIN_BOX,s.h);x=_cropClamp(x,s.x,s.x+s.w-w);y=_cropClamp(y,s.y,s.y+s.h-h);return{x,y,w,h};}
+const _IcoCCW=()=><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+const _IcoCW=()=><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" style={{transform:'scaleX(-1)'}}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+const _IcoCropIcon=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>;
+const _IcoReset=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>;
+const _IcoStraighten=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeMiterlimit="10" strokeWidth="1.6"><line x1="1.3" y1="12" x2="2.8" y2="12"/><line strokeDasharray="2.6 2.6" x1="5.4" y1="12" x2="19.9" y2="12"/><line x1="21.2" y1="12" x2="22.7" y2="12"/><path d="M4.5,9.9l1.2-5.2c.3-1.1,1.4-1.8,2.5-1.5l11,2.6c1.1.3,1.8,1.4,1.5,2.5l-.4,1.6"/><path d="M19.4,14.1l-1.2,5.2c-.3,1.1-1.4,1.8-2.5,1.5l-11-2.6c-1.1-.3-1.8-1.4-1.5-2.5l.4-1.6"/></svg>;
+const _IcoKeystone=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeMiterlimit="10"><line strokeWidth="1.4" x1="4.8" y1="19.5" x2="4.8" y2="4.3"/><line strokeWidth="1.4" x1="17.9" y1="17" x2="6.1" y2="20.3"/><line strokeWidth="1.4" x1="19.2" y1="8.3" x2="19.2" y2="15.1"/><line strokeWidth="1.4" x1="6" y1="3.6" x2="17.9" y2="6.6"/><rect fill="rgba(255,255,255,0.15)" strokeWidth="1.4" x="3.6" y="2.1" width="2.4" height="2.4"/><rect strokeWidth="1.4" x="18" y="5.7" width="2.4" height="2.4"/><rect strokeWidth="1.4" x="18" y="15.5" width="2.4" height="2.4"/><rect strokeWidth="1.4" x="3.6" y="19.5" width="2.4" height="2.4"/><line strokeWidth="0.8" strokeOpacity="0.4" x1="9.7" y1="4.6" x2="9.7" y2="19.3"/><line strokeWidth="0.8" strokeOpacity="0.4" x1="14.6" y1="5.9" x2="14.6" y2="17.9"/><line strokeWidth="0.8" strokeOpacity="0.4" x1="4.8" y1="12" x2="19.2" y2="12"/></svg>;
+
+// ── CropOverlay ──────────────────────────────────────────────────────────────
+function CropOverlay({imgSrc,onCommit}){
+  const wrapRef      =React.useRef(null);
+  const imgRef       =React.useRef(null);
+  const rafRef       =React.useRef(null);
+  const boxRef       =React.useRef(null);
+  const baseRectRef  =React.useRef(null);
+  const zoomRef      =React.useRef(1);
+  const panXRef      =React.useRef(0);
+  const panYRef      =React.useRef(0);
+  const fillScaleRef =React.useRef(1);
+  const baseRotRef   =React.useRef(0);
+  const fineRotRef   =React.useRef(0);
+  const cropActiveRef=React.useRef(true);
+  const isPanRef     =React.useRef(false);
+  const panStartRef  =React.useRef(null);
+  const dragRef      =React.useRef(null);
+  const initialisedRef=React.useRef(false);
+  const nativeArRef=React.useRef(null); // naturalWidth/naturalHeight or rendered W/H ratio on first load
+  const rotatedWhileInactiveRef=React.useRef(false);
+  const barTrackRef  =React.useRef(null);
+  const barFillRef   =React.useRef(null);
+  const barThumbRef  =React.useRef(null);
+  const barLabelRef  =React.useRef(null);
+
+  const [box,       setBox]       =React.useState(null);
+  const [fineRot,   setFineRot]   =React.useState(0);
+  const [cropActive,setCropActive]=React.useState(true);
+  const [croppedUrl,setCroppedUrl]=React.useState(null);
+
+  React.useEffect(()=>{cropActiveRef.current=cropActive;},[cropActive]);
+
+  function totalRot(){return baseRotRef.current+fineRotRef.current;}
+  function setCursor(c){if(wrapRef.current)wrapRef.current.style.cursor=c;}
+  function raf(fn){if(rafRef.current)cancelAnimationFrame(rafRef.current);rafRef.current=requestAnimationFrame(fn);}
+
+  function applyTransform(){
+    const el=imgRef.current;if(!el)return;
+    const z=Math.max(zoomRef.current,fillScaleRef.current);
+    el.style.transform=`translate(${panXRef.current}px,${panYRef.current}px) rotate(${totalRot()}deg) scale(${z})`;
+  }
+
+  function computeFillScale(){
+    const b=boxRef.current,base=baseRectRef.current;
+    if(!b||!base){fillScaleRef.current=1;return;}
+    const fine=Math.abs(fineRotRef.current);
+    if(fine<0.1){fillScaleRef.current=1;return;}
+    const rad=fine*Math.PI/180;
+    const s=Math.abs(Math.sin(rad)),c=Math.abs(Math.cos(rad));
+    const imgW=base.visW||base.width,imgH=base.visH||base.height;
+    fillScaleRef.current=Math.max(1,(b.w*c+b.h*s)/imgW,(b.h*c+b.w*s)/imgH);
+  }
+
+  function initBox(){
+    const el=imgRef.current;if(!el)return;
+    const natW=el.naturalWidth,natH=el.naturalHeight;
+    if(!natW||!natH)return; // image not loaded yet
+    const rot=((baseRotRef.current%360)+360)%360;
+    const swapped=rot===90||rot===270;
+    const sz=safeZone();
+    const maxCssW=swapped?sz.h:sz.w,maxCssH=swapped?sz.w:sz.h;
+    const scale=Math.min(maxCssW/natW,maxCssH/natH);
+    const cssW=natW*scale,cssH=natH*scale;
+    const visW=swapped?cssH:cssW,visH=swapped?cssW:cssH;
+    el.style.width=cssW+'px';el.style.height=cssH+'px';
+    const rX=(window.innerWidth-visW)/2,rY=(window.innerHeight-visH)/2;
+    baseRectRef.current={left:rX,top:rY,right:rX+visW,bottom:rY+visH,width:cssW,height:cssH,visW,visH};
+    boxRef.current={x:rX,y:rY,w:visW,h:visH};setBox({x:rX,y:rY,w:visW,h:visH});
+  }
+
+  function onImgLoad(){
+    if(initialisedRef.current)return;
+    initialisedRef.current=true;
+    const el=imgRef.current;
+    // naturalWidth/naturalHeight is always available — only canvas drawImage is CORS-blocked
+    if(el&&el.naturalWidth&&el.naturalHeight){
+      nativeArRef.current=el.naturalWidth/el.naturalHeight;
+    }
+    requestAnimationFrame(initBox);
+  }
+
+  React.useEffect(()=>{
+    const el=wrapRef.current;if(!el)return;
+    function onWheel(e){
+      e.preventDefault();
+      if(e.ctrlKey||Math.abs(e.deltaY)>Math.abs(e.deltaX)){
+        zoomRef.current=clamp(zoomRef.current*(e.deltaY>0?0.96:1.04),1,6);
+        if(zoomRef.current<=1.001){zoomRef.current=1;panXRef.current=0;panYRef.current=0;}
+      }else if(zoomRef.current>1.01){
+        panXRef.current=clamp(panXRef.current-e.deltaX,-500,500);
+        panYRef.current=clamp(panYRef.current-e.deltaY,-500,500);
+      }else{
+        const newRot=clamp(fineRotRef.current-e.deltaX*0.2,-BAR_RANGE,BAR_RANGE);
+        fineRotRef.current=Math.round(newRot*10)/10;
+        computeFillScale();renderBar(fineRotRef.current);setFineRot(fineRotRef.current);
+      }
+      if(!cropActiveRef.current){cropActiveRef.current=true;setCroppedUrl(null);setCropActive(true);}
+      raf(()=>applyTransform());
+    }
+    el.addEventListener('wheel',onWheel,{passive:false});
+    return()=>el.removeEventListener('wheel',onWheel);
+  },[]);
+
+  function renderBar(deg){
+    const track=barTrackRef.current,fill=barFillRef.current;
+    const thumb=barThumbRef.current,label=barLabelRef.current;
+    if(!track||!fill||!thumb)return;
+    const trackH=track.offsetHeight||150;
+    const thumbH=parseInt(thumb.dataset.h||'30');
+    const pad=-3,travel=trackH-thumbH-pad*2;
+    const frac=(clamp(deg,-BAR_RANGE,BAR_RANGE)+BAR_RANGE)/(BAR_RANGE*2);
+    thumb.style.top=(pad+(1-frac)*travel)+'px';
+    const thumbCentrePx=pad+(1-frac)*travel+thumbH/2,centrePx=trackH/2;
+    fill.style.top=Math.min(centrePx,thumbCentrePx)+'px';
+    fill.style.bottom=(trackH-Math.max(centrePx,thumbCentrePx))+'px';
+    if(label){
+      const d=Math.round(deg*10)/10;
+      label.textContent=d===0?'0°':(d>0?'+':'')+d.toFixed(1)+'°';
+      label.style.color=d!==0?'rgba(255,255,255,0.65)':'rgba(255,255,255,0.25)';
+    }
+  }
+
+  function barApplyDeg(deg){
+    const d=Math.round(deg*10)/10;fineRotRef.current=d;
+    computeFillScale();raf(()=>applyTransform());renderBar(d);
+  }
+
+  React.useEffect(()=>{renderBar(fineRot);},[fineRot]);
+
+  function hitTest(cx,cy){
+    const b=boxRef.current;if(!b)return null;
+    const{x,y,w,h}=b,E=EDGE_HIT,R=ROT_OUT;
+    if(cx<x-R||cx>x+w+R||cy<y-R||cy>y+h+R)return null;
+    if(cx>=x-E&&cx<=x+w+E&&cy>=y-E&&cy<=y+h+E){
+      const nL=cx<=x+E,nR=cx>=x+w-E,nT=cy<=y+E,nB=cy>=y+h-E;
+      if(nT&&nL)return{type:'resize',dir:'nw'};if(nT&&nR)return{type:'resize',dir:'ne'};
+      if(nB&&nL)return{type:'resize',dir:'sw'};if(nB&&nR)return{type:'resize',dir:'se'};
+      if(nT)return{type:'resize',dir:'n'};if(nB)return{type:'resize',dir:'s'};
+      if(nL)return{type:'resize',dir:'w'};if(nR)return{type:'resize',dir:'e'};
+      return null;
+    }
+    return{type:'rotate'};
+  }
+
+  const ROTATE_CURSOR="url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Cpath d='M11 3 A8 8 0 1 0 19 11' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpolygon points='11,0 7,5 15,5' fill='white'/%3E%3Cpolygon points='22,11 17,7 17,15' fill='white'/%3E%3C/svg%3E\") 11 11, crosshair";
+
+  function cursorFor(hit){
+    if(!hit)return'default';
+    if(hit.type==='rotate')return ROTATE_CURSOR;
+    const d=hit.dir;
+    if(d==='n'||d==='s')return'ns-resize';if(d==='e'||d==='w')return'ew-resize';
+    if(d==='nw'||d==='se')return'nwse-resize';return'nesw-resize';
+  }
+
+  function onWrapDown(e){
+    if(dragRef.current)return;
+    // Lock crop box interaction while keystone handles are active
+    if(ksCorners)return;
+    if(cropActiveRef.current){const hit=hitTest(e.clientX,e.clientY);if(hit){startDrag(e,hit);return;}}
+    if(zoomRef.current>1.01){
+      e.preventDefault();isPanRef.current=true;
+      panStartRef.current={mx:e.clientX,my:e.clientY,px:panXRef.current,py:panYRef.current};
+      setCursor('grabbing');
+    }
+  }
+  function onWrapMove(e){
+    if(dragRef.current)return;
+    if(isPanRef.current&&panStartRef.current){
+      panXRef.current=panStartRef.current.px+(e.clientX-panStartRef.current.mx);
+      panYRef.current=panStartRef.current.py+(e.clientY-panStartRef.current.my);
+      raf(()=>applyTransform());return;
+    }
+    if(cropActiveRef.current){const hit=hitTest(e.clientX,e.clientY);setCursor(hit?cursorFor(hit):zoomRef.current>1.01?'grab':'default');}
+  }
+  function onWrapUp(){isPanRef.current=false;panStartRef.current=null;setCursor(zoomRef.current>1.01?'grab':'default');}
+
+  function startDrag(e,hit){
+    e.preventDefault();e.stopPropagation();dragRef.current=hit;setCursor(cursorFor(hit));
+    if(hit.type==='resize'){
+      const snap={...boxRef.current},sx=e.clientX,sy=e.clientY,dir=hit.dir;
+      function move(ev){
+        const dx=ev.clientX-sx,dy=ev.clientY-sy;let{x,y,w,h}=snap;
+        if(dir.includes('e'))w=Math.max(MIN_BOX,snap.w+dx);
+        if(dir.includes('s'))h=Math.max(MIN_BOX,snap.h+dy);
+        if(dir.includes('w')){w=Math.max(MIN_BOX,snap.w-dx);x=snap.x+snap.w-w;}
+        if(dir.includes('n')){h=Math.max(MIN_BOX,snap.h-dy);y=snap.y+snap.h-h;}
+        const c=clampToSafe({x,y,w,h});boxRef.current=c;raf(()=>setBox({...c}));
+      }
+      function up(){dragRef.current=null;setCursor('default');window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up);}
+      window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);
+    }
+    if(hit.type==='rotate'){
+      const b=boxRef.current,cx=b.x+b.w/2,cy=b.y+b.h/2;
+      const a0=Math.atan2(e.clientY-cy,e.clientX-cx)*(180/Math.PI),r0=fineRotRef.current;
+      function move(ev){
+        const a=Math.atan2(ev.clientY-cy,ev.clientX-cx)*(180/Math.PI);
+        let delta=a-a0;if(delta>180)delta-=360;if(delta<-180)delta+=360;
+        fineRotRef.current=clamp(r0+delta,-BAR_RANGE,BAR_RANGE);
+        if(Math.abs(fineRotRef.current)<0.5)fineRotRef.current=0;
+        computeFillScale();raf(()=>applyTransform());renderBar(fineRotRef.current);
+      }
+      function up(){dragRef.current=null;setCursor('default');setFineRot(fineRotRef.current);window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up);}
+      window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);
+    }
+  }
+
+  function rotate90(dir){
+    baseRotRef.current+=dir==='cw'?90:-90;
+    zoomRef.current=1;panXRef.current=0;panYRef.current=0;
+    raf(()=>{
+      const el=imgRef.current;if(!el)return;
+      const totalDeg=((baseRotRef.current%360)+360)%360;
+      const swapped=totalDeg===90||totalDeg===270;
+      const sz=safeZone();
+      // Use stored native aspect ratio — immune to CORS and CSS constraint artifacts
+      const ar=nativeArRef.current||1;
+      // Compute unrotated image dims that fit safe zone
+      const unrotW=swapped?sz.h:sz.w, unrotH=swapped?sz.w:sz.h;
+      // ar = nativeW/nativeH; fit within unrotW x unrotH
+      let cssW,cssH;
+      if(ar>=1){cssW=Math.min(unrotW,unrotH*ar);cssH=cssW/ar;}
+      else{cssH=Math.min(unrotH,unrotW/ar);cssW=cssH*ar;}
+      const visW=swapped?cssH:cssW,visH=swapped?cssW:cssH;
+      el.style.width=cssW+'px';el.style.height=cssH+'px';
+      const rX=(window.innerWidth-visW)/2,rY=(window.innerHeight-visH)/2;
+      baseRectRef.current={left:rX,top:rY,right:rX+visW,bottom:rY+visH,width:cssW,height:cssH,visW,visH};
+      if(!cropActiveRef.current){cropActiveRef.current=true;rotatedWhileInactiveRef.current=false;setCroppedUrl(null);setCropActive(true);}
+      const nb={x:rX,y:rY,w:visW,h:visH};boxRef.current=nb;setBox({...nb});
+      computeFillScale();applyTransform();
+    });
+  }
+
+  const keystoneUrlRef=React.useRef(null);
+  const [ksCorners,setKsCorners]=React.useState(null);
+  // ksCorners: [{x,y},{x,y},{x,y},{x,y}] in screen px — TL,TR,BR,BL
+
+  // Live preview: apply CSS matrix3d projective warp as corners are dragged
+  React.useEffect(()=>{
+    const el=imgRef.current;if(!el)return;
+    if(!ksCorners){el.style.transform=`translate(${panXRef.current}px,${panYRef.current}px) rotate(${baseRotRef.current+fineRotRef.current}deg) scale(${Math.max(zoomRef.current,fillScaleRef.current)})`;el.style.clipPath='';return;}
+    const saved=el.style.transform;el.style.transform='none';
+    const r=el.getBoundingClientRect();el.style.transform=saved;
+    if(!r.width||!r.height)return;
+    const W=r.width,H=r.height;
+    // Source: original image corners (TL,TR,BR,BL) in local coords
+    const s=[[0,0],[W,0],[W,H],[0,H]];
+    // Dest: dragged corner positions in local coords
+    const d=ksCorners.map(c=>[c.x-r.left,c.y-r.top]);
+    // Compute projective transform matrix from s→d using direct linear transform
+    function basis(p){
+      const[[x0,y0],[x1,y1],[x2,y2],[x3,y3]]=p;
+      const A=[[x1-x2,x3-x2],[y1-y2,y3-y2]];
+      const det=A[0][0]*A[1][1]-A[0][1]*A[1][0];
+      const l0=((x0-x2)*A[1][1]-(y0-y2)*A[0][1])/det;
+      const l1=((y0-y2)*A[0][0]-(x0-x2)*A[1][0])/det;
+      return[[x0,x1*l0,x3*l1],[y0,y1*l0,y3*l1],[1,l0,l1]];
+    }
+    function mul3(A,B){
+      const C=[[0,0,0],[0,0,0],[0,0,0]];
+      for(let i=0;i<3;i++)for(let j=0;j<3;j++)for(let k=0;k<3;k++)C[i][j]+=A[i][k]*B[k][j];
+      return C;
+    }
+    function inv3(m){
+      const[[a,b,c],[d2,e,f],[g,h,ii]]=m;
+      const det=a*(e*ii-f*h)-b*(d2*ii-f*g)+c*(d2*h-e*g);
+      return[[(e*ii-f*h)/det,(c*h-b*ii)/det,(b*f-c*e)/det],
+             [(f*g-d2*ii)/det,(a*ii-c*g)/det,(c*d2-a*f)/det],
+             [(d2*h-e*g)/det,(b*g-a*h)/det,(a*e-b*d2)/det]];
+    }
+    try{
+      const Bs=basis(s),Bd=basis(d);
+      const M=mul3(Bd,inv3(Bs));
+      // Normalise so M[2][2]=1
+      const w=M[2][2];
+      // CSS matrix3d is column-major 4x4; embed 3x3 projective into it
+      const m=M.map(r=>r.map(v=>v/w));
+      const mat=[
+        m[0][0],m[1][0],0,m[2][0],
+        m[0][1],m[1][1],0,m[2][1],
+        0,      0,      1,0,
+        m[0][2],m[1][2],0,m[2][2]
+      ].map(v=>v.toFixed(8)).join(',');
+      el.style.transform=`matrix3d(${mat})`;
+      el.style.transformOrigin='0 0';
+    }catch(e2){/* matrix singular — skip */}
+  },[ksCorners]);
+
+  function startKS(){
+    // Initialise corners to image rect
+    const el=imgRef.current;if(!el)return;
+    const saved=el.style.transform;el.style.transform='none';
+    const r=el.getBoundingClientRect();el.style.transform=saved;
+    setKsCorners([
+      {x:r.left, y:r.top},
+      {x:r.right,y:r.top},
+      {x:r.right,y:r.bottom},
+      {x:r.left, y:r.bottom},
+    ]);
+  }
+
+  function applyKS(){
+    const el=imgRef.current;if(!el||!ksCorners)return;
+    const saved=el.style.transform;el.style.transform='none';
+    const r=el.getBoundingClientRect();el.style.transform=saved;
+    const dispW=Math.round(r.width),dispH=Math.round(r.height);
+    if(!dispW||!dispH)return;
+
+    // dstCorners in local display coords (relative to image top-left)
+    const dc=ksCorners.map(c=>[c.x-r.left,c.y-r.top]);
+    // TL=0,TR=1,BR=2,BL=3
+
+    // Inscribed axis-aligned rect inside the dragged quad
+    const innerLeft  = Math.max(dc[0][0], dc[3][0]);
+    const innerRight = Math.min(dc[1][0], dc[2][0]);
+    const innerTop   = Math.max(dc[0][1], dc[1][1]);
+    const innerBot   = Math.min(dc[2][1], dc[3][1]);
+    const cropX = Math.max(0, innerLeft);
+    const cropY = Math.max(0, innerTop);
+    const cropW = Math.max(1, innerRight - cropX);
+    const cropH = Math.max(1, innerBot   - cropY);
+
+    // Use naturalWidth for full-resolution output
+    const natW=el.naturalWidth||dispW, natH=el.naturalHeight||dispH;
+    const scaleX=natW/dispW, scaleY=natH/dispH;
+
+    // H: maps display-space point → natural-resolution source pixel
+    // solve(srcNatCorners, dstDisplayCorners)
+    const srcN=[[0,0],[natW,0],[natW,natH],[0,natH]];
+    const dstD=dc.map(([x,y])=>[x,y]); // display corners
+
+    function solve(s,d){
+      const A=[],b=[];
+      for(let i=0;i<4;i++){
+        const[sx,sy]=s[i],[dx,dy]=d[i];
+        A.push([dx,dy,1,0,0,0,-sx*dx,-sx*dy]);b.push(sx);
+        A.push([0,0,0,dx,dy,1,-sy*dx,-sy*dy]);b.push(sy);
+      }
+      const n=8;
+      for(let col=0;col<n;col++){
+        let mx=col;
+        for(let row=col+1;row<n;row++)if(Math.abs(A[row][col])>Math.abs(A[mx][col]))mx=row;
+        [A[col],A[mx]]=[A[mx],A[col]];[b[col],b[mx]]=[b[mx],b[col]];
+        for(let row=col+1;row<n;row++){
+          const f=A[row][col]/A[col][col];
+          for(let c=col;c<n;c++)A[row][c]-=f*A[col][c];
+          b[row]-=f*b[col];
+        }
+      }
+      const x=new Float64Array(n);
+      for(let i=n-1;i>=0;i--){x[i]=b[i];for(let j=i+1;j<n;j++)x[i]-=A[i][j]*x[j];x[i]/=A[i][i];}
+      return[x[0],x[1],x[2],x[3],x[4],x[5],x[6],x[7],1];
+    }
+    const H=solve(srcN, dstD);
+
+    // Output at full natural resolution, scaled by same ratio as crop rect
+    const outW=Math.round(cropW*scaleX);
+    const outH=Math.round(cropH*scaleY);
+
+    // Draw source at natural resolution
+    const srcCanvas=document.createElement('canvas');
+    srcCanvas.width=natW;srcCanvas.height=natH;
+    const srcCtx=srcCanvas.getContext('2d');
+    try{srcCtx.drawImage(el,0,0,natW,natH);}catch(e){
+      // CORS fallback: draw at display size, output at display size
+      srcCanvas.width=dispW;srcCanvas.height=dispH;
+      srcCtx.drawImage(el,0,0,dispW,dispH);
+    }
+    const srcPx=srcCtx.getImageData(0,0,srcCanvas.width,srcCanvas.height).data;
+    const srcW2=srcCanvas.width,srcH2=srcCanvas.height;
+    const scX2=srcW2/dispW,scY2=srcH2/dispH;
+    const outW2=Math.round(cropW*scX2),outH2=Math.round(cropH*scY2);
+
+    const outCanvas=document.createElement('canvas');
+    outCanvas.width=outW2;outCanvas.height=outH2;
+    const outCtx=outCanvas.getContext('2d');
+    const outPx=outCtx.createImageData(outW2,outH2);
+
+    for(let oy=0;oy<outH2;oy++){
+      for(let ox=0;ox<outW2;ox++){
+        // Map output pixel back to display coord
+        const px2=cropX + ox/scX2;
+        const py2=cropY + oy/scY2;
+        const ww=H[6]*px2+H[7]*py2+H[8];
+        const sx=Math.round((H[0]*px2+H[1]*py2+H[2])/ww);
+        const sy=Math.round((H[3]*px2+H[4]*py2+H[5])/ww);
+        if(sx<0||sx>=srcW2||sy<0||sy>=srcH2)continue;
+        const si=(sy*srcW2+sx)*4,di=(oy*outW2+ox)*4;
+        outPx.data[di]=srcPx[si];outPx.data[di+1]=srcPx[si+1];
+        outPx.data[di+2]=srcPx[si+2];outPx.data[di+3]=255;
+      }
+    }
+    outCtx.putImageData(outPx,0,0);
+    outCanvas.toBlob(blob=>{
+      if(keystoneUrlRef.current)URL.revokeObjectURL(keystoneUrlRef.current);
+      const url=URL.createObjectURL(blob);
+      keystoneUrlRef.current=url;
+      // Update image src — stay in crop mode, reinitialise box
+      if(imgRef.current){
+        imgRef.current.style.clipPath='';
+        imgRef.current.style.transformOrigin='center center';
+        imgRef.current.src=url;
+        initialisedRef.current=false;
+        zoomRef.current=1;panXRef.current=0;panYRef.current=0;
+        baseRotRef.current=0;fineRotRef.current=0;setFineRot(0);
+        fillScaleRef.current=1;
+      }
+      setKsCorners(null);
+      // Notify parent so croppedSrcRef and currentUrl update
+      if(onCommit) onCommit(outCanvas, url);
+    },'image/jpeg',0.97);
+  }
+
+    function autoStraighten(){
+    const el=imgRef.current;if(!el)return;
+    const SIZE=400;
+    const canvas=document.createElement('canvas');
+    const ctx=canvas.getContext('2d');
+    const ar=(el.offsetWidth||1)/(el.offsetHeight||1);
+    canvas.width=SIZE;canvas.height=Math.round(SIZE/ar);
+    try{ctx.drawImage(el,0,0,canvas.width,canvas.height);}catch(e){return;}
+    const W=canvas.width,H=canvas.height;
+    const px=ctx.getImageData(0,0,W,H).data;
+    // Sobel — luma helper uses pixel index (not byte offset)
+    const luma=i=>{const b=i*4;return 0.299*px[b]+0.587*px[b+1]+0.114*px[b+2];};
+    const buckets=new Float32Array(180);
+    for(let y=1;y<H-1;y++){
+      for(let x=1;x<W-1;x++){
+        const i=y*W+x;
+        const gx=(-luma(i-W-1)-2*luma(i-1)-luma(i+W-1))+(luma(i-W+1)+2*luma(i+1)+luma(i+W+1));
+        const gy=(-luma(i-W-1)-2*luma(i-W)-luma(i-W+1))+(luma(i+W-1)+2*luma(i+W)+luma(i+W+1));
+        const mag=Math.sqrt(gx*gx+gy*gy);
+        if(mag<24)continue;
+        // atan2 gives edge direction; we want line angle perpendicular to gradient
+        let ang=Math.atan2(gy,gx)*(180/Math.PI)+90;
+        ang=((ang%180)+180)%180;
+        buckets[Math.round(ang)%180]+=mag;
+      }
+    }
+    // Find angle in [0,180) closest to horizontal (0° or 180°)
+    // Score each bucket by proximity to 0/180 within ±45°
+    let best=0,bestScore=-Infinity;
+    for(let a=0;a<180;a++){
+      if(buckets[a]===0)continue;
+      const dist=Math.min(a,180-a); // distance from 0/180
+      if(dist>45)continue;          // only consider near-horizontal edges
+      const score=buckets[a]/(dist+1); // weight by proximity to horizontal
+      if(score>bestScore){bestScore=score;best=a;}
+    }
+    // Correction: how far is this angle from 0/180?
+    let corr=best>90?best-180:best; // in [-90,90]
+    corr=clamp(-corr,-BAR_RANGE,BAR_RANGE);
+    barApplyDeg(corr);setFineRot(corr);
+  }
+
+  function handleCommit(){
+    // If keystone handles are active, apply KS first then return — applyKS calls onCommit itself
+    if(ksCorners){applyKS();return;}
+    if(!cropActiveRef.current){cropActiveRef.current=true;setCropActive(true);return;}
+    const b=boxRef.current,img=imgRef.current,base=baseRectRef.current;
+    if(!b||!img||!base)return;
+    const natW=img.naturalWidth,natH=img.naturalHeight;
+    const cssRect=(()=>{const saved=img.style.transform;img.style.transform='none';const r=img.getBoundingClientRect();img.style.transform=saved;return r;})();
+    const scX=natW/cssRect.width,scY=natH/cssRect.height;
+    const effectiveZ=Math.max(zoomRef.current,fillScaleRef.current);
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(b.w*scX/effectiveZ));
+    canvas.height=Math.max(1,Math.round(b.h*scY/effectiveZ));
+    const ctx=canvas.getContext('2d');
+    const screenCx=window.innerWidth/2+panXRef.current,screenCy=window.innerHeight/2+panYRef.current;
+    const canvasCx=(screenCx-b.x)*scX/effectiveZ,canvasCy=(screenCy-b.y)*scY/effectiveZ;
+    const baseRad=baseRotRef.current*Math.PI/180,fineRad=fineRotRef.current*Math.PI/180;
+    ctx.save();ctx.translate(canvasCx,canvasCy);ctx.rotate(baseRad+fineRad);
+    ctx.drawImage(img,-natW/2,-natH/2,natW,natH);ctx.restore();
+    const url=canvas.toDataURL('image/jpeg',0.97);
+    setCroppedUrl(url);cropActiveRef.current=false;setCropActive(false);
+    if(onCommit)onCommit(canvas,url);
+  }
+
+  function handleReset(){
+    baseRotRef.current=0;fineRotRef.current=0;setFineRot(0);
+    fillScaleRef.current=1;zoomRef.current=1;panXRef.current=0;panYRef.current=0;
+    setKsCorners(null);
+    if(imgRef.current){imgRef.current.style.clipPath='';imgRef.current.style.transformOrigin='center center';}
+    initialisedRef.current=false;setCroppedUrl(null);setCropActive(true);renderBar(0);
+    if(keystoneUrlRef.current){
+      URL.revokeObjectURL(keystoneUrlRef.current);
+      keystoneUrlRef.current=null;
+      if(imgRef.current){imgRef.current.src=imgSrc;}
+    }
+    raf(()=>{const el=imgRef.current;if(el){el.style.width='';el.style.height='';}applyTransform();initBox();});
+  }
+
+  function iconBtn(onClick,children,title){
+    return(
+      <button onClick={onClick} title={title} style={{width:40,height:40,padding:'9px',borderRadius:100,border:'1px solid rgba(255,255,255,0.09)',background:'rgba(14,14,22,0.65)',backdropFilter:'blur(8px)',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}
+        onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.background='rgba(40,40,55,0.88)';}}
+        onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgba(14,14,22,0.65)';}}>
+        {children}
+      </button>
+    );
+  }
+  function textBtn(onClick,children,bg,bgHov,shadow){
+    return(
+      <button onClick={onClick} style={{padding:'8px 20px',borderRadius:100,border:'none',background:bg,cursor:'pointer',fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif",color:'#fff',boxShadow:shadow,transition:'background .15s',display:'flex',alignItems:'center',justifyContent:'center',gap:6,width:96}}
+        onMouseEnter={e=>e.currentTarget.style.background=bgHov}
+        onMouseLeave={e=>e.currentTarget.style.background=bg}>
+        {children}
+      </button>
+    );
+  }
+  function secBtn(onClick,children){
+    return(
+      <button onClick={onClick} style={{padding:'8px 18px',borderRadius:100,border:'1px solid rgba(255,255,255,0.12)',background:'rgba(14,14,22,0.75)',backdropFilter:'blur(8px)',cursor:'pointer',fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",color:'rgba(255,255,255,0.45)',transition:'all .15s',display:'flex',alignItems:'center',gap:6}}
+        onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.82)';e.currentTarget.style.background='rgba(40,40,55,0.85)';}}
+        onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgba(14,14,22,0.75)';}}>
+        {children}
+      </button>
+    );
+  }
+
+  const b=box;
+  return ReactDOM.createPortal(
+    <div ref={wrapRef}
+      style={{position:'fixed',inset:0,zIndex:4001,background:'#000',overflow:'hidden',userSelect:'none'}}
+      onMouseDown={onWrapDown} onMouseMove={onWrapMove} onMouseUp={onWrapUp} onMouseLeave={onWrapUp}
+      onDoubleClick={e=>{
+        // Double-tap: fill crop box to current image bounds
+        const el=imgRef.current;if(!el)return;
+        const saved=el.style.transform;el.style.transform='none';
+        const r=el.getBoundingClientRect();el.style.transform=saved;
+        if(!r.width||!r.height)return;
+        const rot=((baseRotRef.current%360)+360)%360,swapped=rot===90||rot===270;
+        const visW=swapped?r.height:r.width,visH=swapped?r.width:r.height;
+        const s=safeZone();
+        const b={x:clamp(r.left+(r.width-visW)/2,s.x,s.x+s.w-visW),y:clamp(r.top+(r.height-visH)/2,s.y,s.y+s.h-visH),w:visW,h:visH};
+        boxRef.current=b;setBox({...b});
+      }}>
+      <div style={{position:'absolute',left:`${MARGIN_H*100}vw`,top:`${MARGIN_V*100}vh`,right:`${MARGIN_H*100}vw`,bottom:`${MARGIN_V*100}vh`,display:'flex',alignItems:'center',justifyContent:'center',
+        visibility:cropActive?'visible':'hidden',pointerEvents:cropActive?'auto':'none'}}>
+        <img ref={imgRef} src={imgSrc} alt="" draggable={false} onLoad={onImgLoad} crossOrigin="anonymous"
+          style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',transformOrigin:'center center',willChange:'transform'}}/>
+      </div>
+      {!cropActive&&(
+        <div style={{position:'absolute',left:`${MARGIN_H*100}vw`,top:`${MARGIN_V*100}vh`,right:`${MARGIN_H*100}vw`,bottom:`${MARGIN_V*100}vh`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+          {croppedUrl&&<img src={croppedUrl} alt="Cropped" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',borderRadius:2}}/>}
+        </div>
+      )}
+      {b&&cropActive&&<>
+        <div style={{position:'fixed',left:0,top:0,right:0,height:b.y,background:'rgba(0,0,0,0.55)',pointerEvents:'none'}}/>
+        <div style={{position:'fixed',left:0,bottom:0,right:0,height:`calc(100% - ${b.y+b.h}px)`,background:'rgba(0,0,0,0.55)',pointerEvents:'none'}}/>
+        <div style={{position:'fixed',left:0,top:b.y,width:b.x,height:b.h,background:'rgba(0,0,0,0.55)',pointerEvents:'none'}}/>
+        <div style={{position:'fixed',right:0,top:b.y,width:`calc(100% - ${b.x+b.w}px)`,height:b.h,background:'rgba(0,0,0,0.55)',pointerEvents:'none'}}/>
+        <div style={{position:'fixed',left:b.x,top:b.y,width:b.w,height:b.h,border:'1.5px solid rgba(255,255,255,0.80)',cursor:'default',overflow:'visible',pointerEvents:'none'}}>
+          {[33,66].map(p=>(
+            <React.Fragment key={p}>
+              <div style={{position:'absolute',left:b.w*p/100,top:0,width:1,bottom:0,background:'rgba(255,255,255,0.35)',pointerEvents:'none'}}/>
+              <div style={{position:'absolute',top:b.h*p/100,left:0,height:1,right:0,background:'rgba(255,255,255,0.35)',pointerEvents:'none'}}/>
+            </React.Fragment>
+          ))}
+          {[{top:0,left:0,borderTop:'2.5px solid #fff',borderLeft:'2.5px solid #fff'},{top:0,right:0,borderTop:'2.5px solid #fff',borderRight:'2.5px solid #fff'},{bottom:0,left:0,borderBottom:'2.5px solid #fff',borderLeft:'2.5px solid #fff'},{bottom:0,right:0,borderBottom:'2.5px solid #fff',borderRight:'2.5px solid #fff'}].map((s,i)=><div key={i} style={{position:'absolute',width:22,height:22,pointerEvents:'none',...s}}/>)}
+          {[{left:'50%',top:-5,transform:'translateX(-50%)',width:10,height:9},{left:'50%',bottom:-5,transform:'translateX(-50%)',width:10,height:9},{top:'50%',left:-5,transform:'translateY(-50%)',width:9,height:10},{top:'50%',right:-5,transform:'translateY(-50%)',width:9,height:10}].map((s,i)=><div key={i} style={{position:'absolute',background:'rgba(255,255,255,0.80)',borderRadius:2,pointerEvents:'none',...s}}/>)}
+        </div>
+      </>}
+      <div style={{position:'fixed',right:44,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',alignItems:'center',gap:10,zIndex:20,userSelect:'none'}}
+        onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+        <button style={{background:'none',border:'none',cursor:'pointer',padding:0,color:'rgba(255,255,255,0.35)',fontSize:20,fontWeight:300,lineHeight:1}}
+          onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.9)'}
+          onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}
+          onClick={()=>{barApplyDeg(clamp(fineRotRef.current+1,-BAR_RANGE,BAR_RANGE));setFineRot(fineRotRef.current);}}>+</button>
+        <div ref={barTrackRef} style={{position:'relative',width:13,height:150,cursor:'ns-resize'}}
+          onPointerDown={e=>{
+            e.preventDefault();barTrackRef.current.setPointerCapture(e.pointerId);
+            if(!cropActiveRef.current){setCroppedUrl(null);setCropActive(true);}
+            const thumb=barThumbRef.current;
+            thumb.style.width='20px';thumb.style.height='33px';thumb.dataset.h='33';
+            thumb.style.background='rgba(245,245,255,0.98)';
+            const r=barTrackRef.current.getBoundingClientRect();
+            const pad=-3,thumbH=33;
+            const topEdge=r.top+pad+thumbH/2,botEdge=r.bottom-pad-thumbH/2;
+            const frac=clamp(1-(e.clientY-topEdge)/(botEdge-topEdge),0,1);
+            barApplyDeg((frac*2-1)*BAR_RANGE);
+          }}
+          onPointerMove={e=>{
+            if(!(e.buttons&1))return;
+            const r=barTrackRef.current.getBoundingClientRect();
+            const pad=-3,thumbH=parseInt(barThumbRef.current.dataset.h||'30');
+            const topEdge=r.top+pad+thumbH/2,botEdge=r.bottom-pad-thumbH/2;
+            const frac=clamp(1-(e.clientY-topEdge)/(botEdge-topEdge),0,1);
+            barApplyDeg((frac*2-1)*BAR_RANGE);
+          }}
+          onPointerUp={()=>{
+            const thumb=barThumbRef.current;
+            thumb.style.width='17px';thumb.style.height='30px';thumb.dataset.h='30';
+            thumb.style.background='rgba(220,220,230,0.9)';
+            setFineRot(fineRotRef.current);
+          }}>
+          <div style={{position:'absolute',inset:0,borderRadius:100,background:'rgba(30,30,35,0.52)',border:'1px solid rgba(255,255,255,0.12)',boxShadow:'0 4px 24px rgba(0,0,0,0.28)'}}/>
+          <div ref={barFillRef} style={{position:'absolute',left:1,right:1,background:'rgba(255,255,255,0.28)',pointerEvents:'none',top:'50%',bottom:'50%'}}/>
+          <div style={{position:'absolute',left:'50%',top:'50%',width:20,height:1,background:'rgba(255,255,255,0.30)',transform:'translate(-50%,-50%)',pointerEvents:'none',zIndex:3}}/>
+          <div ref={barThumbRef} data-h="30" style={{position:'absolute',left:'50%',top:'calc(50% - 15px)',transform:'translateX(-50%)',width:17,height:30,borderRadius:100,background:'rgba(220,220,230,0.9)',border:'1px solid rgba(255,255,255,0.45)',boxShadow:'0 2px 8px rgba(0,0,0,0.55)',pointerEvents:'none',zIndex:2,transition:'width .12s,height .12s'}}/>
+        </div>
+        <button style={{background:'none',border:'none',cursor:'pointer',padding:0,color:'rgba(255,255,255,0.35)',fontSize:20,fontWeight:300,lineHeight:1}}
+          onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.9)'}
+          onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}
+          onClick={()=>{barApplyDeg(clamp(fineRotRef.current-1,-BAR_RANGE,BAR_RANGE));setFineRot(fineRotRef.current);}}>−</button>
+        <div ref={barLabelRef}
+          onClick={()=>{fineRotRef.current=0;setFineRot(0);computeFillScale();raf(()=>applyTransform());renderBar(0);}}
+          style={{fontSize:10,fontFamily:"'DM Sans',sans-serif",fontWeight:600,marginTop:2,cursor:'pointer',color:'rgba(255,255,255,0.25)',letterSpacing:'0.03em',width:44,textAlign:'center'}}>0°</div>
+      </div>
+      {/* KEYSTONE HANDLES */}
+      {ksCorners&&(
+        <div style={{position:'fixed',inset:0,zIndex:25,pointerEvents:'none'}}>
+          <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',overflow:'visible',pointerEvents:'none'}}>
+            <polygon points={ksCorners.map(c=>`${c.x},${c.y}`).join(' ')}
+              fill="rgba(59,191,160,0.08)" stroke="rgba(59,191,160,0.85)" strokeWidth="1.5" strokeDasharray="5 3"/>
+          </svg>
+          {ksCorners.map((c,i)=>(
+            <div key={i}
+              style={{position:'fixed',left:c.x-16,top:c.y-16,width:32,height:32,borderRadius:'50%',
+                background:'rgba(59,191,160,0.92)',border:'2.5px solid #fff',cursor:'grab',zIndex:26,
+                display:'flex',alignItems:'center',justifyContent:'center',
+                boxShadow:'0 2px 10px rgba(0,0,0,0.6)',pointerEvents:'all',touchAction:'none'}}
+              onMouseDown={e=>{
+                e.stopPropagation();e.preventDefault();
+                const startX=e.clientX,startY=e.clientY,ox=c.x,oy=c.y;
+                function move(ev){
+                  ev.preventDefault();
+                  setKsCorners(prev=>prev.map((p,j)=>j===i?{x:ox+(ev.clientX-startX),y:oy+(ev.clientY-startY)}:p));
+                }
+                function up(){document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);}
+                document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);
+              }}>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{position:'fixed',bottom:0,height:`${MARGIN_V*100}vh`,left:0,right:0,display:'flex',alignItems:'center',justifyContent:'center',gap:8,zIndex:20,pointerEvents:'none'}}
+        onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+        <div style={{display:'flex',alignItems:'center',gap:12,pointerEvents:'all'}}>
+          {iconBtn(()=>{setKsCorners(null);rotate90('ccw');},<IcoCCW/>,'Rotate 90° CCW')}
+          {iconBtn(()=>{setKsCorners(null);rotate90('cw');},<IcoCW/>,'Rotate 90° CW')}
+          {secBtn(handleReset,<><IcoReset/> Reset</>)}
+          {iconBtn(()=>{setKsCorners(null);autoStraighten();},<IcoStraighten/>,'Auto Straighten')}
+          <button title={ksCorners?'Apply Keystone':'Manual Keystone'}
+            onClick={ksCorners?applyKS:startKS}
+            style={{width:40,height:40,padding:'9px',borderRadius:100,
+              border:`1px solid ${ksCorners?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.09)'}`,
+              background:ksCorners?'rgb(0,116,240)':'rgba(14,14,22,0.65)',
+              backdropFilter:'blur(8px)',cursor:'pointer',
+              color:ksCorners?'#fff':'rgba(255,255,255,0.45)',
+              display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}
+            onMouseEnter={e=>{if(!ksCorners){e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.background='rgba(40,40,55,0.88)';}}}
+            onMouseLeave={e=>{if(!ksCorners){e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgba(14,14,22,0.65)';}}}
+          ><IcoKeystone/></button>
+          {cropActive
+            ?textBtn(handleCommit,<>Apply</>,'rgb(34,197,94)','rgb(22,163,74)','0 4px 16px rgba(34,197,94,0.4)')
+            :textBtn(handleCommit,<><IcoCropIcon/> Crop</>,'rgb(0,116,240)','rgb(0,100,220)','0 4px 16px rgba(0,116,240,0.4)')
+          }
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── ToolbarPill ──────────────────────────────────────────────────────────────
+function ToolbarPill({activeControl,teacherMode,onSetControl}){
+  const pillRef    = React.useRef(null);
+  const btnRefs    = React.useRef([]);
+  const divRefs    = React.useRef([]);   // refs to divider elements
+  const spring     = React.useRef({x:0,w:0,vx:0,vw:0});
+  const target     = React.useRef(null);
+  const rafId      = React.useRef(null);
+  const lastTs     = React.useRef(null);
+  const hoverIdx   = React.useRef(-1);
+
+  // Tuned spring: snappy but with a small natural overshoot
+  const S = 580, D = 28; // stiffness, damping (critically damped ≈ 2*sqrt(S))
+
+  const buttons = [
+    { key:'info', title:'Info (I)',
+      icon:<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="8.5" r="1" fill="currentColor" stroke="none"/><line x1="12" y1="12" x2="12" y2="16"/></svg> },
+    { key:'crop', title:'Crop',
+      icon:<svg width="18" height="18" viewBox="2 2 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 2v14a2 2 0 002 2h14"/><path d="M18 22V8a2 2 0 00-2-2H2"/></svg> },
+    ...(teacherMode?[{ key:'edit', title:'Adjustments',
+      icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg> }]:[]),
+  ];
+
+  function getBtnRect(idx){
+    const el=btnRefs.current[idx], wrap=el&&el.parentElement;
+    if(!el||!wrap) return null;
+    const pr=wrap.getBoundingClientRect(), br=el.getBoundingClientRect();
+    return {x:br.left-pr.left, w:br.width};
+  }
+
+  function updateDividers(idx){
+    // Hide dividers adjacent to the hovered button
+    divRefs.current.forEach((d,i)=>{
+      if(!d) return;
+      // divider[i] sits between button[i] and button[i+1]
+      const hide = i===idx || i===idx-1
+                || i===activeControlIdx()-1 || i===activeControlIdx();
+      d.style.opacity = hide ? '0' : '1';
+    });
+  }
+
+  function activeControlIdx(){
+    return buttons.findIndex(b=>b.key===activeControl);
+  }
+
+  function tick(ts){
+    if(!lastTs.current) lastTs.current=ts;
+    const raw=Math.min((ts-lastTs.current)/1000, 0.064); // cap at 64ms (tab blur etc)
+    lastTs.current=ts;
+
+    const t=target.current, pill=pillRef.current, s=spring.current;
+    if(!t||!pill){rafId.current=null;return;}
+
+    // Semi-implicit Euler with sub-steps for stability
+    const STEPS=4, dt=raw/STEPS;
+    for(let i=0;i<STEPS;i++){
+      const ax=(-S*(s.x-t.x)-D*s.vx);
+      const aw=(-S*(s.w-t.w)-D*s.vw);
+      s.vx+=ax*dt; s.vw+=aw*dt;
+      s.x +=s.vx*dt; s.w +=s.vw*dt;
+    }
+
+    pill.style.transform=`translateX(${s.x}px)`;
+    pill.style.width=`${Math.max(4,s.w)}px`;
+
+    const done=Math.abs(s.vx)<0.3&&Math.abs(s.vw)<0.3
+              &&Math.abs(s.x-t.x)<0.3&&Math.abs(s.w-t.w)<0.3;
+    if(done){
+      s.x=t.x;s.w=t.w;s.vx=0;s.vw=0;
+      pill.style.transform=`translateX(${t.x}px)`;
+      pill.style.width=`${t.w}px`;
+      rafId.current=null; lastTs.current=null; return;
+    }
+    rafId.current=requestAnimationFrame(tick);
+  }
+
+  function onEnter(idx){
+    hoverIdx.current=idx;
+    const r=getBtnRect(idx); if(!r) return;
+    const pill=pillRef.current; if(!pill) return;
+
+    if(target.current===null){
+      // First entry — snap to position, no animation
+      spring.current={x:r.x,w:r.w,vx:0,vw:0};
+      pill.style.transform=`translateX(${r.x}px)`;
+      pill.style.width=`${r.w}px`;
+    }
+    pill.style.opacity='1';
+    target.current=r;
+    updateDividers(idx);
+    if(!rafId.current){ lastTs.current=null; rafId.current=requestAnimationFrame(tick); }
+  }
+
+  function onLeave(){
+    hoverIdx.current=-1;
+    target.current=null;
+    if(pillRef.current) pillRef.current.style.opacity='0';
+    if(rafId.current){cancelAnimationFrame(rafId.current);rafId.current=null;}
+    lastTs.current=null;
+    // Restore all dividers
+    divRefs.current.forEach(d=>{if(d) d.style.opacity='1';});
+    // Re-hide dividers adjacent to active control (CSS handles colour)
+  }
+
+  const btnBase={
+    background:'transparent',border:'none',cursor:'pointer',
+    paddingLeft:14,paddingRight:14,height:34,borderRadius:100,lineHeight:1,
+    display:'flex',alignItems:'center',justifyContent:'center',
+    flexShrink:0,position:'relative',zIndex:2,transition:'color .12s',
+  };
+
+  return (
+    <div className="tb-pill-wrap"
+      style={{position:'relative',display:'flex',alignItems:'center',gap:0,
+        background:'rgba(15,15,20,0.45)',backdropFilter:'blur(2px) saturate(180%)',
+        WebkitBackdropFilter:'blur(2px) saturate(180%)',borderRadius:100,
+        border:'1px solid rgba(255,255,255,0.1)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',
+        overflow:'hidden'}}
+      onMouseLeave={onLeave}>
+
+      {/* Travelling blue bubble */}
+      <div ref={pillRef} style={{
+        position:'absolute',top:0,left:0,height:'100%',
+        background:'rgb(0,116,240)',borderRadius:100,
+        pointerEvents:'none',zIndex:1,opacity:0,
+        transition:'opacity .12s',willChange:'transform,width',
+      }}/>
+
+      {buttons.map((b,i)=>{
+        const isActive=activeControl===b.key;
+        const leftNeighbourActive=i>0&&activeControl===buttons[i-1].key;
+        return (
+          <React.Fragment key={b.key}>
+            {i>0&&<div
+              ref={el=>divRefs.current[i-1]=el}
+              style={{
+                width:(leftNeighbourActive||isActive)?0:1,
+                height:(leftNeighbourActive||isActive)?34:18,
+                background:(leftNeighbourActive||isActive)?'rgb(0,116,240)':'rgba(255,255,255,0.12)',
+                borderRadius:100,flexShrink:0,
+                transition:'width .22s cubic-bezier(0.34,1.56,0.64,1),height .22s cubic-bezier(0.34,1.56,0.64,1),background .18s,opacity .12s',
+              }}/>}
+            <button
+              ref={el=>btnRefs.current[i]=el}
+              onClick={()=>onSetControl(b.key)}
+              title={b.title}
+              onMouseEnter={()=>onEnter(i)}
+              style={{...btnBase,
+                color:isActive?'#fff':'rgba(255,255,255,0.55)',
+                background:isActive?'rgb(0,116,240)':'transparent',
+                animation:isActive?'pill-pop .22s cubic-bezier(0.34,1.56,0.64,1) forwards':undefined,
+              }}>
+              {b.icon}
+            </button>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── ZoomSlider ───────────────────────────────────────────────────────────────
+function ZoomSlider({value,active,onChange,onActiveChange}){
+  const trackWrapRef=React.useRef(null);
+  const dragging=React.useRef(false);
+  const grabOffset=React.useRef(0);
+
+  const MIN=100,MAX=400;
+  const THUMB_H=active?33:30;
+  const frac=(value-MIN)/(MAX-MIN);
+
+  function valueFromClientY(clientY){
+    const r=trackWrapRef.current.getBoundingClientRect();
+    const raw=1-(clientY-r.top)/r.height;
+    return Math.min(MAX,Math.max(MIN,Math.min(1,Math.max(0,raw))*(MAX-MIN)+MIN));
+  }
+
+  function thumbTopPx(){
+    const wrapH=trackWrapRef.current?trackWrapRef.current.getBoundingClientRect().height:150;
+    const topMin=-4,topMax=wrapH+4-THUMB_H;
+    return topMax-frac*(topMax-topMin);
+  }
+
+  function onDown(e){
+    e.preventDefault();e.stopPropagation();
+    dragging.current=true;onActiveChange(true);
+    trackWrapRef.current.setPointerCapture(e.pointerId);
+    // Calculate grab offset from computed thumb position (before re-render changes size)
+    const r=trackWrapRef.current.getBoundingClientRect();
+    const topMin=-4,topMax=r.height+4-THUMB_H;
+    const thumbTop=r.top+(topMax-frac*(topMax-topMin));
+    grabOffset.current=e.clientY-(thumbTop+THUMB_H/2);
+    onChange(valueFromClientY(e.clientY-grabOffset.current));
+  }
+  function onMove(e){ if(dragging.current) onChange(valueFromClientY(e.clientY-grabOffset.current)); }
+  function onUp(){ dragging.current=false;grabOffset.current=0;onActiveChange(false); }
+
+  return (
+    <div className="zs-wrap" onClick={e=>e.stopPropagation()}>
+      <button className="zs-btn" title="Zoom in"
+        onMouseDown={e=>{e.stopPropagation();onChange(Math.min(MAX,value+20));}}>+</button>
+      <div ref={trackWrapRef} className="zs-track-wrap"
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+        <div className="zs-track">
+          <div className="zs-fill" style={{height:(frac*100)+'%'}}/>
+        </div>
+        <div className={'zs-thumb'+(active?' active':'')} style={{top:thumbTopPx()+'px'}}/>
+      </div>
+      <button className="zs-btn" title="Zoom out"
+        onMouseDown={e=>{e.stopPropagation();onChange(Math.max(MIN,value-20));}}>−</button>
+      <div style={{fontSize:10,fontFamily:"'DM Sans',sans-serif",fontWeight:600,marginTop:2,
+        color:'rgba(255,255,255,0.25)',letterSpacing:'0.03em',width:44,textAlign:'center',
+        cursor:value>100?'pointer':'default'}}
+        onClick={()=>onChange(100)}>
+        {Math.round(value/100*10)/10}×
+      </div>
+    </div>
+  );
+}
+
+// ── EditPanel ────────────────────────────────────────────────────────────────
+function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange}){
+  const panelRef  = React.useRef(null);
+  const filtersRef= React.useRef(initialFilters||{brightness:50,contrast:50,saturation:50,sharpness:50,warmth:50,vertical:50,horizontal:50});
+  const rotRef    = React.useRef(0);
+  const flipXRef  = React.useRef(1);
+  const flipYRef  = React.useRef(1);
+  const histRef   = React.useRef([{rotation:0,flipX:1,flipY:1}]);
+  const histIdxRef= React.useRef(0);
+  const posRef    = React.useRef(null);
+  const F2        = "'DM Sans',sans-serif";
+
+  function buildFilterStr(){
+    const st=filtersRef.current;
+    const bFinal=100+(st.brightness-50)*1.5;
+    const cFinal=100+(st.contrast-50)*1.0;
+    const sFinal=100+(st.saturation-50)*3.0;
+    const w=(st.warmth-50)*0.7;
+    const sepia=Math.max(0,w),hue=w<0?Math.round(w*1.5):0;
+    return `brightness(${bFinal}%) contrast(${cFinal}%) saturate(${sFinal}%)`
+      +(sepia>0?` sepia(${sepia}%) hue-rotate(-15deg)`:'')
+      +(hue<0?` hue-rotate(${hue}deg)`:'');
+  }
+  function applyFilters(){
+    const filterStr=buildFilterStr();
+    if(imgRef&&imgRef.current) imgRef.current.style.filter=filterStr;
+    if(onFilterChange) onFilterChange({...filtersRef.current},filterStr);
+  }
+
+  function applyTransformImg(){
+    if(imgRef&&imgRef.current)
+      imgRef.current.style.transform=`rotate(${rotRef.current}deg) scale(${flipXRef.current},${flipYRef.current})`;
+  }
+
+  function saveHist(){
+    histRef.current.splice(histIdxRef.current+1);
+    histRef.current.push({rotation:rotRef.current,flipX:flipXRef.current,flipY:flipYRef.current});
+    histIdxRef.current=histRef.current.length-1;
+    updateUndoBtns();
+  }
+
+  function updateUndoBtns(){
+    const p=panelRef.current; if(!p) return;
+    const u=p.querySelector('#ep-undo'),r=p.querySelector('#ep-redo');
+    if(u){u.style.opacity=histIdxRef.current>0?'1':'0.4';u.style.pointerEvents=histIdxRef.current>0?'auto':'none';}
+    if(r){const canRedo=histIdxRef.current<histRef.current.length-1;r.style.opacity=canRedo?'1':'0.4';r.style.pointerEvents=canRedo?'auto':'none';}
+  }
+
+  // Slider interaction — grab-offset aware, direct DOM writes
+  function makeSliderHandler(key, fillEl, knobEl, iconEl, nameEl){
+    let dragging=false, grabOffset=0;
+    function pct(clientX){
+      const r=fillEl.parentElement.getBoundingClientRect();
+      return Math.max(0,Math.min(100,((clientX-r.left)/r.width)*100));
+    }
+    function setVal(p){
+      filtersRef.current[key]=p;
+      fillEl.style.width=p+'%'; knobEl.style.left=p+'%';
+      applyFilters();
+    }
+    fillEl.parentElement.addEventListener('mousedown',e=>{
+      e.stopPropagation(); dragging=true;
+      fillEl.classList.add('ep-active'); knobEl.classList.add('ep-active');
+      if(iconEl) iconEl.classList.add('ep-active');
+      if(nameEl) nameEl.classList.add('ep-active');
+      const kr=knobEl.getBoundingClientRect();
+      const mid=kr.left+kr.width/2;
+      grabOffset=e.clientX-mid;
+      const clickedKnob=e.clientX>=kr.left&&e.clientX<=kr.right;
+      if(!clickedKnob){grabOffset=0;setVal(pct(e.clientX));}
+      function move(ev){if(dragging)setVal(pct(ev.clientX-grabOffset));}
+      function up(){
+        dragging=false;grabOffset=0;
+        fillEl.classList.remove('ep-active');knobEl.classList.remove('ep-active');
+        if(iconEl)iconEl.classList.remove('ep-active');
+        if(nameEl)nameEl.classList.remove('ep-active');
+        window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up);
+      }
+      window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);
+    });
+  }
+
+  React.useEffect(()=>{
+    const p=panelRef.current; if(!p) return;
+    // Wire up all sliders
+    [
+      {key:'brightness'},{key:'contrast'},{key:'saturation'},
+      {key:'sharpness'},{key:'warmth'},{key:'vertical'},{key:'horizontal'},
+    ].forEach(({key})=>{
+      const fill=p.querySelector('#ep-fill-'+key);
+      const knob=p.querySelector('#ep-knob-'+key);
+      const icon=p.querySelector('#ep-icon-'+key);
+      const name=p.querySelector('#ep-name-'+key);
+      if(fill&&knob) makeSliderHandler(key,fill,knob,icon,name);
+      // Set initial position
+      const v=filtersRef.current[key];
+      if(fill) fill.style.width=v+'%';
+      if(knob) knob.style.left=v+'%';
+    });
+    updateUndoBtns();
+    // Panel drag
+    const header=p.querySelector('#ep-header');
+    if(header){
+      let pdrag=false,px=0,py=0,pl=0,pt=0;
+      header.addEventListener('mousedown',e=>{
+        pdrag=true;
+        const r=p.getBoundingClientRect();
+        px=e.clientX;py=e.clientY;pl=r.left;pt=r.top;
+        p.style.right='auto';p.style.left=pl+'px';p.style.top=pt+'px';
+      });
+      window.addEventListener('mousemove',e=>{if(!pdrag)return;p.style.left=(pl+e.clientX-px)+'px';p.style.top=(pt+e.clientY-py)+'px';});
+      window.addEventListener('mouseup',()=>{pdrag=false;});
+    }
+    // Transform buttons
+    const btn=(id,fn)=>{const el=p.querySelector(id);if(el)el.addEventListener('click',fn);};
+    btn('#ep-rotateCCW',()=>{rotRef.current-=90;saveHist();applyTransformImg();});
+    btn('#ep-rotateCW', ()=>{rotRef.current+=90;saveHist();applyTransformImg();});
+    btn('#ep-flipH',    ()=>{flipXRef.current*=-1;saveHist();applyTransformImg();});
+    btn('#ep-flipV',    ()=>{flipYRef.current*=-1;saveHist();applyTransformImg();});
+    btn('#ep-straighten',()=>{
+      // Auto adjustment: sample image pixels, compute mean brightness/contrast/warmth, set sliders
+      const el=imgRef&&imgRef.current;
+      if(!el){return;}
+      const SIZE=80; // sample at tiny res — fast, CORS-safe attempt
+      const cv=document.createElement('canvas');cv.width=SIZE;cv.height=SIZE;
+      const cx=cv.getContext('2d');
+      let r2=0,g2=0,b2=0,n=0,rms=0;
+      try{
+        cx.drawImage(el,0,0,SIZE,SIZE);
+        const px=cx.getImageData(0,0,SIZE,SIZE).data;
+        for(let i=0;i<px.length;i+=4){
+          const rv=px[i],gv=px[i+1],bv=px[i+2];
+          r2+=rv;g2+=gv;b2+=bv;
+          const lum=0.299*rv+0.587*gv+0.114*bv;
+          rms+=lum*lum;n++;
+        }
+        r2/=n;g2/=n;b2/=n;rms=Math.sqrt(rms/n);
+      }catch(e){
+        // CORS blocked — apply sensible defaults
+        r2=128;g2=128;b2=128;rms=100;
+      }
+      const lum=(0.299*r2+0.587*g2+0.114*b2); // 0-255
+      // Brightness: if image is dark, boost; if bright, reduce slightly
+      const bTarget=50+(128-lum)*0.18;
+      // Contrast: low rms = flat image → boost contrast
+      const cTarget=50+(80-rms)*0.12;
+      // Saturation: slightly boost
+      const sTarget=57;
+      // Warmth: if image is blue-ish (b>r) cool it, if warm (r>b) keep
+      const wTarget=50+(r2-b2)*0.06;
+      const vals={
+        brightness:Math.round(Math.min(85,Math.max(20,bTarget))),
+        contrast:Math.round(Math.min(75,Math.max(35,cTarget))),
+        saturation:sTarget,
+        sharpness:54,
+        warmth:Math.round(Math.min(65,Math.max(38,wTarget))),
+      };
+      Object.assign(filtersRef.current,vals);
+      Object.keys(vals).forEach(k=>{
+        const f=p.querySelector('#ep-fill-'+k),kn=p.querySelector('#ep-knob-'+k);
+        const v=filtersRef.current[k];
+        if(f)f.style.width=v+'%';if(kn)kn.style.left=v+'%';
+      });
+      applyFilters();
+    });
+    btn('#ep-undo',()=>{if(histIdxRef.current<=0)return;histIdxRef.current--;const h=histRef.current[histIdxRef.current];rotRef.current=h.rotation;flipXRef.current=h.flipX;flipYRef.current=h.flipY;updateUndoBtns();applyTransformImg();});
+    btn('#ep-redo',()=>{if(histIdxRef.current>=histRef.current.length-1)return;histIdxRef.current++;const h=histRef.current[histIdxRef.current];rotRef.current=h.rotation;flipXRef.current=h.flipX;flipYRef.current=h.flipY;updateUndoBtns();applyTransformImg();});
+    btn('#ep-zoomFit',()=>{if(imgRef&&imgRef.current){imgRef.current.style.transform='';imgRef.current.style.transformOrigin='center center';}});
+    btn('#ep-apply',()=>{
+      if(onApply){onApply(buildFilterStr());}
+      else if(onClose) onClose();
+    });
+    btn('#ep-resetAll',()=>{
+      Object.assign(filtersRef.current,{brightness:50,contrast:50,saturation:50,sharpness:50,warmth:50,vertical:50,horizontal:50});
+      rotRef.current=0;flipXRef.current=1;flipYRef.current=1;
+      ['brightness','contrast','saturation','sharpness','warmth','vertical','horizontal'].forEach(k=>{
+        const f=p.querySelector('#ep-fill-'+k),kn=p.querySelector('#ep-knob-'+k);
+        if(f)f.style.width='50%';if(kn)kn.style.left='50%';
+      });
+      if(imgRef&&imgRef.current){imgRef.current.style.filter='';imgRef.current.style.transform='';}
+      if(onFilterChange) onFilterChange({brightness:50,contrast:50,saturation:50,sharpness:50,warmth:50,vertical:50,horizontal:50},'');
+      histRef.current=[{rotation:0,flipX:1,flipY:1}];histIdxRef.current=0;updateUndoBtns();
+    });
+    btn('#ep-auto',()=>{
+      Object.assign(filtersRef.current,{brightness:62,contrast:60,saturation:65,sharpness:60,warmth:54,vertical:50,horizontal:50});
+      ['brightness','contrast','saturation','sharpness','warmth','vertical','horizontal'].forEach(k=>{
+        const v=filtersRef.current[k];
+        const f=p.querySelector('#ep-fill-'+k),kn=p.querySelector('#ep-knob-'+k);
+        if(f)f.style.width=v+'%';if(kn)kn.style.left=v+'%';
+      });
+      applyFilters();
+    });
+  },[]);
+
+  const tBtn=(id,title,icon)=>(
+    `<button class="ep-tbtn" id="${id}" title="${title}">${icon}</button>`
+  );
+
+  return (
+    <div ref={panelRef} style={{position:'absolute',top:'8vh',right:'2.5vw',width:253,
+      background:'rgba(18,18,22,0.82)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',
+      borderRadius:14,border:'1px solid rgba(255,255,255,0.07)',boxShadow:'0 12px 40px rgba(0,0,0,0.65)',
+      overflow:'hidden',userSelect:'none',zIndex:20,animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards'}}
+      onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+
+      <style>{`
+        .ep-row{display:flex;align-items:center;gap:9px;padding:6px 13px;}
+        .ep-icon{width:20px;flex-shrink:0;color:rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;transition:color .15s;}
+        .ep-icon.ep-active{color:#fff;}
+        .ep-mid{flex:1;display:flex;flex-direction:column;gap:4px;}
+        .ep-name{font-size:11px;font-weight:600;color:rgba(255,255,255,0.38);transition:color .15s;line-height:1;font-family:'DM Sans',sans-serif;}
+        .ep-name.ep-active{color:rgba(255,255,255,0.75);}
+        .ep-track{height:3px;background:rgba(255,255,255,0.1);border-radius:100px;position:relative;cursor:ew-resize;}
+        .ep-fill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,0.35);border-radius:100px;transition:background .15s;}
+        .ep-fill.ep-active{background:rgba(255,255,255,0.75);}
+        .ep-knob{position:absolute;top:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:rgba(220,220,230,0.88);border:1px solid rgba(255,255,255,0.4);box-shadow:0 1px 4px rgba(0,0,0,0.5);transition:background .15s,transform .12s cubic-bezier(0.34,1.56,0.64,1);}
+        .ep-knob.ep-active{background:#fff;transform:translate(-50%,-50%) scale(1.25);}
+        .ep-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:7px 13px 11px;}
+        .ep-tbtn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:9px 0 7px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;color:rgba(255,255,255,0.45);transition:background .15s,color .15s,border-color .15s;width:100%;}
+        .ep-tbtn:hover{background:rgba(255,255,255,0.12);color:#fff;border-color:rgba(255,255,255,0.15);}
+        .ep-tbtn:active{background:rgba(255,255,255,0.18);}
+        .ep-sec{font-size:10px;font-weight:700;color:rgba(255,255,255,0.22);text-transform:uppercase;letter-spacing:.1em;padding:9px 13px 4px;font-family:'DM Sans',sans-serif;}
+        .ep-div{height:1px;background:rgba(255,255,255,0.07);margin:0 13px;}
+        .ep-abtn{flex:1;padding:7px 0;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);cursor:pointer;color:rgba(255,255,255,0.4);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;transition:background .15s,color .15s;}
+        .ep-abtn:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.85);}
+      `}</style>
+
+      {/* Header */}
+      <div id="ep-header" style={{padding:'8px 12px 7px',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'grab'}}>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <span style={{fontSize:10,color:'rgba(255,255,255,0.15)'}}>⠿</span>
+          <span style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:'0.1em',fontFamily:F2}}>Adjustments</span>
+        </div>
+      </div>
+      <div className="ep-div"/>
+
+      {/* TONE */}
+      <div className="ep-sec">Tone</div>
+      {[
+        {key:'brightness',name:'Brightness',icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>},
+        {key:'contrast',name:'Contrast',icon:<svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM40,128a88.1,88.1,0,0,1,88-88V216A88.1,88.1,0,0,1,40,128Z"/></svg>},
+        {key:'saturation',name:'Saturation',icon:<svg width="16" height="16" viewBox="0 0 24 24"><defs><linearGradient id="satG" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#222"/><stop offset="100%" stopColor="#fff"/></linearGradient></defs><rect x="3" y="3" width="18" height="18" rx="2" fill="url(#satG)"/><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>},
+        {key:'sharpness',name:'Sharpness',icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 3 22 21 2 21"/></svg>},
+        {key:'warmth',name:'Warmth',icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>},
+      ].map(({key,name,icon})=>(
+        <div key={key} className="ep-row">
+          <div className="ep-icon" id={`ep-icon-${key}`}>{icon}</div>
+          <div className="ep-mid">
+            <span className="ep-name" id={`ep-name-${key}`}>{name}</span>
+            <div className="ep-track" id={`ep-track-${key}`}>
+              <div className="ep-fill" id={`ep-fill-${key}`} style={{width:'50%'}}/>
+              <div className="ep-knob" id={`ep-knob-${key}`} style={{left:'50%'}}/>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <div className="ep-div"/>
+      {/* TRANSFORM */}
+      <div className="ep-sec">Transform</div>
+      <div className="ep-grid">
+        {[
+          {id:'ep-rotateCCW',title:'Rotate 90° Left',icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>},
+          {id:'ep-rotateCW', title:'Rotate 90° Right',icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>},
+          {id:'ep-flipH',    title:'Flip Horizontal',icon:<svg width="18" height="18" viewBox="0 0 48 48" fill="currentColor"><path d="M24,4a2,2,0,0,0-2,2V42a2,2,0,0,0,4,0V6A2,2,0,0,0,24,4Z"/><path d="M5.8,9.3A1.3,1.3,0,0,0,5,9a1,1,0,0,0-1,1V38a1,1,0,0,0,1,1,1.3,1.3,0,0,0,.8-.3l13.9-14a1,1,0,0,0,0-1.4Z"/><path d="M42.2,9.3l-13.9,14a1,1,0,0,0,0,1.4l13.9,14A1.1,1.1,0,0,0,44,38V10A1.1,1.1,0,0,0,42.2,9.3Z"/></svg>},
+          {id:'ep-flipV',    title:'Flip Vertical',icon:<svg width="18" height="18" viewBox="0 0 48 48" fill="currentColor" style={{transform:'rotate(90deg)'}}><path d="M24,4a2,2,0,0,0-2,2V42a2,2,0,0,0,4,0V6A2,2,0,0,0,24,4Z"/><path d="M5.8,9.3A1.3,1.3,0,0,0,5,9a1,1,0,0,0-1,1V38a1,1,0,0,0,1,1,1.3,1.3,0,0,0,.8-.3l13.9-14a1,1,0,0,0,0-1.4Z"/><path d="M42.2,9.3l-13.9,14a1,1,0,0,0,0,1.4l13.9,14A1.1,1.1,0,0,0,44,38V10A1.1,1.1,0,0,0,42.2,9.3Z"/></svg>},
+          {id:'ep-undo',     title:'Undo',icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>},
+          {id:'ep-redo',     title:'Redo',icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>},
+          {id:'ep-straighten',title:'Auto Straighten',icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>},
+          {id:'ep-zoomFit',  title:'Zoom to Fit',icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>},
+        ].map(({id,title,icon})=>(
+          <button key={id} id={id} className="ep-tbtn" title={title}>{icon}</button>
+        ))}
+      </div>
+
+      <div className="ep-div"/>
+      <div style={{display:'flex',gap:6,padding:'8px 12px 10px'}}>
+        <button id="ep-resetAll" className="ep-abtn">Reset</button>
+        <button id="ep-apply" className="ep-abtn" style={{background:'rgb(34,197,94)',borderColor:'rgb(34,197,94)',color:'#fff',fontWeight:700}}
+          onMouseEnter={e=>{e.currentTarget.style.background='rgb(22,163,74)';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='rgb(34,197,94)';}}>Apply</button>
+      </div>
+    </div>
+  );
+}
+
 // ── SHARED LIGHTBOX LAYOUT HELPER ──────────────────────────────────────────
 function resolveLessonLabel(raw){
-  if(!raw) return null;
-  if(typeof raw!=='string') return null;
-  if(raw.includes(':')&&!raw.startsWith('custom:')){
-    const n=parseInt(raw.split(':')[1]);
-    const f=PHASES.flatMap(ph=>ph.sessions).find(s=>s.n===n);
-    return f?'S'+f.n+': '+f.title:raw;
+  if(raw===null||raw===undefined) return null;
+  const str=String(raw).trim();
+  if(!str||str==='null'||str==='undefined'||str==='[object Object]') return null;
+  const key=str.startsWith('L')&&str.length>1&&str[1]!==':'?str.slice(1):str;
+  if(key.includes(':')&&!key.startsWith('custom:')){
+    const [phaseId,sessN]=key.split(':');
+    const ph=PHASES.find(p=>p.id===phaseId);
+    const sess=ph&&ph.sessions.find(s=>String(s.n)===sessN);
+    return sess?'S'+sess.n+': '+sess.title:key;
   }
-  if(raw.startsWith('custom:')){
-    const cl=getCustomLessons().find(c=>'custom:'+c.id===raw);
-    return cl?cl.label:raw;
+  if(key.startsWith('custom:')){
+    const cl=getCustomLessons().find(c=>'custom:'+c.id===key);
+    return cl?cl.label:key;
   }
-  return raw;
+  return key;
 }
 
 
-// ── UNIFIED PHOTO LIGHTBOX ──────────────────────────────────────────────────
-function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,setStudentPopup,zIndex}){
+// ── PhotoLightbox ────────────────────────────────────────────────────────────
+function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,onPhotoEdit,editedUrls}){
   if(!photo) return null;
 
-  // Refs for smooth zoom/pan — avoid React re-render on every frame
   const containerRef=React.useRef(null);
   const imgRef=React.useRef(null);
   const zoomRef=React.useRef(1);
@@ -11689,25 +12937,33 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,setStuden
   const onCloseRef=React.useRef(onClose);
   React.useEffect(()=>{onCloseRef.current=onClose;},[onClose]);
 
-  // Minimal React state — only for conditional UI renders
   const [isZoomed,setIsZoomed]=React.useState(false);
   const [sliderVal,setSliderVal]=React.useState(100);
   const [sliderActive,setSliderActive]=React.useState(false);
+  const [activeControl,setActiveControl]=React.useState(null);
   const [infoVisible,setInfoVisible]=React.useState(false);
   const [infoPos,setInfoPos]=React.useState(null);
+  const [currentUrl,setCurrentUrl]=React.useState(photo.url);
+  const [filterStyle,setFilterStyle]=React.useState(''); // CSS filter for current photo
+  const originalUrl=React.useRef(photo.url);
+  const croppedSrcRef=React.useRef(null); // persists KS/crop result across re-entry
+  const photoFiltersRef=React.useRef({}); // stores filter slider state per photo.url
+  const photoFilterStrRef=React.useRef({}); // stores baked filter string per photo.url
   const infoPanelRef=React.useRef(null);
 
   const isDoc=(photo.type||'artwork')==='documentation';
-  const lessonTitle=photo.resolvedLesson||resolveLessonLabel((photo.lessons&&photo.lessons[0])||null)||null;
-
+  const rawLesson=photo.lessons&&photo.lessons[0];
+  const lessonTitle=resolveLessonLabel(rawLesson);
   const lessonOverview=React.useMemo(()=>{
     const raw=photo.lessons&&photo.lessons[0];
-    if(!raw) return null;
-    const key=raw.startsWith('L')?raw.slice(1):raw;
+    if(raw===null||raw===undefined) return null;
+    const str=String(raw).trim();
+    if(!str||str==='null'||str==='undefined'||str==='[object Object]') return null;
+    const key=str.startsWith('L')&&str.length>1&&str[1]!==':'?str.slice(1):str;
     if(key.includes(':')&&!key.startsWith('custom:')){
-      const parts=key.split(':');
-      const ph=PHASES.find(p=>p.id===parts[0]);
-      const sess=ph&&ph.sessions.find(s=>String(s.n)===parts[1]);
+      const [phaseId,sessN]=key.split(':');
+      const ph=PHASES.find(p=>p.id===phaseId);
+      const sess=ph&&ph.sessions.find(s=>String(s.n)===sessN);
       return sess?sess.overview:null;
     }
     return null;
@@ -11716,8 +12972,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,setStuden
   function applyTransform(){
     if(!imgRef.current) return;
     imgRef.current.style.transform='scale('+zoomRef.current+') translate('+panXRef.current/zoomRef.current+'px,'+panYRef.current/zoomRef.current+'px)';
+    const r=Math.max(0,12*(1-(zoomRef.current-1)/0.5));
+    imgRef.current.style.borderRadius=r+'px';
   }
-
   function applyZoom(val){
     const clamped=Math.min(4,Math.max(1,val));
     if(clamped===1){panXRef.current=0;panYRef.current=0;}
@@ -11727,307 +12984,222 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,setStuden
     if(rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current=requestAnimationFrame(applyTransform);
   }
-
   function softReset(){
-    if(imgRef.current){
-      imgRef.current.style.transition='transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)';
-      setTimeout(()=>{if(imgRef.current)imgRef.current.style.transition='none';},280);
-    }
+    if(imgRef.current){imgRef.current.style.transition='transform 0.28s ease';setTimeout(()=>{if(imgRef.current)imgRef.current.style.transition='none';},280);}
     zoomRef.current=1;panXRef.current=0;panYRef.current=0;
     setIsZoomed(false);setSliderVal(100);
     if(rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current=requestAnimationFrame(applyTransform);
   }
 
-  // Reset on photo change
   React.useEffect(()=>{
     zoomRef.current=1;panXRef.current=0;panYRef.current=0;
     hSwipeRef.current=0;setIsZoomed(false);setSliderVal(100);
-    if(imgRef.current){imgRef.current.style.transition='none';imgRef.current.style.transform='scale(1) translate(0px,0px)';}
+    originalUrl.current=photo.url;
+    // Restore edited version if available, else original
+    const restored=(editedUrls&&editedUrls[photo.url])||photo.url;
+    croppedSrcRef.current=restored===photo.url?null:restored;
+    setCurrentUrl(restored);
+    if(imgRef.current){
+      imgRef.current.style.transition='none';
+      imgRef.current.style.transform='scale(1) translate(0px,0px)';
+    }
+    // Restore this photo's filter via React state
+    const hasBakedBlob=(editedUrls&&editedUrls[photo.url]&&editedUrls[photo.url]!==photo.url);
+    const fs=(!hasBakedBlob&&photoFilterStrRef.current[photo.url])||'';
+    setFilterStyle(fs);
   },[photo.url]);
 
-  // Non-passive wheel listener (must use addEventListener, not React onWheel)
+  const activeControlRef=React.useRef(activeControl);
   React.useEffect(()=>{
-    const el=containerRef.current;
-    if(!el) return;
+    activeControlRef.current=activeControl;
+    // Sync filterStyle state with stored filter for this photo
+    const hasBakedBlob=(editedUrls&&editedUrls[photo.url]&&editedUrls[photo.url]!==photo.url);
+    const fs=(!hasBakedBlob&&photoFilterStrRef.current[photo.url])||'';
+    setFilterStyle(fs);
+  },[activeControl]);
+
+  React.useEffect(()=>{
+    const el=containerRef.current;if(!el) return;
     function onWheel(e){
+      // Disable scroll/pinch zoom while crop tool is active
+      if(activeControlRef.current==='crop'){e.preventDefault();return;}
       e.preventDefault();
       const absDX=Math.abs(e.deltaX),absDY=Math.abs(e.deltaY);
-      if(e.ctrlKey){
-        // Pinch-to-zoom (macOS trackpad pinch fires ctrlKey+deltaY)
-        applyZoom(zoomRef.current-e.deltaY*0.018);
-      } else if(absDX>absDY&&absDX>5){
-        // Horizontal swipe — navigate (only when not zoomed)
+      if(e.ctrlKey){applyZoom(zoomRef.current-e.deltaY*0.022);}
+      else if(absDX>absDY&&absDX>2){
         if(zoomRef.current>1.08) return;
         hSwipeRef.current+=e.deltaX;
-        if(hSwipeRef.current>75){hSwipeRef.current=0;onNavigateRef.current(1);}
-        else if(hSwipeRef.current<-75){hSwipeRef.current=0;onNavigateRef.current(-1);}
-      } else if(absDY>3){
-        // Scroll-to-zoom
-        applyZoom(zoomRef.current-e.deltaY*0.003);
-      }
+        if(hSwipeRef.current>45){hSwipeRef.current=0;onNavigateRef.current(1);}
+        else if(hSwipeRef.current<-45){hSwipeRef.current=0;onNavigateRef.current(-1);}
+      } else if(absDY>1){applyZoom(zoomRef.current-e.deltaY*0.004);}
     }
     el.addEventListener('wheel',onWheel,{passive:false});
-    return()=>el.removeEventListener('wheel',onWheel);
+    return ()=>el.removeEventListener('wheel',onWheel);
   },[]);
 
-  // Mouse pan
   function onMouseDown(e){
     if(!isZoomed) return;
     e.preventDefault();
     isPanningRef.current=true;
-    panStartRef.current={x:e.clientX-panXRef.current,y:e.clientY-panYRef.current,moved:false};
+    panStartRef.current={x:e.clientX-panXRef.current,y:e.clientY-panYRef.current};
   }
   function onMouseMove(e){
     if(!isPanningRef.current||!panStartRef.current) return;
-    const dx=e.clientX-panStartRef.current.x-panXRef.current,dy=e.clientY-panStartRef.current.y-panYRef.current;
-    if(Math.abs(dx)>3||Math.abs(dy)>3) panStartRef.current.moved=true;
-    panXRef.current=e.clientX-panStartRef.current.x;panYRef.current=e.clientY-panStartRef.current.y;
+    panXRef.current=e.clientX-panStartRef.current.x;
+    panYRef.current=e.clientY-panStartRef.current.y;
     if(rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current=requestAnimationFrame(applyTransform);
   }
-  function onMouseUp(){
-    isPanningRef.current=false;
-    setTimeout(()=>{if(panStartRef.current)panStartRef.current.moved=false;},50);
-  }
+  function onMouseUp(){isPanningRef.current=false;}
 
-  // Keyboard: Esc, ArrowLeft/Right, I
   React.useEffect(()=>{
     function onKey(e){
       if(e.key==='Escape'){onCloseRef.current();return;}
-      if(e.key==='i'||e.key==='I'){setInfoVisible(v=>!v);return;}
-      if(e.key==='ArrowLeft'){softReset();onNavigateRef.current(-1);}
-      if(e.key==='ArrowRight'){softReset();onNavigateRef.current(1);}
+      if(e.key==='i'||e.key==='I'){
+        const next=!infoVisible;
+        setInfoVisible(next);
+        setActiveControl(next?'info':null);
+        return;
+      }
+      if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+        const ac=activeControlRef.current;
+        if(ac==='crop'||ac==='edit')return;
+        const dir=e.key==='ArrowLeft'?-1:1;
+        softReset();onNavigateRef.current(dir);
+      }
     }
     window.addEventListener('keydown',onKey);
-    return()=>window.removeEventListener('keydown',onKey);
-  },[]);
+    return ()=>window.removeEventListener('keydown',onKey);
+  },[infoVisible]);
 
-  // Info panel drag
   function startInfoDrag(e){
     e.preventDefault();e.stopPropagation();
     const panel=infoPanelRef.current;if(!panel) return;
     const rect=panel.getBoundingClientRect();
     const sx=e.clientX,sy=e.clientY,sl=rect.left,st=rect.top;
-    function onMove(ev){setInfoPos({x:sl+(ev.clientX-sx),y:st+(ev.clientY-sy)});}
-    function onUp(){window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);}
-    window.addEventListener('mousemove',onMove);window.addEventListener('mouseup',onUp);
+    function move(ev){setInfoPos({x:sl+(ev.clientX-sx),y:st+(ev.clientY-sy)});}
+    function up(){window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up);}
+    window.addEventListener('mousemove',move);
+    window.addEventListener('mouseup',up);
   }
 
-  const infoPanelStyle=infoPos
-    ?{position:'fixed',left:infoPos.x+'px',top:infoPos.y+'px'}
-    :{position:'absolute',top:'8vh',right:'2.5vw'};
+  const infoPanelStyle=infoPos?{position:'fixed',left:infoPos.x+'px',top:infoPos.y+'px'}:{position:'absolute',top:'8vh',right:'2.5vw'};
   const idx=allPhotos?allPhotos.findIndex(p=>p.url===photo.url):-1;
+  const F="'DM Sans',sans-serif";
 
-  // Glow helper
-  function glowIn(e,active){e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.filter='drop-shadow(0 0 6px rgba(255,255,255,0.45))';}
-  function glowOut(e,active){e.currentTarget.style.color=active?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.38)';e.currentTarget.style.filter=active?'drop-shadow(0 0 7px rgba(255,255,255,0.55))':'none';}
+  function setControl(name){
+    const next=activeControl===name?null:name;
+    setActiveControl(next);
+    setInfoVisible(next==='info');
+  }
 
-  return ReactDOM.createPortal(
-    <div ref={containerRef}
-      style={{position:'fixed',inset:0,zIndex:zIndex||4000,background:'#000',
-        overflow:'hidden',cursor:isZoomed?'grab':'default',userSelect:'none'}}
-      onMouseDown={onMouseDown} onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+  return [
+  ReactDOM.createPortal(
+    <div key="lb" ref={containerRef} style={{position:'fixed',inset:0,zIndex:zIndex||4000,background:'#000',overflow:'hidden',cursor:isZoomed?'grab':'default',userSelect:'none'}}
+      onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+      onDoubleClick={()=>{
+        // Double-tap: reset zoom/pan to default
+        zoomRef.current=1;panXRef.current=0;panYRef.current=0;
+        setIsZoomed(false);setSliderVal(100);
+        if(rafRef.current)cancelAnimationFrame(rafRef.current);
+        rafRef.current=requestAnimationFrame(applyTransform);
+      }}>
 
-      {/* IMAGE — large, fills available space */}
-      <div style={{position:'absolute',top:'5vh',bottom:'5vh',left:'3vw',right:'5vw',
-        display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
-        <img ref={imgRef} src={photo.url} alt="" draggable={false}
-          style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',display:'block',
-            borderRadius:12,imageRendering:'high-quality',
-            transformOrigin:'center center',willChange:'transform'}}/>
+      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',padding:`${MARGIN_V*100}vh ${MARGIN_H*100}vw`}}>
+        <img ref={imgRef} src={currentUrl} alt="" draggable={false}
+          style={{maxWidth:`${(1-MARGIN_H*2)*100}vw`,maxHeight:`${(1-MARGIN_V*2)*100}vh`,objectFit:'contain',display:'block',imageRendering:'high-quality',WebkitImageRendering:'crisp-edges',transformOrigin:'center center',willChange:'transform',borderRadius:12,transition:'border-radius 0.4s ease',filter:filterStyle||undefined}}/>
       </div>
 
-      {/* TOP-RIGHT CONTROL PILL */}
-      <div style={{position:'absolute',top:'2.5vh',right:'2.5vw',
-        display:'flex',alignItems:'center',gap:10,zIndex:10}}
-        onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+      {/* ZOOM SLIDER */}
+      <ZoomSlider value={sliderVal} active={sliderActive}
+        onChange={v=>{const f=v/100;zoomRef.current=f;if(f===1){panXRef.current=0;panYRef.current=0;}setIsZoomed(f>1.005);setSliderVal(v);if(rafRef.current)cancelAnimationFrame(rafRef.current);rafRef.current=requestAnimationFrame(applyTransform);}}
+        onActiveChange={setSliderActive}/>
 
-        <div style={{display:'flex',alignItems:'center',gap:8,
-          background:'rgba(26,26,26,0.92)',backdropFilter:'blur(16px)',
-          WebkitBackdropFilter:'blur(16px)',borderRadius:100,padding:'7px 14px',
-          border:'1px solid rgba(255,255,255,0.08)',boxShadow:'0 4px 20px rgba(0,0,0,0.5)'}}>
-
-          {/* ⓘ info toggle */}
-          <button onClick={()=>setInfoVisible(v=>!v)} title="Info (I)"
-            style={{background:'none',border:'none',cursor:'pointer',padding:'1px 3px',lineHeight:1,
-              color:infoVisible?'rgba(255,255,255,0.92)':'rgba(255,255,255,0.38)',
-              filter:infoVisible?'drop-shadow(0 0 7px rgba(255,255,255,0.55))':'none',
-              transition:'color .2s,filter .2s',display:'flex',alignItems:'center'}}
-            onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.filter='drop-shadow(0 0 6px rgba(255,255,255,0.45))';}}
-            onMouseLeave={e=>{e.currentTarget.style.color=infoVisible?'rgba(255,255,255,0.92)':'rgba(255,255,255,0.38)';e.currentTarget.style.filter=infoVisible?'drop-shadow(0 0 7px rgba(255,255,255,0.55))':'none';}}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10"/>
-              <circle cx="12" cy="8.5" r="1" fill="currentColor" stroke="none"/>
-              <line x1="12" y1="12" x2="12" y2="16"/>
-            </svg>
-          </button>
-
-          <div style={{width:1,height:14,background:'rgba(255,255,255,0.12)'}}/>
-
-          {/* ⊡ Crop */}
-          <button style={{background:'none',border:'none',cursor:'pointer',padding:'1px 3px',lineHeight:1,
-            color:'rgba(255,255,255,0.38)',transition:'color .2s,filter .2s',display:'flex',alignItems:'center'}}
-            onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.filter='drop-shadow(0 0 6px rgba(255,255,255,0.4))';}}
-            onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.38)';e.currentTarget.style.filter='none';}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M6 2v14a2 2 0 002 2h14"/>
-              <path d="M18 22V8a2 2 0 00-2-2H2"/>
-            </svg>
-          </button>
-
-          <div style={{width:1,height:14,background:'rgba(255,255,255,0.12)'}}/>
-
-          {/* Edit text */}
-          {teacherMode&&<button style={{background:'none',border:'none',cursor:'pointer',padding:'1px 4px',
-            color:'rgba(255,255,255,0.38)',fontSize:13,fontWeight:600,
-            fontFamily:"'DM Sans',sans-serif",transition:'color .2s,filter .2s',lineHeight:1}}
-            onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.filter='drop-shadow(0 0 5px rgba(255,255,255,0.35))';}}
-            onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.38)';e.currentTarget.style.filter='none';}}>
-            Edit
-          </button>}
-        </div>
-
-        {/* ✕ Close */}
-        <button onClick={e=>{e.stopPropagation();onClose();}}
-          style={{background:'none',border:'none',cursor:'pointer',padding:'2px 4px',
-            color:'rgba(255,255,255,0.38)',fontSize:22,fontWeight:300,lineHeight:1,
-            transition:'color .2s,filter .2s'}}
-          onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.filter='drop-shadow(0 0 6px rgba(255,255,255,0.4))';}}
-          onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.38)';e.currentTarget.style.filter='none';}}>
-          ✕
-        </button>
-      </div>
-
-      {/* ZOOM SLIDER — right edge, vertically centred */}
-      <div style={{position:'absolute',right:'1.2vw',top:'50%',transform:'translateY(-50%)',
-        display:'flex',flexDirection:'column',alignItems:'center',gap:'0.8vh',zIndex:10}}
-        onClick={e=>e.stopPropagation()}
-        onMouseDown={e=>{e.stopPropagation();setSliderActive(true);}}
-        onMouseUp={()=>setSliderActive(false)} onMouseLeave={()=>setSliderActive(false)}>
-        <span style={{color:'rgba(255,255,255,0.32)',fontSize:'clamp(10px,1.2vh,13px)',lineHeight:1,cursor:'default'}}>+</span>
-        <div style={{transform:sliderActive?'scaleX(1.35) scaleY(1.06)':'scale(1)',
-          transition:'transform .22s cubic-bezier(0.34,1.56,0.64,1)',transformOrigin:'center'}}>
-          <input type="range" min={100} max={400} step={2} value={sliderVal}
-            onChange={e=>{
-              const v=Number(e.target.value)/100;
-              zoomRef.current=v;if(v===1){panXRef.current=0;panYRef.current=0;}
-              setIsZoomed(v>1.005);setSliderVal(Number(e.target.value));
-              if(rafRef.current) cancelAnimationFrame(rafRef.current);
-              rafRef.current=requestAnimationFrame(applyTransform);
-            }}
-            onMouseDown={()=>setSliderActive(true)} onMouseUp={()=>setSliderActive(false)}
-            style={{writingMode:'vertical-lr',direction:'rtl',WebkitAppearance:'slider-vertical',
-              height:'clamp(80px,12vh,130px)',width:8,cursor:'pointer',
-              accentColor:'rgba(255,255,255,0.6)'}}/>
-        </div>
-        <span style={{color:'rgba(255,255,255,0.32)',fontSize:'clamp(10px,1.2vh,13px)',lineHeight:1,cursor:'default'}}>−</span>
-      </div>
-
-      {/* COUNTER — top centre, subtle */}
+      {/* COUNTER */}
       {allPhotos&&allPhotos.length>1&&(
-        <div style={{position:'absolute',top:'2.5vh',left:'50%',transform:'translateX(-50%)',
-          color:'rgba(255,255,255,0.28)',fontSize:'clamp(9px,1.1vh,11px)',
-          fontFamily:"'DM Sans',sans-serif",pointerEvents:'none',whiteSpace:'nowrap'}}>
+        <div style={{position:'absolute',top:'2.5vh',left:'50%',transform:'translateX(-50%)',color:'rgba(255,255,255,0.28)',fontSize:'clamp(9px,1.1vh,11px)',fontFamily:F,pointerEvents:'none',whiteSpace:'nowrap'}}>
           {idx>=0?idx+1:'—'} / {allPhotos.length}
         </div>
       )}
 
-      {/* DRAGGABLE FLOATING INFO PANEL */}
-      {infoVisible&&(
-        <div ref={infoPanelRef}
-          style={{...infoPanelStyle,zIndex:20,
-            width:'clamp(220px,20vw,280px)',
-            background:'rgba(18,18,18,0.93)',
-            backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',
-            borderRadius:14,border:'1px solid rgba(255,255,255,0.07)',
-            boxShadow:'0 12px 40px rgba(0,0,0,0.65)',overflow:'hidden'}}
+      {/* INFO PANEL */}
+      {activeControl==='info'&&infoVisible&&(
+        <div ref={infoPanelRef} style={{...infoPanelStyle,zIndex:20,width:'clamp(220px,20vw,280px)',background:'rgba(18,18,18,0.73)',backdropFilter:'blur(5px)',WebkitBackdropFilter:'blur(5px)',borderRadius:14,border:'1px solid rgba(255,255,255,0.07)',boxShadow:'0 12px 40px rgba(0,0,0,0.65)',overflow:'hidden',animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards'}}
           onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-
-          {/* Header — drag handle */}
           <div style={{padding:'14px 16px 12px',cursor:'grab'}} onMouseDown={startInfoDrag}>
-            {!isDoc&&(
-              <>
-                <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',
-                  fontFamily:"'DM Sans',sans-serif",letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2}}>
-                  {photo.studentName||'—'}
-                </div>
-                <div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.42)',
-                  fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:5}}>
-                  <SectionDot sectionId={photo.sectionId} size={5}/>
-                  {photo.sectionName||''}
-                </div>
-              </>
-            )}
-            {isDoc&&lessonTitle&&(
-              <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',
-                fontFamily:"'DM Sans',sans-serif",letterSpacing:'0.01em',lineHeight:1.3}}>
-                {lessonTitle}
-              </div>
-            )}
+            {!isDoc&&(<><div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2}}>{photo.studentName||'—'}</div><div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.42)',fontFamily:F,display:'flex',alignItems:'center',gap:5}}><SectionDot sectionId={photo.sectionId} size={5}/>{photo.sectionName||''}</div></>)}
+            {isDoc&&lessonTitle&&<div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',lineHeight:1.3}}>{lessonTitle}</div>}
           </div>
-
           <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/>
-
-          {/* Lesson section */}
           <div style={{padding:'12px 16px'}}>
-            {!isDoc&&lessonTitle&&(
-              <div style={{fontSize:'clamp(11px,1.3vh,14px)',fontWeight:600,
-                color:'rgba(255,255,255,0.82)',fontFamily:"'DM Sans',sans-serif",
-                marginBottom:lessonOverview?7:0,lineHeight:1.3}}>
-                {lessonTitle}
-              </div>
-            )}
-            {lessonOverview&&(
-              <div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',
-                fontFamily:"'DM Sans',sans-serif",lineHeight:1.6,fontStyle:'italic'}}>
-                "{lessonOverview}"
-              </div>
-            )}
+            {!isDoc&&lessonTitle&&<div style={{fontSize:'clamp(11px,1.3vh,14px)',fontWeight:600,color:'rgba(255,255,255,0.82)',fontFamily:F,marginBottom:lessonOverview?7:0,lineHeight:1.3}}>{lessonTitle}</div>}
+            {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>"{lessonOverview}"</div>}
           </div>
-
-          {/* Date — doc only */}
-          {isDoc&&photo.date&&(
-            <>
-              <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/>
-              <div style={{padding:'10px 16px',fontSize:'clamp(11px,1.2vh,13px)',
-                color:'rgba(255,255,255,0.45)',fontFamily:"'DM Sans',sans-serif"}}>
-                {photo.date}
-              </div>
-            </>
-          )}
-
-          {/* Tags */}
-          {(photo.artTags||[]).length>0&&(
-            <>
-              <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/>
-              <div style={{padding:'10px 16px 13px',display:'flex',alignItems:'center',
-                gap:6,flexWrap:'wrap'}}>
-                {(photo.artTags||[]).map(t=>(
-                  <span key={t} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',
-                    background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',
-                    borderRadius:100,padding:'3px 10px',fontFamily:"'DM Sans',sans-serif"}}>
-                    {t}
-                  </span>
-                ))}
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                  stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"
-                  style={{marginLeft:'auto',flexShrink:0}}>
-                  <circle cx="12" cy="12" r="10"/>
-                  <circle cx="12" cy="8.5" r="1" fill="rgba(255,255,255,0.2)" stroke="none"/>
-                  <line x1="12" y1="12" x2="12" y2="16"/>
-                </svg>
-              </div>
-            </>
-          )}
+          {isDoc&&photo.date&&(<><div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/><div style={{padding:'10px 16px',fontSize:'clamp(11px,1.2vh,13px)',color:'rgba(255,255,255,0.45)',fontFamily:F}}>{photo.date}</div></>)}
+          {(photo.artTags||[]).length>0&&(<><div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/><div style={{padding:'10px 16px 13px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>{(photo.artTags||[]).map(t=><span key={t} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:100,padding:'3px 10px',fontFamily:F}}>{t}</span>)}</div></>)}
         </div>
       )}
+
+      {/* CROP OVERLAY */}
+      {activeControl==='crop'&&<CropOverlay imgSrc={croppedSrcRef.current||originalUrl.current} onCommit={(canvas,url)=>{croppedSrcRef.current=url;setCurrentUrl(url);if(onPhotoEdit)onPhotoEdit(url,photo);setActiveControl(null);}}/>}
+
+      {/* EDIT PANEL */}
+      {activeControl==='edit'&&<EditPanel imgRef={imgRef}
+        initialFilters={photoFiltersRef.current[photo.url]}
+        onFilterChange={(filters,filterStr)=>{
+          photoFiltersRef.current[photo.url]=filters;
+          photoFilterStrRef.current[photo.url]=filterStr;
+        }}
+        onClose={()=>setActiveControl(null)}
+        onApply={(filterStr)=>{
+          // Store filterStr as source of truth, apply via React state
+          photoFilterStrRef.current[photo.url]=filterStr;
+          setFilterStyle(filterStr);
+          // Try to bake into blob for hosted env (same-origin only)
+          const el=imgRef.current;
+          if(el){
+            const natW=el.naturalWidth||el.offsetWidth;
+            const natH=el.naturalHeight||el.offsetHeight;
+            const cv=document.createElement('canvas');cv.width=natW;cv.height=natH;
+            const ctx=cv.getContext('2d');
+            ctx.filter=filterStr||'none';
+            try{
+              ctx.drawImage(el,0,0,natW,natH);
+              cv.toBlob(blob=>{
+                const url=URL.createObjectURL(blob);
+                croppedSrcRef.current=url;
+                setCurrentUrl(url);
+                if(onPhotoEdit)onPhotoEdit(url,photo);
+                // Blob is baked — clear CSS filter (it's in image data now)
+                setFilterStyle('');
+              },'image/jpeg',0.97);
+            }catch(e){
+              // CORS/file:// — CSS filter already applied above, stays on element
+            }
+          }
+          setActiveControl(null);
+        }}
+      />}
+
     </div>,
     document.body
-  );
-}
+  ),
 
+  // Toolbar — own portal so it always sits above all other portals
+  ReactDOM.createPortal(
+    <div style={{position:'fixed',top:'2.5vh',right:'2.5vw',display:'flex',alignItems:'center',gap:10,zIndex:4002,pointerEvents:'auto'}}
+      onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+      <ToolbarPill activeControl={activeControl} teacherMode={teacherMode} onSetControl={setControl}/>
+      <button onClick={e=>{e.stopPropagation();onClose();}}
+        style={{background:'rgba(15,15,20,0.45)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',border:'1px solid rgba(255,255,255,0.1)',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.55)',fontSize:16,fontWeight:300,lineHeight:1,flexShrink:0,boxShadow:'0 4px 20px rgba(0,0,0,0.35)',transition:'background .18s,border-color .18s,color .18s'}}
+        onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,40,0.85)';e.currentTarget.style.borderColor='rgba(220,50,40,0.6)';e.currentTarget.style.color='#fff';}}
+        onMouseLeave={e=>{e.currentTarget.style.background='rgba(15,15,20,0.45)';e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';e.currentTarget.style.color='rgba(255,255,255,0.55)';}}>✕</button>
+    </div>,
+    document.body
+  )
+  ];
+}
 
 function GalleryView({isVisitor}){
   const SECTION_IDS=G4_SECTIONS.map(s=>s.id);
