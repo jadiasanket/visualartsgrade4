@@ -12314,8 +12314,8 @@ function CropOverlay({imgSrc,onCommit}){
             const r=barTrackRef.current.getBoundingClientRect();
             const pad=-3,thumbH=parseInt(barThumbRef.current.dataset.h||'30');
             const topEdge=r.top+pad+thumbH/2,botEdge=r.bottom-pad-thumbH/2;
-            const frac=clamp(1-(e.clientY-topEdge)/(botEdge-topEdge),0,1);
-            barApplyDeg((frac*2-1)*BAR_RANGE);
+            const frac=_cropClamp(1-(e.clientY-topEdge)/(botEdge-topEdge),0,1);
+            barApplyDeg((frac*2-1)*_CROP_BAR_RANGE);
           }}
           onPointerUp={()=>{
             const thumb=barThumbRef.current;
