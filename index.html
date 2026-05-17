@@ -3257,8 +3257,10 @@ function useCustomLessons(){
   const [lessons,setLessons]=React.useState(_customLessonsCache);
   React.useEffect(()=>{
     migrateCustomLessonsIfNeeded();
-    const unsub=CUSTOM_LESSONS_PATH().orderBy('createdAt','asc').onSnapshot(snap=>{
+    const unsub=CUSTOM_LESSONS_PATH().onSnapshot(snap=>{
       const data=snap.docs.map(d=>({...d.data(),id:d.id}));
+      // Sort client-side by createdAt
+      data.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
       _customLessonsCache=data;
       setLessons(data);
     },e=>console.warn('[CustomLessons] listener error',e));
@@ -13493,16 +13495,6 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const onCloseRef=React.useRef(onClose);
   React.useEffect(()=>{onCloseRef.current=onClose;},[onClose]);
 
-  // Close reassign dropdown on outside click
-  React.useEffect(()=>{
-    if(!reassignField) return;
-    function handle(e){
-      if(!infoPanelRef.current||!infoPanelRef.current.contains(e.target)) setReassignField(null);
-    }
-    document.addEventListener('mousedown',handle);
-    return()=>document.removeEventListener('mousedown',handle);
-  },[reassignField]);
-
   const [isZoomed,setIsZoomed]=React.useState(false);
   const [sliderVal,setSliderVal]=React.useState(100);
   const [sliderActive,setSliderActive]=React.useState(false);
@@ -13519,9 +13511,19 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const infoPanelRef=React.useRef(null);
   const [panelBg,setPanelBg]=React.useState('rgba(7,7,8,0.87)');
   // E: inline reassign state
-  const [reassignField,setReassignField]=React.useState(null); // null | 'student' | 'lesson' | 'section'
+  const [reassignField,setReassignField]=React.useState(null);
   const [reassignSaving,setReassignSaving]=React.useState(false);
   const customLessons=useCustomLessons();
+
+  // Close reassign dropdown on outside click
+  React.useEffect(()=>{
+    if(!reassignField) return;
+    function handle(e){
+      if(!infoPanelRef.current||!infoPanelRef.current.contains(e.target)) setReassignField(null);
+    }
+    document.addEventListener('mousedown',handle);
+    return()=>document.removeEventListener('mousedown',handle);
+  },[reassignField]);
 
   // C3 — Adaptive tone: sample image brightness, adjust panel opacity
   React.useEffect(()=>{
