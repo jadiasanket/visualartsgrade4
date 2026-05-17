@@ -11790,16 +11790,18 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
     }
 
     // Fix 3: keystone active = blue lens + white icon (applied in JSX via ksActive state)
+    // Magnifying glass effect: icon under lens scales 1.05 instantly (lens IS the magnifier)
     iconRefs.current.forEach((el,i)=>{
       if(!el) return;
-      const active=i===s.idx;
+      const underLens=i===s.idx&&s.opacity>0.05;
       const isKsActive=(i===KS_IDX)&&ksActive;
       if(isKsActive){
-        // Keystone persistent: always white, no spring scale
         el.style.transform='';
         el.style.color='rgba(255,255,255,1)';
-      } else if(active){
-        el.style.transform='scale('+s.scale+') translateY(-1px)';
+      } else if(underLens){
+        // Scale driven by lens opacity so it fades in with the lens
+        const sc=1+(0.05*Math.min(1,s.opacity/0.6));
+        el.style.transform='scale('+sc+')';
         el.style.color='rgba(255,255,255,0.95)';
       } else {
         el.style.transform='';
@@ -11889,14 +11891,14 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
         zIndex:1,
         opacity:0,
         background: ksActive
-          ? 'linear-gradient(180deg,rgba(80,160,255,0.35) 0%,rgba(60,130,255,0.18) 60%,rgba(40,100,255,0.10) 100%)'
+          ? 'rgb(0,116,240)'
           : 'linear-gradient(180deg,rgba(255,255,255,0.18) 0%,rgba(255,255,255,0.07) 60%,rgba(255,255,255,0.04) 100%)',
         backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',
         // Fix 1: subtler outline (was 0.22, now 0.10)
         boxShadow: ksActive
-          ? 'inset 0 1px 0 rgba(120,190,255,0.45), inset 0 -1px 0 rgba(80,160,255,0.08), 0 2px 12px rgba(0,0,0,0.4)'
+          ? '0 2px 12px rgba(0,100,220,0.5)'
           : 'inset 0 1px 0 rgba(255,255,255,0.40), inset 0 -1px 0 rgba(255,255,255,0.06), 0 2px 12px rgba(0,0,0,0.4)',
-        border: ksActive ? '1px solid rgba(80,160,255,0.35)' : '1px solid rgba(255,255,255,0.10)',
+        border: ksActive ? '1px solid rgba(0,116,240,0.6)' : '1px solid rgba(255,255,255,0.10)',
       }}/>
 
       {buttons.map((b,i)=>(
@@ -13536,7 +13538,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
 
   // Toolbar — own portal so it always sits above all other portals
   ReactDOM.createPortal(
-    <div style={{position:'fixed',top:'2.5vh',right:'2.5vw',display:'flex',alignItems:'center',gap:10,zIndex:4002,pointerEvents:'auto'}}
+    <div style={{position:'fixed',top:'2.5vh',right:'2.5vw',display:'flex',alignItems:'center',gap:10,zIndex:(zIndex||4000)+2,pointerEvents:'auto'}}
       onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
       <ToolbarPill activeControl={activeControl} teacherMode={teacherMode} onSetControl={setControl}/>
       <button onClick={e=>{e.stopPropagation();onClose();}}
