@@ -12367,10 +12367,10 @@ function CropOverlay({imgSrc,onCommit}){
       <div style={{position:'fixed',bottom:0,height:`${_CROP_MARGIN_V*100}vh`,left:0,right:0,display:'flex',alignItems:'center',justifyContent:'center',gap:8,zIndex:20,pointerEvents:'none'}}
         onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
         <div style={{display:'flex',alignItems:'center',gap:12,pointerEvents:'all'}}>
-          {iconBtn(()=>{setKsCorners(null);rotate90('ccw');},<IcoCCW/>,'Rotate 90° CCW')}
-          {iconBtn(()=>{setKsCorners(null);rotate90('cw');},<IcoCW/>,'Rotate 90° CW')}
-          {secBtn(handleReset,<><IcoReset/> Reset</>)}
-          {iconBtn(()=>{setKsCorners(null);autoStraighten();},<IcoStraighten/>,'Auto Straighten')}
+          {iconBtn(()=>{setKsCorners(null);rotate90('ccw');},<_IcoCCW/>,'Rotate 90° CCW')}
+          {iconBtn(()=>{setKsCorners(null);rotate90('cw');},<_IcoCW/>,'Rotate 90° CW')}
+          {secBtn(handleReset,<><_IcoReset/> Reset</>)}
+          {iconBtn(()=>{setKsCorners(null);autoStraighten();},<_IcoStraighten/>,'Auto Straighten')}
           <button title={ksCorners?'Apply Keystone':'Manual Keystone'}
             onClick={ksCorners?applyKS:startKS}
             style={{width:40,height:40,padding:'9px',borderRadius:100,
@@ -12381,10 +12381,10 @@ function CropOverlay({imgSrc,onCommit}){
               display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}
             onMouseEnter={e=>{if(!ksCorners){e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.background='rgba(40,40,55,0.88)';}}}
             onMouseLeave={e=>{if(!ksCorners){e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgba(14,14,22,0.65)';}}}
-          ><IcoKeystone/></button>
+          ><_IcoKeystone/></button>
           {cropActive
             ?textBtn(handleCommit,<>Apply</>,'rgb(34,197,94)','rgb(22,163,74)','0 4px 16px rgba(34,197,94,0.4)')
-            :textBtn(handleCommit,<><IcoCropIcon/> Crop</>,'rgb(0,116,240)','rgb(0,100,220)','0 4px 16px rgba(0,116,240,0.4)')
+            :textBtn(handleCommit,<><_IcoCropIcon/> Crop</>,'rgb(0,116,240)','rgb(0,100,220)','0 4px 16px rgba(0,116,240,0.4)')
           }
         </div>
       </div>
