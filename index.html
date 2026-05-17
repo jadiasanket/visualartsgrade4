@@ -13236,9 +13236,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
 
       {/* LESSON OVERLAY — opens full SessionCard when lesson title tapped in info card */}
       {lessonOverlayOpen&&lessonSession&&ReactDOM.createPortal(
-        <div style={{position:'fixed',inset:0,zIndex:4500,display:'flex',alignItems:'center',justifyContent:'center',padding:'5vh 4vw',background:'rgba(6,8,16,0.55)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)'}}
+        <div style={{position:'fixed',inset:0,zIndex:4500,display:'flex',alignItems:'center',justifyContent:'center',padding:'5vh 4vw'}}
           onClick={()=>setLessonOverlayOpen(false)}>
-          <div style={{width:'min(680px,92vw)',maxHeight:'88vh',overflowY:'auto',borderRadius:18,boxShadow:'0 24px 80px rgba(0,0,0,0.75)',scrollbarWidth:'none',border:'1px solid rgba(255,255,255,0.10)',background:'rgba(18,18,22,0.82)',backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',overflow:'hidden'}}
+          <div style={{width:'min(680px,92vw)',maxHeight:'88vh',borderRadius:14,boxShadow:'0 12px 40px rgba(0,0,0,0.65)',border:'1px solid rgba(255,255,255,0.07)',background:'rgba(18,18,22,0.82)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',overflow:'hidden'}}
             onClick={e=>e.stopPropagation()}>
             <div style={{overflowY:'auto',maxHeight:'88vh',scrollbarWidth:'none'}}>
             {(()=>{
