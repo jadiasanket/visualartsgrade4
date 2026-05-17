@@ -8066,7 +8066,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
   }
 
   const sliders=[
-    {label:'Brightness',val:brightness,set:(v)=>{snapshot();setBrightness(v);},icon:'☀'},
+    {label:'Brightness',val:brightness,set:(v)=>{snapshot();setBrightness(v);},icon:'☀',tip:'Adjusts the overall lightness or darkness of the image.'},
     {label:'Contrast',val:contrast,set:(v)=>{snapshot();setContrast(v);},icon:'◑'},
     {label:'Saturation',val:saturation,set:(v)=>{snapshot();setSaturation(v);},icon:'❋'},
   ];
@@ -10933,9 +10933,9 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
   const isDoc=globalType==='documentation';
 
   const sliders=[
-    {label:'Brightness',val:brightness,set:(v)=>{snapshot();setBrightness(v);},icon:'☀'},
-    {label:'Contrast',val:contrast,set:(v)=>{snapshot();setContrast(v);},icon:'◑'},
-    {label:'Saturation',val:saturation,set:(v)=>{snapshot();setSaturation(v);},icon:'❋'},
+    {label:'Brightness',val:brightness,set:(v)=>{snapshot();setBrightness(v);},icon:'☀',tip:'Adjusts the overall lightness or darkness of the image.'},
+    {label:'Contrast',val:contrast,set:(v)=>{snapshot();setContrast(v);},icon:'◑',tip:'Makes highlights brighter and shadows darker to add depth.'},
+    {label:'Saturation',val:saturation,set:(v)=>{snapshot();setSaturation(v);},icon:'❋',tip:'Makes colors more vivid or more muted.'},
   ];
 
   return ReactDOM.createPortal(
@@ -11241,7 +11241,7 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
                       {sliders.map(s=>(
                         <div key={s.label} style={{marginBottom:10}}>
                           <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
-                            <span style={{fontSize:10,color:'rgba(255,255,255,0.45)'}}>{s.icon} {s.label}</span>
+                            <span title={s.tip||''} style={{fontSize:10,color:'rgba(255,255,255,0.45)',cursor:'help'}}>{s.icon} {s.label}</span>
                             <span style={{fontSize:10,fontWeight:700,color:s.val!==0?AMBER:'rgba(255,255,255,0.2)',minWidth:28,textAlign:'right'}}>{s.val>0?'+':''}{s.val}</span>
                           </div>
                           <div style={{position:'relative',height:5,borderRadius:5,background:'rgba(255,255,255,0.07)',marginBottom:2}}>
@@ -11250,6 +11250,7 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
                             <div style={{position:'absolute',top:'50%',left:'calc('+((s.val+50)/100*100)+'% - 7px)',width:14,height:14,borderRadius:'50%',background:AMBER,border:'2px solid #060606',transform:'translateY(-50%)',boxShadow:'0 1px 6px rgba(0,0,0,0.6)',pointerEvents:'none'}}/>
                           </div>
                           <input type="range" min={-50} max={50} value={s.val} onChange={e=>s.set(Number(e.target.value))}
+                            onMouseDown={()=>{document.body.style.userSelect='none';}} onMouseUp={()=>{document.body.style.userSelect='';}} onMouseLeave={()=>{document.body.style.userSelect='';}}
                             style={{width:'100%',opacity:0,height:18,cursor:'pointer',position:'relative',zIndex:1,marginTop:-16,display:'block'}}/>
                         </div>
                       ))}
