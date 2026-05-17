@@ -13426,6 +13426,8 @@ function InfoDropdownList({items,filterEnabled}){
   const containerRef=React.useRef(null);
   const bubbleRef=React.useRef(null);
   const rowRefs=React.useRef([]);
+  const filteredItemsRef=React.useRef([]);
+  const activeRowRef=React.useRef(-1);
   const sp=React.useRef({y:0,h:0,ty:0,th:0,vy:0,vh:0,opacity:0,to:0});
   const rafRef=React.useRef(null);
   const [query,setQuery]=React.useState('');
@@ -13436,6 +13438,8 @@ function InfoDropdownList({items,filterEnabled}){
     const q=query.trim().toLowerCase();
     return items.filter(it=>it.isDivider||it.isHeader||it.label.toLowerCase().includes(q));
   },[items,query,filterEnabled]);
+
+  filteredItemsRef.current=filteredItems;
 
   function getRowRect(i){
     const row=rowRefs.current[i];
@@ -13465,14 +13469,47 @@ function InfoDropdownList({items,filterEnabled}){
 
   function startTick(){if(!rafRef.current) rafRef.current=requestAnimationFrame(tick);}
 
-  function onEnter(i){
+  function activateRow(i){
     const r=getRowRect(i); if(!r) return;
     const s=sp.current;
     if(s.to===0){s.y=r.y;s.h=r.h;}
     s.ty=r.y; s.th=r.h; s.to=1;
     startTick();
+    if(activeRowRef.current!==i){
+      if(activeRowRef.current>=0){
+        const prev=rowRefs.current[activeRowRef.current];
+        const prevItem=filteredItemsRef.current[activeRowRef.current];
+        if(prev&&prevItem) prev.style.color=prevItem.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)';
+      }
+      const cur=rowRefs.current[i];
+      if(cur) cur.style.color='#fff';
+      activeRowRef.current=i;
+    }
   }
-  function onLeave(){sp.current.to=0;startTick();}
+
+  function deactivate(){
+    const s=sp.current; s.to=0; startTick();
+    if(activeRowRef.current>=0){
+      const prev=rowRefs.current[activeRowRef.current];
+      const prevItem=filteredItemsRef.current[activeRowRef.current];
+      if(prev&&prevItem) prev.style.color=prevItem.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)';
+      activeRowRef.current=-1;
+    }
+  }
+
+  React.useEffect(()=>{
+    const wrap=containerRef.current; if(!wrap) return;
+    function onMove(e){
+      const el=document.elementFromPoint(e.clientX,e.clientY);
+      if(!el) return;
+      const idx=rowRefs.current.findIndex(r=>r&&(r===el||r.contains(el)));
+      if(idx>=0) activateRow(idx);
+    }
+    function onLeave(){deactivate();}
+    wrap.addEventListener('mousemove',onMove,{passive:true});
+    wrap.addEventListener('mouseleave',onLeave,{passive:true});
+    return()=>{wrap.removeEventListener('mousemove',onMove);wrap.removeEventListener('mouseleave',onLeave);};
+  },[]);
 
   return(
     <div style={{marginTop:4,background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.12)',
@@ -13494,7 +13531,6 @@ function InfoDropdownList({items,filterEnabled}){
         data-scrollable="1"
         style={{position:'relative',maxHeight:220,overflowY:'auto',scrollbarWidth:'thin',
           scrollbarColor:'rgba(255,255,255,0.15) transparent'}}
-       onMouseLeave={onLeave}
         onClick={e=>e.stopPropagation()}>
         {/* Spring bubble */}
         <div ref={bubbleRef} style={{position:'absolute',left:3,right:3,borderRadius:6,
@@ -13514,8 +13550,6 @@ function InfoDropdownList({items,filterEnabled}){
           return(
             <div key={item.id}
               ref={el=>rowRefs.current[i]=el}
-              onMouseEnter={e=>{onEnter(i);e.currentTarget.style.color='#fff';}}
-              onMouseLeave={e=>{e.currentTarget.style.color=item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)';}}
               onClick={item.onSelect}
               style={{position:'relative',zIndex:1,padding:'7px 12px',fontSize:12,
                 color:item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)',
