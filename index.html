@@ -13194,15 +13194,40 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
           <div style={{padding:'14px 16px 12px',cursor:'grab'}} onMouseDown={startInfoDrag}>
             {!isDoc&&(<><div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2}}>{photo.studentName||'—'}</div><div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.42)',fontFamily:F,display:'flex',alignItems:'center',gap:5}}><SectionDot sectionId={photo.sectionId} size={5}/>{photo.sectionName||''}</div></>)}
-            {isDoc&&lessonTitle&&<div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',lineHeight:1.3}}>{lessonTitle}</div>}
+            {isDoc&&(
+              <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',lineHeight:1.3}}>
+                {lessonN?`L${lessonN}: ${lessonSession.title}`:(lessonTitle||'Documentation')}
+              </div>
+            )}
           </div>
           <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/>
-          <div style={{padding:'12px 16px'}}>
-            {!isDoc&&lessonTitle&&<div style={{fontSize:'clamp(11px,1.3vh,14px)',fontWeight:600,color:'rgba(255,255,255,0.82)',fontFamily:F,marginBottom:lessonOverview?7:0,lineHeight:1.3}}>{lessonTitle}</div>}
-            {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>"{lessonOverview}"</div>}
-          </div>
-          {isDoc&&photo.date&&(<><div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/><div style={{padding:'10px 16px',fontSize:'clamp(11px,1.2vh,13px)',color:'rgba(255,255,255,0.45)',fontFamily:F}}>{photo.date}</div></>)}
-          {(photo.artTags||[]).length>0&&(<><div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/><div style={{padding:'10px 16px 13px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>{(photo.artTags||[]).map(t=><span key={t} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:100,padding:'3px 10px',fontFamily:F}}>{t}</span>)}</div></>)}
+          {(lessonN||lessonTitle)&&(
+            <div style={{padding:'12px 16px'}}>
+              {!isDoc&&(
+                <div style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,color:'rgba(255,255,255,0.75)',fontFamily:F,marginBottom:lessonOverview?7:0,lineHeight:1.3}}>
+                  {lessonN?`L${lessonN}: ${lessonSession.title}`:lessonTitle}
+                </div>
+              )}
+              {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
+            </div>
+          )}
+          {photo.date&&isDoc&&(<><div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/><div style={{padding:'10px 16px',fontSize:'clamp(11px,1.2vh,13px)',color:'rgba(255,255,255,0.45)',fontFamily:F}}>{photo.date}</div></>)}
+          {lessonKws.length>0&&(
+            <>
+              <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/>
+              <div style={{padding:'10px 16px 13px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                {lessonKws.map(k=><span key={k} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:100,padding:'3px 10px',fontFamily:F}}>{k}</span>)}
+              </div>
+            </>
+          )}
+          {(photo.artTags||[]).length>0&&(
+            <>
+              <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 16px'}}/>
+              <div style={{padding:'6px 16px 13px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                {(photo.artTags||[]).map(t=><span key={t} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:100,padding:'3px 10px',fontFamily:F}}>{t}</span>)}
+              </div>
+            </>
+          )}
         </div>
       )}
 
