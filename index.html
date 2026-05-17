@@ -12367,27 +12367,69 @@ function CropOverlay({imgSrc,onCommit}){
       )}
       <div style={{position:'fixed',bottom:0,height:`${_CROP_MARGIN_V*100}vh`,left:0,right:0,display:'flex',alignItems:'center',justifyContent:'center',gap:8,zIndex:20,pointerEvents:'none'}}
         onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-        <div style={{display:'flex',alignItems:'center',gap:12,pointerEvents:'all'}}>
-          {iconBtn(()=>{setKsCorners(null);rotate90('ccw');},<_IcoCCW/>,'Rotate 90° CCW')}
-          {iconBtn(()=>{setKsCorners(null);rotate90('cw');},<_IcoCW/>,'Rotate 90° CW')}
-          {secBtn(handleReset,<><_IcoReset/> Reset</>)}
-          {iconBtn(()=>{setKsCorners(null);autoStraighten();},<_IcoStraighten/>,'Auto Straighten')}
-          <button title={ksCorners?'Apply Keystone':'Manual Keystone'}
-            onClick={ksCorners?applyKS:startKS}
-            style={{width:40,height:40,padding:'9px',borderRadius:100,
-              border:`1px solid ${ksCorners?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.15)'}`,
-              background:ksCorners?'rgb(0,116,240)':'rgba(7,7,8,0.87)',
-              backdropFilter:'blur(6px) saturate(200%)',cursor:'pointer',
-              color:ksCorners?'#fff':'rgba(255,255,255,0.45)',
-              display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}
-            onMouseEnter={e=>{if(!ksCorners){e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.background='rgba(40,40,55,0.95)';}}}
-            onMouseLeave={e=>{if(!ksCorners){e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgba(7,7,8,0.87)';}}}
+        <div style={{display:'flex',alignItems:'center',gap:8,pointerEvents:'all'}}>
 
-          ><_IcoKeystone/></button>
-          {cropActive
-            ?textBtn(handleCommit,<>Apply</>,'rgb(34,197,94)','rgb(22,163,74)','0 4px 16px rgba(34,197,94,0.4)')
-            :textBtn(handleCommit,<><_IcoCropIcon/> Crop</>,'rgb(0,116,240)','rgb(0,100,220)','0 4px 16px rgba(0,116,240,0.4)')
-          }
+          {/* Main pill — CCW, CW, Straighten, Keystone, Reset */}
+          <div className="lb-glass-panel" style={{display:'flex',alignItems:'center',gap:0,
+            background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
+            borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',height:34}}>
+
+            {[
+              {fn:()=>{setKsCorners(null);rotate90('ccw');},icon:<_IcoCCW/>,title:'Rotate 90° CCW'},
+              {fn:()=>{setKsCorners(null);rotate90('cw');},icon:<_IcoCW/>,title:'Rotate 90° CW'},
+              {fn:()=>{setKsCorners(null);autoStraighten();},icon:<_IcoStraighten/>,title:'Auto Straighten'},
+            ].map((b,i)=>(
+              <React.Fragment key={i}>
+                {i>0&&<div style={{width:1,height:16,background:'rgba(255,255,255,0.12)',flexShrink:0}}/>}
+                <button onClick={b.fn} title={b.title}
+                  style={{background:'transparent',border:'none',cursor:'pointer',width:40,height:34,
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    color:'rgba(255,255,255,0.5)',borderRadius:100,transition:'color .15s,background .15s'}}
+                  onMouseEnter={e=>{e.currentTarget.style.color='#fff';e.currentTarget.style.background='rgba(255,255,255,0.08)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.5)';e.currentTarget.style.background='transparent';}}>
+                  {b.icon}
+                </button>
+              </React.Fragment>
+            ))}
+
+            <div style={{width:1,height:16,background:'rgba(255,255,255,0.12)',flexShrink:0}}/>
+
+            {/* Keystone */}
+            <button title={ksCorners?'Apply Keystone':'Manual Keystone'}
+              onClick={ksCorners?applyKS:startKS}
+              style={{background:ksCorners?'rgb(0,116,240)':'transparent',border:'none',cursor:'pointer',
+                width:40,height:34,display:'flex',alignItems:'center',justifyContent:'center',
+                color:ksCorners?'#fff':'rgba(255,255,255,0.5)',borderRadius:100,transition:'color .15s,background .15s'}}
+              onMouseEnter={e=>{if(!ksCorners){e.currentTarget.style.color='#fff';e.currentTarget.style.background='rgba(255,255,255,0.08)';}}}
+              onMouseLeave={e=>{if(!ksCorners){e.currentTarget.style.color='rgba(255,255,255,0.5)';e.currentTarget.style.background='transparent';}}}
+            ><_IcoKeystone/></button>
+
+            <div style={{width:1,height:16,background:'rgba(255,255,255,0.12)',flexShrink:0}}/>
+
+            {/* Reset */}
+            <button onClick={handleReset} title="Reset"
+              style={{background:'transparent',border:'none',cursor:'pointer',height:34,
+                paddingLeft:14,paddingRight:14,display:'flex',alignItems:'center',gap:5,
+                color:'rgba(255,255,255,0.5)',borderRadius:100,fontSize:13,fontWeight:600,
+                fontFamily:"'DM Sans',sans-serif",transition:'color .15s,background .15s'}}
+              onMouseEnter={e=>{e.currentTarget.style.color='#fff';e.currentTarget.style.background='rgba(255,255,255,0.08)';}}
+              onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.5)';e.currentTarget.style.background='transparent';}}>
+              <_IcoReset/> Reset
+            </button>
+          </div>
+
+          {/* Apply / Crop — same height as pill */}
+          <button onClick={handleCommit}
+            style={{height:34,paddingLeft:20,paddingRight:20,borderRadius:100,border:'none',
+              background:cropActive?'rgb(34,197,94)':'rgb(0,116,240)',
+              cursor:'pointer',fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif",
+              color:'#fff',boxShadow:cropActive?'0 4px 16px rgba(34,197,94,0.4)':'0 4px 16px rgba(0,116,240,0.4)',
+              transition:'background .15s',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}
+            onMouseEnter={e=>e.currentTarget.style.background=cropActive?'rgb(22,163,74)':'rgb(0,100,220)'}
+            onMouseLeave={e=>e.currentTarget.style.background=cropActive?'rgb(34,197,94)':'rgb(0,116,240)'}>
+            {cropActive?<>Apply</>:<><_IcoCropIcon/> Crop</>}
+          </button>
+
         </div>
       </div>
     </div>,
