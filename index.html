@@ -13403,7 +13403,7 @@ function InfoPill({label,open,onToggle,children}){
           background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.13)',
           transition:'background .15s,border-color .15s'}}>
         <span style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,color:'#fff',
-          fontFamily:"'DM Sans',sans-serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+          fontFamily:"'DM Sans',sans-serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>
           {label}
         </span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)"
@@ -13513,7 +13513,8 @@ function InfoDropdownList({items,filterEnabled}){
           return(
             <div key={item.id}
               ref={el=>rowRefs.current[i]=el}
-              onMouseEnter={()=>onEnter(i)}
+              onMouseEnter={e=>{onEnter(i);e.currentTarget.style.color='#fff';}}
+              onMouseLeave={e=>{e.currentTarget.style.color=item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)';}}
               onClick={item.onSelect}
               style={{position:'relative',zIndex:1,padding:'7px 12px',fontSize:12,
                 color:item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)',
@@ -13523,7 +13524,7 @@ function InfoDropdownList({items,filterEnabled}){
                 background:item.isCurrent?'rgb(0,116,240)':'transparent',
                 border:item.isCurrent?'none':'1.5px solid rgba(255,255,255,0.15)',
                 transition:'background .15s'}}/>
-              {item.label}
+              <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>{item.label}</span>
             </div>
           );
         })}
@@ -13886,7 +13887,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
             )}
           </div>
 
-          <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
+          <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:0}}/>
 
           {/* Lesson row */}
           {(lessonN||lessonTitle)&&(
@@ -13961,10 +13962,10 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
             </div>
           )}
 
-          {photo.date&&isDoc&&(<><div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/><div style={{padding:'10px 12px',fontSize:'clamp(11px,1.2vh,13px)',color:'rgba(255,255,255,0.45)',fontFamily:F}}>{photo.date}</div></>)}
+          {photo.date&&isDoc&&(<><div style={{height:1,background:'rgba(255,255,255,0.15)',margin:0}}/><div style={{padding:'10px 12px',fontSize:'clamp(11px,1.2vh,13px)',color:'rgba(255,255,255,0.45)',fontFamily:F}}>{photo.date}</div></>)}
           {lessonKws.length>0&&(
             <>
-              <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
+              <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:0}}/>
               <div style={{padding:'12px 12px 10px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                 {lessonKws.map(k=><span key={k} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:100,padding:'3px 10px',fontFamily:F}}>{k}</span>)}
               </div>
@@ -13972,7 +13973,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           )}
           {(photo.artTags||[]).length>0&&(
             <>
-              <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
+              <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:0}}/>
               <div style={{padding:'12px 12px 12px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                 {(photo.artTags||[]).map(t=><span key={t} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:100,padding:'3px 10px',fontFamily:F}}>{t}</span>)}
               </div>
