@@ -13837,18 +13837,22 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
                     onToggle={()=>setReassignField(reassignField==='student'?null:'student')}>
                     <InfoDropdownList
                       filterEnabled={true}
-                      items={G4_SECTIONS.flatMap(sec=>sec.students.map((name,idx)=>({
-                        id:sec.id+'-'+idx,
-                        label:name+' \u00b7 '+sec.name,
-                        isCurrent:name===photo.studentName&&sec.id===photo.sectionId,
-                        onSelect:async()=>{
-                          if(reassignSaving) return;
-                          setReassignSaving(true);
-                          await onPhotoReassign(photo,{newStudentIdx:idx,newSectionId:sec.id});
-                          setReassignSaving(false);
-                          setReassignField(null);
-                        }
-                      })))}
+                      items={G4_SECTIONS.flatMap((sec,si)=>[
+                        ...(si>0?[{id:'__div_'+sec.id,isDivider:true,label:'',isCurrent:false,onSelect:()=>{}}]:[]),
+                        {id:'__h_'+sec.id,label:sec.name,isHeader:true,isCurrent:false,onSelect:()=>{}},
+                        ...sec.students.map((name,idx)=>({
+                          id:sec.id+'-'+idx,
+                          label:name,
+                          isCurrent:name===photo.studentName&&sec.id===photo.sectionId,
+                          onSelect:async()=>{
+                            if(reassignSaving) return;
+                            setReassignSaving(true);
+                            await onPhotoReassign(photo,{newStudentIdx:idx,newSectionId:sec.id});
+                            setReassignSaving(false);
+                            setReassignField(null);
+                          }
+                        }))
+                      ])}
                     />
                   </InfoPill>
                 )}
