@@ -5206,7 +5206,7 @@ function SessionCard({s,color,phaseId,progress,toggle,classView,openSession,setO
           {!classView&&(
             <button
               onClick={e=>{e.stopPropagation();generateSessionPDF(s,color);}}
-              title="Download session as PDF"
+              title="Download lesson as PDF"
               style={{
                 background:'var(--glass-bg)',border:'1px solid var(--glass-border)',
                 borderRadius:8,color:'var(--tx3)',fontFamily:"'DM Sans',sans-serif",
@@ -5250,7 +5250,7 @@ function SessionCard({s,color,phaseId,progress,toggle,classView,openSession,setO
                   <div className="recap-tx">{s.recap}</div>
                 </div>
               )}
-              <div className="pl">About this session</div>
+              <div className="pl">About this lesson</div>
               <div className="pt">{s.overview}</div>
               <div className="pgrid">
                 <div className="pbox">
@@ -5582,7 +5582,7 @@ function AnnualPlan({onPhase,getPhaseProgress,totalDone,totalSessions,isVisitor}
         <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:10,padding:'10px 14px',display:'flex',alignItems:'center',gap:12}}>
           <span style={{fontSize:'9px',fontWeight:700,letterSpacing:'.12em',textTransform:'uppercase',color:'var(--tx3)',whiteSpace:'nowrap'}}>Info</span>
           <span style={{fontSize:'12px',fontWeight:700,color:'var(--tx2)'}}>🏫 Grade 4</span>
-          <span style={{fontSize:'11px',color:'var(--tx3)'}}>16 Sessions · Apr–Sep</span>
+          <span style={{fontSize:'11px',color:'var(--tx3)'}}>16 Lessons · Apr–Sep</span>
         </div>
       </div>
 
@@ -6093,7 +6093,7 @@ function generateSessionPDF(s,phaseColor){
   // Null-guard all session fields so a missing field never crashes the PDF
   const safe={
     n:s.n||'',
-    title:s.title||'Untitled Session',
+    title:s.title||'Untitled Lesson',
     objective:s.objective||'',
     overview:s.overview||'',
     dur:s.dur||'',
@@ -9422,7 +9422,7 @@ function LinkPickerModal({dateLabel,phases,currentLinked,onLink,onClose}){
           <div className="obs-popup-name">🔗 Link "{dateLabel}"</div>
           <button className="obs-popup-close" onClick={onClose}>Close</button>
         </div>
-        <div style={{fontSize:11,color:'var(--tx3)',marginBottom:4}}>Select a session to link:</div>
+        <div style={{fontSize:11,color:'var(--tx3)',marginBottom:4}}>Select a lesson to link:</div>
         <div className="link-session-list">
           {currentLinked&&<div className="link-session-item unlink" onClick={()=>{onLink(null);onClose();}}>✕ Remove link</div>}
           {allSessions.map((s,i)=>(
@@ -9442,13 +9442,13 @@ function DeleteSessionTab({onDelete,date}){
   const [open,setOpen]=React.useState(false);
   if(!open) return(
     <button className="roster-btn" style={{marginTop:4,width:'100%',justifyContent:'center',color:'var(--coral)',borderColor:'rgba(232,112,90,0.3)'}} onClick={()=>setOpen(true)}>
-      🗑 Delete this session column
+      🗑 Delete this lesson column
     </button>
   );
   return(
     <div style={{marginTop:4,background:'rgba(232,112,90,0.08)',border:'1px solid rgba(232,112,90,0.3)',borderRadius:10,padding:'12px 14px'}}>
       <div style={{fontSize:12,fontWeight:700,color:'var(--coral)',marginBottom:6}}>Delete "{date}"?</div>
-      <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10}}>This removes the session column and all its attendance data. Type <strong>DELETE</strong> to confirm.</div>
+      <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10}}>This removes the lesson column and all its attendance data. Type <strong>DELETE</strong> to confirm.</div>
       <input style={{width:'100%',boxSizing:'border-box',background:'var(--glass-bg2)',border:'1px solid rgba(232,112,90,0.4)',borderRadius:6,padding:'6px 10px',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",fontSize:12,marginBottom:8,outline:'none'}}
         value={typed} onChange={e=>setTyped(e.target.value)} placeholder="Type DELETE"/>
       <div style={{display:'flex',gap:8}}>
@@ -9463,12 +9463,12 @@ function DeleteSessionTab({onDelete,date}){
 function SlideSessionContent({slideSession,phases,onOpenFull,onDelete}){
   const ph=phases.find(p=>p.id===slideSession.phaseId);
   const sess=ph&&ph.sessions.find(s=>s.n===slideSession.sessionN);
-  if(!ph||!sess) return <div style={{padding:20,color:'var(--tx3)',fontSize:13}}>Session content not found.</div>;
+  if(!ph||!sess) return <div style={{padding:20,color:'var(--tx3)',fontSize:13}}>Lesson content not found.</div>;
   const pm=PM[ph.color];
   return(
     <div style={{padding:'16px 20px'}}>
       <div style={{fontSize:9,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:pm.l,marginBottom:5}}>{ph.name} · Phase {ph.id.replace('p','')}</div>
-      <div style={{fontSize:17,fontWeight:800,color:'var(--tx)',marginBottom:3}}>Session {sess.n}: {sess.title}</div>
+      <div style={{fontSize:17,fontWeight:800,color:'var(--tx)',marginBottom:3}}>Lesson {sess.n}: {sess.title}</div>
       {sess.objective&&<div style={{fontSize:12,color:'var(--tx2)',marginBottom:12,fontStyle:'italic',lineHeight:1.5}}>{sess.objective}</div>}
       {sess.bridge&&<div style={{fontSize:11,color:'var(--tx3)',marginBottom:12,padding:'8px 12px',background:'var(--glass-bg)',borderRadius:8,borderLeft:'3px solid '+pm.l}}>{sess.bridge}</div>}
       {sess.activity&&sess.activity.length>0&&(
@@ -9494,7 +9494,7 @@ function SlideSessionContent({slideSession,phases,onOpenFull,onDelete}){
       {sess.mats&&sess.mats.length>0&&<div style={{marginBottom:12,fontSize:12,color:'var(--tx3)'}}>🎨 {Array.isArray(sess.mats)?sess.mats.join(', '):sess.mats}</div>}
       {sess.hw&&<div style={{marginBottom:12,fontSize:12,color:'var(--yellow)'}}>📚 {sess.hw}</div>}
       <button className="roster-btn" style={{marginTop:8,width:'100%',justifyContent:'center'}} onClick={onOpenFull}>
-        → Open full session view
+        → Open full lesson view
       </button>
 
     </div>
@@ -10005,7 +10005,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                             {sess.date}
                             
                             
-                            {sess.sessType==='manual'&&<sup title={[sess.manualTitle,sess.manualActivity].filter(Boolean).join(' · ')||'Extra session — click to add details'} style={{fontSize:7,color:'var(--teal)',fontWeight:700,verticalAlign:'super',lineHeight:0,marginLeft:1,cursor:'pointer'}}>●</sup>}
+                            {sess.sessType==='manual'&&<sup title={[sess.manualTitle,sess.manualActivity].filter(Boolean).join(' · ')||'Extra lesson — click to add details'} style={{fontSize:7,color:'var(--teal)',fontWeight:700,verticalAlign:'super',lineHeight:0,marginLeft:1,cursor:'pointer'}}>●</sup>}
                             {sess.sessType!=='manual'&&sess.linkedSession&&sess.linkedSession.isCustom&&<sup title={'Custom lesson: '+sess.linkedSession.label} style={{fontSize:7,color:'var(--teal)',fontWeight:700,verticalAlign:'super',lineHeight:0,marginLeft:1,cursor:'pointer'}}>●</sup>}
                           </span>
                         )}
@@ -10220,7 +10220,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
           {teacherMode&&<span>Circle = observations (click to open)</span>}
         </div>
 
-        {/* Class Session Log — teacher only, at bottom */}
+        {/* Class Lesson Log — teacher only, at bottom */}
         {teacherMode&&(
           <div style={{marginTop:24,background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:14,padding:'14px 16px'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:classLogOpen?12:0,cursor:'pointer'}} onClick={()=>setClassLogOpen(v=>!v)}>
@@ -10403,7 +10403,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
               </div>
               {!manualEditMode&&(
                 <button className="slide-panel-close"
-                  title="Edit this session"
+                  title="Edit this lesson"
                   onClick={()=>{
                     setManualDraftTitle(data.sessions[manualSlideIdx].manualTitle||'');
                     setManualDraftActivity(data.sessions[manualSlideIdx].manualActivityHtml||data.sessions[manualSlideIdx].manualActivity||'');
@@ -10433,13 +10433,13 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
             </div>
             <div className="slide-panel-body" style={{overflowY:'auto'}}>
               <div style={{padding:'16px 20px'}}>
-                <div style={{fontSize:9,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--teal)',marginBottom:8}}>Your session</div>
+                <div style={{fontSize:9,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--teal)',marginBottom:8}}>Your lesson</div>
 
                 {/* Title — read or edit */}
                 {manualEditMode?(
                   <input value={manualDraftTitle}
                     onChange={e=>setManualDraftTitle(e.target.value)}
-                    placeholder="Session title, e.g. Field trip, Art show prep…"
+                    placeholder="Lesson title, e.g. Field trip, Art show prep…"
                     style={{width:'100%',fontSize:17,fontWeight:800,color:'var(--tx)',
                       background:'var(--glass-bg)',border:'1px solid var(--glass-border2)',
                       borderRadius:7,outline:'none',fontFamily:"'DM Sans',sans-serif",
