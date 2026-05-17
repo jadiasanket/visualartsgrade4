@@ -13308,6 +13308,15 @@ function GalleryView({isVisitor}){
   const [bulkEditSection,setBulkEditSection]=React.useState('');
   const [bulkEditSaving,setBulkEditSaving]=React.useState(false);
   const [confirmDelete,setConfirmDelete]=React.useState(false);
+  const [filterSection,setFilterSection]=React.useState('all');
+  const [filterLesson,setFilterLesson]=React.useState(null);
+  const [filterTag,setFilterTag]=React.useState(null);
+  const [showFilter,setShowFilter]=React.useState(false);
+  const [showUpload,setShowUpload]=React.useState(false);
+  const [lightbox,setLightbox]=React.useState(null);
+  const [studentPopup,setStudentPopup]=React.useState(null);
+  const [editedUrls,setEditedUrls]=React.useState({}); // {originalUrl: editedUrl}
+  const {teacherMode}=React.useContext(KWContext);
 
   function photoKey(p){return`${p.sectionId}-${p.studentIdx}-${p.photoIdx}`;}
   function toggleSelect(p){
@@ -13369,15 +13378,6 @@ function GalleryView({isVisitor}){
     }
     setBulkEditSaving(false);setConfirmDelete(false);setSelectedPhotos(new Set());
   }
-  const [filterSection,setFilterSection]=React.useState('all');
-  const [filterLesson,setFilterLesson]=React.useState(null);
-  const [filterTag,setFilterTag]=React.useState(null);
-  const [showFilter,setShowFilter]=React.useState(false);
-  const [showUpload,setShowUpload]=React.useState(false);
-  const [lightbox,setLightbox]=React.useState(null);
-  const [studentPopup,setStudentPopup]=React.useState(null);
-  const [editedUrls,setEditedUrls]=React.useState({}); // {originalUrl: editedUrl}
-  const {teacherMode}=React.useContext(KWContext);
 
   async function handlePhotoEdit(editedUrl,photo){
     // editedUrl is a blob URL or data URL from crop/filter apply
