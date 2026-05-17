@@ -13767,7 +13767,8 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   },[infoVisible]);
 
   function startInfoDrag(e){
-    e.preventDefault();e.stopPropagation();
+    if(e.target.closest('[data-scrollable],button,input')) return;
+    e.stopPropagation();
     const panel=infoPanelRef.current;if(!panel) return;
     const rect=panel.getBoundingClientRect();
     const sx=e.clientX,sy=e.clientY,sl=rect.left,st=rect.top;
