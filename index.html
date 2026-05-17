@@ -12734,50 +12734,51 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange}){
     btn('#ep-flipH',    ()=>{flipXRef.current*=-1;saveHist();applyTransformImg();});
     btn('#ep-flipV',    ()=>{flipYRef.current*=-1;saveHist();applyTransformImg();});
     btn('#ep-straighten',()=>{
-      // Auto adjustment: sample image pixels, compute mean brightness/contrast/warmth, set sliders
       const el=imgRef&&imgRef.current;
-      if(!el){return;}
-      const SIZE=80; // sample at tiny res — fast, CORS-safe attempt
-      const cv=document.createElement('canvas');cv.width=SIZE;cv.height=SIZE;
-      const cx=cv.getContext('2d');
-      let r2=0,g2=0,b2=0,n=0,rms=0;
-      try{
-        cx.drawImage(el,0,0,SIZE,SIZE);
-        const px=cx.getImageData(0,0,SIZE,SIZE).data;
-        for(let i=0;i<px.length;i+=4){
-          const rv=px[i],gv=px[i+1],bv=px[i+2];
-          r2+=rv;g2+=gv;b2+=bv;
-          const lum=0.299*rv+0.587*gv+0.114*bv;
-          rms+=lum*lum;n++;
-        }
-        r2/=n;g2/=n;b2/=n;rms=Math.sqrt(rms/n);
-      }catch(e){
-        // CORS blocked — apply sensible defaults
-        r2=128;g2=128;b2=128;rms=100;
-      }
-      const lum=(0.299*r2+0.587*g2+0.114*b2); // 0-255
-      // Brightness: if image is dark, boost; if bright, reduce slightly
-      const bTarget=50+(128-lum)*0.18;
-      // Contrast: low rms = flat image → boost contrast
-      const cTarget=50+(80-rms)*0.12;
-      // Saturation: slightly boost
-      const sTarget=57;
-      // Warmth: if image is blue-ish (b>r) cool it, if warm (r>b) keep
-      const wTarget=50+(r2-b2)*0.06;
-      const vals={
-        brightness:Math.round(Math.min(85,Math.max(20,bTarget))),
-        contrast:Math.round(Math.min(75,Math.max(35,cTarget))),
-        saturation:sTarget,
-        sharpness:54,
-        warmth:Math.round(Math.min(65,Math.max(38,wTarget))),
+      if(!el) return;
+      const SIZE=80;
+      const applyVals=(r2,g2,b2,rms)=>{
+        const lum=0.299*r2+0.587*g2+0.114*b2;
+        const bTarget=50+(128-lum)*0.18;
+        const cTarget=50+(80-rms)*0.12;
+        const wTarget=50+(r2-b2)*0.06;
+        const vals={
+          brightness:Math.round(Math.min(85,Math.max(20,bTarget))),
+          contrast:Math.round(Math.min(75,Math.max(35,cTarget))),
+          saturation:57,sharpness:54,
+          warmth:Math.round(Math.min(65,Math.max(38,wTarget))),
+        };
+        Object.assign(filtersRef.current,vals);
+        Object.keys(vals).forEach(k=>{
+          const f=p.querySelector('#ep-fill-'+k),kn=p.querySelector('#ep-knob-'+k);
+          const v=filtersRef.current[k];
+          if(f)f.style.width=v+'%';if(kn)kn.style.left=v+'%';
+        });
+        applyFilters();
       };
-      Object.assign(filtersRef.current,vals);
-      Object.keys(vals).forEach(k=>{
-        const f=p.querySelector('#ep-fill-'+k),kn=p.querySelector('#ep-knob-'+k);
-        const v=filtersRef.current[k];
-        if(f)f.style.width=v+'%';if(kn)kn.style.left=v+'%';
-      });
-      applyFilters();
+      const analyse=(src)=>{
+        const SIZE=80;const cv=document.createElement('canvas');cv.width=SIZE;cv.height=SIZE;
+        const cx=cv.getContext('2d');
+        try{
+          cx.drawImage(src,0,0,SIZE,SIZE);
+          const px=cx.getImageData(0,0,SIZE,SIZE).data;
+          let r2=0,g2=0,b2=0,n=0,rms=0;
+          for(let i=0;i<px.length;i+=4){
+            const rv=px[i],gv=px[i+1],bv=px[i+2];
+            r2+=rv;g2+=gv;b2+=bv;
+            rms+=(0.299*rv+0.587*gv+0.114*bv)**2;n++;
+          }
+          applyVals(r2/n,g2/n,b2/n,Math.sqrt(rms/n));
+        }catch(e){applyVals(128,128,128,100);}
+      };
+      if(el.complete&&el.naturalWidth>0){
+        analyse(el);
+      } else {
+        const fresh=new Image();fresh.crossOrigin='anonymous';
+        fresh.onload=()=>analyse(fresh);
+        fresh.onerror=()=>applyVals(128,128,128,100);
+        fresh.src=el.src;
+      }
     });
     btn('#ep-undo',()=>{if(histIdxRef.current<=0)return;histIdxRef.current--;const h=histRef.current[histIdxRef.current];rotRef.current=h.rotation;flipXRef.current=h.flipX;flipYRef.current=h.flipY;updateUndoBtns();applyTransformImg();});
     btn('#ep-redo',()=>{if(histIdxRef.current>=histRef.current.length-1)return;histIdxRef.current++;const h=histRef.current[histIdxRef.current];rotRef.current=h.rotation;flipXRef.current=h.flipX;flipYRef.current=h.flipY;updateUndoBtns();applyTransformImg();});
