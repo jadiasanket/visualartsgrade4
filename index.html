@@ -13017,7 +13017,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const isDoc=(photo.type||'artwork')==='documentation';
   const rawLesson=photo.lessons&&photo.lessons[0];
   const lessonTitle=resolveLessonLabel(rawLesson);
-  const lessonOverview=React.useMemo(()=>{
+  const lessonSession=React.useMemo(()=>{
     const raw=photo.lessons&&photo.lessons[0];
     if(raw===null||raw===undefined) return null;
     const str=String(raw).trim();
@@ -13026,11 +13026,13 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
     if(key.includes(':')&&!key.startsWith('custom:')){
       const [phaseId,sessN]=key.split(':');
       const ph=PHASES.find(p=>p.id===phaseId);
-      const sess=ph&&ph.sessions.find(s=>String(s.n)===sessN);
-      return sess?sess.overview:null;
+      return (ph&&ph.sessions.find(s=>String(s.n)===sessN))||null;
     }
     return null;
   },[photo.lessons]);
+  const lessonOverview=lessonSession?lessonSession.overview:null;
+  const lessonKws=lessonSession?lessonSession.kws||[]:[];
+  const lessonN=lessonSession?lessonSession.n:null;
 
   function applyTransform(){
     if(!imgRef.current) return;
@@ -13349,7 +13351,33 @@ function GalleryView({isVisitor}){
   const [showUpload,setShowUpload]=React.useState(false);
   const [lightbox,setLightbox]=React.useState(null);
   const [studentPopup,setStudentPopup]=React.useState(null);
+  const [editedUrls,setEditedUrls]=React.useState({}); // {originalUrl: editedUrl}
   const {teacherMode}=React.useContext(KWContext);
+
+  async function handlePhotoEdit(editedUrl,photo){
+    // editedUrl is a blob URL or data URL from crop/filter apply
+    setEditedUrls(prev=>({...prev,[photo.url]:editedUrl}));
+    if(!photo.sectionId||photo.studentIdx===undefined||photo.photoIdx===undefined) return;
+    try{
+      // Fetch the blob from the object URL and upload to Firebase
+      const res=await fetch(editedUrl);
+      const blob=await res.blob();
+      const ts=Date.now();
+      const ref=window._storage.ref(`portfolio/${photo.sectionId}/${photo.studentIdx}/edited_${ts}.jpg`);
+      await ref.put(blob,{contentType:'image/jpeg'});
+      const url=await ref.getDownloadURL();
+      // Write back to Firestore
+      const snap=await window._db.collection('sections').doc('shared-'+photo.sectionId).get();
+      if(!snap.exists) return;
+      const d=snap.data();
+      if(d.students[photo.studentIdx]&&d.students[photo.studentIdx].portfolio&&d.students[photo.studentIdx].portfolio[photo.photoIdx]){
+        d.students[photo.studentIdx].portfolio[photo.photoIdx].url=url;
+        await window._db.collection('sections').doc('shared-'+photo.sectionId).set(d);
+      }
+      // Update editedUrls with the permanent URL
+      setEditedUrls(prev=>({...prev,[photo.url]:url}));
+    }catch(e){console.error('Edit save failed',e);}
+  }
   const allLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color})));
   const artworkTags=getArtworkTags();
   const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
@@ -13801,6 +13829,8 @@ function GalleryView({isVisitor}){
         teacherMode={teacherMode}
         setStudentPopup={setStudentPopup}
         zIndex={4000}
+        onPhotoEdit={handlePhotoEdit}
+        editedUrls={editedUrls}
       />}
             {/* Student popup — click student name in lightbox */}
       {studentPopup&&(
