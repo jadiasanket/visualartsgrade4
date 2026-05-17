@@ -13889,7 +13889,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
 
           {/* Lesson row */}
           {(lessonN||lessonTitle)&&(
-            <div style={{padding:'12px 12px',overflow:'visible'}}>
+            <div style={{padding:'8px 12px 8px',overflow:'visible'}}>
               {!isDoc&&(
                 <>
                   {/* Read mode: click opens lesson overlay */}
@@ -13964,7 +13964,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           {lessonKws.length>0&&(
             <>
               <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
-              <div style={{padding:'10px 12px 12px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+              <div style={{padding:'8px 12px 10px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                 {lessonKws.map(k=><span key={k} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:100,padding:'3px 10px',fontFamily:F}}>{k}</span>)}
               </div>
             </>
