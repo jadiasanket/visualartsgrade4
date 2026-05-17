@@ -13792,7 +13792,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
 
           {/* Header: name + section dot + edit/tick button */}
-          <div style={{padding:'12px 12px 12px',cursor:'grab',position:'relative'}} onMouseDown={startInfoDrag}>
+          <div style={{padding:'12px 12px '+(infoEditMode?'4px':'12px'),cursor:'grab',position:'relative'}} onMouseDown={startInfoDrag}>
 
             {/* Pencil / green tick button — teacher only */}
             {teacherMode&&onPhotoReassign&&(
