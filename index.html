@@ -12112,7 +12112,7 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
             }}>
             <span ref={el=>iconRefs.current[i]=el}
               style={{display:'flex',alignItems:'center',justifyContent:'center',
-                width:20,height:20,
+                width:b.wide?'auto':20,height:20,
                 color:(b.ks&&ksActive)?'rgba(255,255,255,1)':'rgba(255,255,255,0.5)',
                 willChange:'color',transition:'none'}}>
               {b.icon}
