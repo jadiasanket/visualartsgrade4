@@ -13393,6 +13393,96 @@ function resolveLessonLabel(raw){
 }
 
 
+// ── InfoDropdown — spring-physics highlight, used in info panel ───────────────
+function InfoDropdown({items,panelRef}){
+  const containerRef=React.useRef(null);
+  const bubbleRef=React.useRef(null);
+  const rowRefs=React.useRef([]);
+  const sp=React.useRef({y:0,h:0,ty:0,th:0,vy:0,vh:0,opacity:0,to:0});
+  const rafRef=React.useRef(null);
+  const S=520,D=26;
+
+  function getRowRect(i){
+    const row=rowRefs.current[i];
+    const wrap=containerRef.current;
+    if(!row||!wrap) return null;
+    const wr=wrap.getBoundingClientRect();
+    const rr=row.getBoundingClientRect();
+    return{y:rr.top-wr.top,h:rr.height};
+  }
+
+  function tick(){
+    const s=sp.current;
+    const dt=0.016,STEPS=4,ddt=dt/STEPS;
+    for(let i=0;i<STEPS;i++){
+      s.vy+=(-S*(s.y-s.ty)-D*s.vy)*ddt;
+      s.vh+=(-S*(s.h-s.th)-D*s.vh)*ddt;
+      s.y+=s.vy*ddt; s.h+=s.vh*ddt;
+    }
+    s.opacity+=(s.to-s.opacity)*0.18;
+    const b=bubbleRef.current;
+    if(b){
+      b.style.top=s.y+'px';
+      b.style.height=s.h+'px';
+      b.style.opacity=s.opacity;
+    }
+    const done=Math.abs(s.vy)<0.3&&Math.abs(s.vh)<0.3&&
+      Math.abs(s.y-s.ty)<0.3&&Math.abs(s.h-s.th)<0.3&&
+      Math.abs(s.opacity-s.to)<0.002;
+    if(!done) rafRef.current=requestAnimationFrame(tick);
+    else rafRef.current=null;
+  }
+
+  function startTick(){if(!rafRef.current) rafRef.current=requestAnimationFrame(tick);}
+
+  function onEnter(i){
+    const r=getRowRect(i); if(!r) return;
+    const s=sp.current;
+    if(s.to===0){s.y=r.y;s.h=r.h;}
+    s.ty=r.y; s.th=r.h; s.to=1;
+    startTick();
+  }
+  function onLeave(){
+    sp.current.to=0; startTick();
+  }
+
+  // Width: panel width minus 6px each side
+  const panelW=panelRef&&panelRef.current?panelRef.current.offsetWidth:260;
+  const dropW=panelW-12;
+
+  return(
+    <div ref={containerRef} style={{position:'absolute',top:'100%',left:-16,zIndex:200,marginTop:3,
+      width:dropW,maxHeight:280,overflowY:'auto',scrollbarWidth:'none',
+      background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.18)',
+      borderRadius:10,boxShadow:'0 8px 32px rgba(0,0,0,0.65)'}}
+      onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
+      onMouseLeave={onLeave}>
+      {/* Spring bubble */}
+      <div ref={bubbleRef} style={{position:'absolute',left:3,right:3,borderRadius:6,
+        background:'rgba(255,255,255,0.09)',pointerEvents:'none',zIndex:0,opacity:0,
+        willChange:'top,height,opacity'}}/>
+      {items.map((item,i)=>{
+        if(item.isDivider) return(
+          <div key={item.id} style={{height:1,background:'rgba(255,255,255,0.12)',margin:'4px 0'}}/>
+        );
+        return(
+          <div key={item.id}
+            ref={el=>rowRefs.current[i]=el}
+            onMouseEnter={()=>onEnter(i)}
+            onClick={item.onSelect}
+            style={{position:'relative',zIndex:1,padding:'7px 12px',fontSize:12,
+              color:item.isCurrent?'#fff':'rgba(255,255,255,0.7)',
+              fontFamily:"'DM Sans',sans-serif",cursor:'pointer',
+              display:'flex',alignItems:'center',gap:8,userSelect:'none'}}>
+            {item.label}
+            {item.isCurrent&&<span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.35)',whiteSpace:'nowrap'}}>current</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── PhotoLightbox ────────────────────────────────────────────────────────────
 function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,onPhotoEdit,onPhotoReassign,editedUrls}){
   if(!photo) return null;
@@ -13638,160 +13728,145 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
       {activeControl==='info'&&infoVisible&&(
         <div className="lb-glass-panel" ref={infoPanelRef} style={{...infoPanelStyle,zIndex:20,width:'clamp(220px,20vw,280px)',background:panelBg,backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:15,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 12px 40px rgba(0,0,0,0.65)',animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards'}}
           onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-          <div style={{padding:'14px 16px 12px',cursor:'grab'}} onMouseDown={startInfoDrag}>
+
+          {/* Header row: student/doc title + edit pencil button */}
+          <div style={{padding:'14px 16px 12px',cursor:'grab',position:'relative'}} onMouseDown={startInfoDrag}>
+            {/* Edit pencil — teacher only */}
+            {teacherMode&&onPhotoReassign&&(
+              <button
+                onClick={e=>{e.stopPropagation();setReassignField(reassignField?null:(isDoc?'section':'student'));}}
+                style={{position:'absolute',top:12,right:12,width:24,height:24,borderRadius:'50%',
+                  border:'1px solid rgba(255,255,255,'+(reassignField?'0.35':'0.15')+')',
+                  background:reassignField?'rgba(255,255,255,0.12)':'transparent',
+                  color:'rgba(255,255,255,'+(reassignField?'0.9':'0.4')+')',
+                  cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+                  fontSize:11,transition:'all .15s',flexShrink:0}}>
+                ✎
+              </button>
+            )}
+
             {!isDoc&&(
               <>
-                {/* Student name — tappable in teacher mode */}
-                <div style={{position:'relative'}}>
-                  <div
-                    onClick={teacherMode&&onPhotoReassign?()=>setReassignField(reassignField==='student'?null:'student'):undefined}
-                    style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2,
-                      cursor:teacherMode&&onPhotoReassign?'pointer':'default',
-                      borderBottom:teacherMode&&onPhotoReassign?'1px dashed rgba(255,255,255,0.25)':'none',
-                      display:'inline-block',paddingBottom:1}}>
-                    {photo.studentName||'—'}
-                    {teacherMode&&onPhotoReassign&&<span style={{fontSize:9,marginLeft:5,opacity:0.5}}>✎</span>}
-                  </div>
-                  {reassignField==='student'&&teacherMode&&onPhotoReassign&&(
-                    <div style={{position:'absolute',top:'100%',left:0,zIndex:100,marginTop:4,
-                      background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:10,
-                      boxShadow:'0 8px 32px rgba(0,0,0,0.6)',minWidth:200,maxHeight:220,overflowY:'auto',scrollbarWidth:'none'}}
-                      onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-                      {G4_SECTIONS.flatMap(sec=>
-                        (sec.students||[]).map((name,idx)=>({name,idx,sec}))
-                      ).map(({name,idx,sec})=>(
-                        <div key={sec.id+'-'+idx}
-                          onClick={async()=>{
-                            if(reassignSaving) return;
-                            setReassignSaving(true);
-                            await onPhotoReassign(photo,{newStudentIdx:idx,newSectionId:sec.id});
-                            setReassignSaving(false);
-                            setReassignField(null);
-                          }}
-                          style={{padding:'7px 14px',fontSize:12,color:name===photo.studentName?'#fff':'rgba(255,255,255,0.7)',
-                            fontFamily:F,cursor:'pointer',background:name===photo.studentName?'rgba(255,255,255,0.08)':'transparent',
-                            borderBottom:'1px solid rgba(255,255,255,0.05)',display:'flex',alignItems:'center',gap:8}}>
-                          <span style={{fontSize:9,color:'rgba(255,255,255,0.35)'}}>{sec.name}</span>
-                          {name}
-                          {name===photo.studentName&&<span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.4)'}}>current</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2,paddingRight:teacherMode&&onPhotoReassign?28:0}}>
+                  {photo.studentName||'—'}
                 </div>
                 <div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.42)',fontFamily:F,display:'flex',alignItems:'center',gap:5}}>
                   <SectionDot sectionId={photo.sectionId} size={5}/>{photo.sectionName||''}
                 </div>
+                {/* Student dropdown — only when edit active */}
+                {reassignField==='student'&&teacherMode&&onPhotoReassign&&(
+                  <InfoDropdown
+                    items={(()=>{
+                      const sec=G4_SECTIONS.find(s=>s.id===photo.sectionId);
+                      return (sec?sec.students:[]).map((name,idx)=>({
+                        id:sec.id+'-'+idx, label:name, sub:null,
+                        isCurrent:name===photo.studentName,
+                        onSelect:async()=>{
+                          if(reassignSaving) return;
+                          setReassignSaving(true);
+                          await onPhotoReassign(photo,{newStudentIdx:idx,newSectionId:sec.id});
+                          setReassignSaving(false);
+                          setReassignField(null);
+                        }
+                      }));
+                    })()}
+                    panelRef={infoPanelRef}
+                  />
+                )}
               </>
             )}
             {isDoc&&(
-              <div style={{position:'relative'}}>
-                {/* Section — tappable in teacher mode for documentation */}
-                <div
-                  onClick={teacherMode&&onPhotoReassign?()=>setReassignField(reassignField==='section'?null:'section'):undefined}
-                  style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',lineHeight:1.3,
-                    cursor:teacherMode&&onPhotoReassign?'pointer':'default',
-                    borderBottom:teacherMode&&onPhotoReassign?'1px dashed rgba(255,255,255,0.25)':'none',
-                    display:'inline-block',paddingBottom:1}}>
+              <>
+                <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',lineHeight:1.3,paddingRight:teacherMode&&onPhotoReassign?28:0}}>
                   {lessonN?('L'+lessonN+': '+lessonSession.title):(lessonTitle||'Documentation')}
-                  {teacherMode&&onPhotoReassign&&<span style={{fontSize:9,marginLeft:5,opacity:0.5}}>✎</span>}
                 </div>
+                {/* Section dropdown for docs — only when edit active */}
                 {reassignField==='section'&&teacherMode&&onPhotoReassign&&(
-                  <div style={{position:'absolute',top:'100%',left:0,zIndex:100,marginTop:4,
-                    background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:10,
-                    boxShadow:'0 8px 32px rgba(0,0,0,0.6)',minWidth:180,overflowY:'auto',scrollbarWidth:'none'}}
-                    onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-                    {G4_SECTIONS.map((sec,secIdx)=>(
-                      <div key={sec.id}
-                        onClick={async()=>{
-                          if(reassignSaving) return;
-                          setReassignSaving(true);
-                          // For documentation, move to first student of new section
-                          await onPhotoReassign(photo,{newSectionId:sec.id,newStudentIdx:0});
-                          setReassignSaving(false);
-                          setReassignField(null);
-                        }}
-                        style={{padding:'7px 14px',fontSize:12,color:sec.id===photo.sectionId?'#fff':'rgba(255,255,255,0.7)',
-                          fontFamily:F,cursor:'pointer',background:sec.id===photo.sectionId?'rgba(255,255,255,0.08)':'transparent',
-                          borderBottom:'1px solid rgba(255,255,255,0.05)',display:'flex',alignItems:'center',gap:8}}>
-                        <SectionDot sectionId={sec.id} size={5}/>{sec.name}
-                        {sec.id===photo.sectionId&&<span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.4)'}}>current</span>}
-                      </div>
-                    ))}
-                  </div>
+                  <InfoDropdown
+                    items={G4_SECTIONS.map(sec=>({
+                      id:sec.id, label:sec.name, sub:null,
+                      isCurrent:sec.id===photo.sectionId,
+                      onSelect:async()=>{
+                        if(reassignSaving) return;
+                        setReassignSaving(true);
+                        await onPhotoReassign(photo,{newSectionId:sec.id,newStudentIdx:0});
+                        setReassignSaving(false);
+                        setReassignField(null);
+                      }
+                    }))}
+                    panelRef={infoPanelRef}
+                  />
                 )}
-              </div>
+              </>
             )}
           </div>
+
           <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 16px'}}/>
+
           {(lessonN||lessonTitle)&&(
-            <div style={{padding:'12px 16px'}}>
+            <div style={{padding:'12px 16px',position:'relative'}}>
               {!isDoc&&(
-                <div style={{position:'relative'}}>
+                <>
                   <div
-                    onClick={teacherMode&&onPhotoReassign?()=>setReassignField(reassignField==='lesson'?null:'lesson'):lessonSession?()=>setLessonOverlayOpen(true):undefined}
+                    onClick={()=>{
+                      if(reassignField==='lesson'){setReassignField(null);return;}
+                      // In edit mode: open lesson dropdown. Otherwise: open lesson overlay
+                      if(reassignField&&teacherMode&&onPhotoReassign){setReassignField('lesson');return;}
+                      if(lessonSession) setLessonOverlayOpen(true);
+                    }}
                     style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,
                       color:lessonSession?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.75)',
                       fontFamily:F,marginBottom:lessonOverview?7:0,lineHeight:1.3,
                       cursor:'pointer',
-                      textDecoration:(!teacherMode||!onPhotoReassign)&&lessonSession?'underline':'none',
-                      textDecorationColor:'rgba(255,255,255,0.25)',textUnderlineOffset:'3px',
-                      borderBottom:teacherMode&&onPhotoReassign?'1px dashed rgba(255,255,255,0.25)':'none',
-                      display:'inline-block',paddingBottom:1}}>
+                      textDecoration:lessonSession&&!reassignField?'underline':'none',
+                      textDecorationColor:'rgba(255,255,255,0.25)',textUnderlineOffset:'3px'}}>
                     {lessonN?('L'+lessonN+': '+lessonSession.title):lessonTitle}
-                    {teacherMode&&onPhotoReassign&&<span style={{fontSize:9,marginLeft:5,opacity:0.5}}>✎</span>}
+                    {reassignField&&teacherMode&&onPhotoReassign&&<span style={{fontSize:9,marginLeft:5,opacity:0.5,textDecoration:'none'}}>▾</span>}
                   </div>
+                  {/* Lesson dropdown — only when edit active */}
                   {reassignField==='lesson'&&teacherMode&&onPhotoReassign&&(
-                    <div style={{position:'absolute',top:'100%',left:0,zIndex:100,marginTop:4,
-                      background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:10,
-                      boxShadow:'0 8px 32px rgba(0,0,0,0.6)',minWidth:220,maxHeight:260,overflowY:'auto',scrollbarWidth:'none'}}
-                      onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-                      <div style={{padding:'6px 14px 4px',fontSize:9,fontWeight:700,letterSpacing:'0.08em',color:'rgba(255,255,255,0.3)',textTransform:'uppercase'}}>Phase Lessons</div>
-                      {PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`,color:ph.color}))).map(opt=>{
-                        const currentKey=(photo.lessons&&photo.lessons[0])||'';
-                        const isCurrent=currentKey===opt.key||currentKey==='L'+opt.key;
-                        return(
-                          <div key={opt.key}
-                            onClick={async()=>{
-                              if(reassignSaving) return;
-                              setReassignSaving(true);
-                              await onPhotoReassign(photo,{newLesson:opt.key});
-                              setReassignSaving(false);
-                              setReassignField(null);
-                            }}
-                            style={{padding:'6px 14px',fontSize:11,color:isCurrent?'#fff':'rgba(255,255,255,0.65)',
-                              fontFamily:F,cursor:'pointer',background:isCurrent?'rgba(255,255,255,0.08)':'transparent',
-                              borderBottom:'1px solid rgba(255,255,255,0.04)',display:'flex',alignItems:'center',gap:6}}>
-                            {opt.label}
-                            {isCurrent&&<span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.4)'}}>current</span>}
-                          </div>
-                        );
-                      })}
-                      {customLessons.length>0&&<div style={{padding:'6px 14px 4px',fontSize:9,fontWeight:700,letterSpacing:'0.08em',color:'rgba(255,255,255,0.3)',textTransform:'uppercase',borderTop:'1px solid rgba(255,255,255,0.08)',marginTop:4}}>My Lessons</div>}
-                      {customLessons.map(cl=>{
-                        const key='custom:'+cl.id;
-                        const isCurrent=(photo.lessons&&photo.lessons[0])===key;
-                        return(
-                          <div key={cl.id}
-                            onClick={async()=>{
+                    <InfoDropdown
+                      items={[
+                        ...PHASES.flatMap(ph=>ph.sessions.map(s=>{
+                          const key=ph.id+':'+s.n;
+                          const currentKey=(photo.lessons&&photo.lessons[0])||'';
+                          return{
+                            id:key,
+                            label:'S'+s.n+': '+s.title,
+                            sub:null,
+                            isCurrent:currentKey===key||currentKey==='L'+key,
+                            onSelect:async()=>{
                               if(reassignSaving) return;
                               setReassignSaving(true);
                               await onPhotoReassign(photo,{newLesson:key});
                               setReassignSaving(false);
                               setReassignField(null);
-                            }}
-                            style={{padding:'6px 14px',fontSize:11,color:isCurrent?'#fff':'rgba(255,255,255,0.65)',
-                              fontFamily:F,cursor:'pointer',background:isCurrent?'rgba(255,255,255,0.08)':'transparent',
-                              display:'flex',alignItems:'center',gap:6}}>
-                            ★ {cl.title||cl.label}
-                            {isCurrent&&<span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.4)'}}>current</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
+                            }
+                          };
+                        })),
+                        ...(customLessons.length>0?[{id:'__divider__',label:'',sub:null,isCurrent:false,isDivider:true,onSelect:()=>{}}]:[]),
+                        ...customLessons.map(cl=>{
+                          const key='custom:'+cl.id;
+                          return{
+                            id:cl.id,
+                            label:'★ '+(cl.title||cl.label),
+                            sub:null,
+                            isCurrent:(photo.lessons&&photo.lessons[0])===key,
+                            onSelect:async()=>{
+                              if(reassignSaving) return;
+                              setReassignSaving(true);
+                              await onPhotoReassign(photo,{newLesson:key});
+                              setReassignSaving(false);
+                              setReassignField(null);
+                            }
+                          };
+                        })
+                      ]}
+                      panelRef={infoPanelRef}
+                    />
                   )}
                   {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
-                </div>
+                </>
               )}
               {isDoc&&lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
             </div>
