@@ -13575,7 +13575,7 @@ function GalleryView({isVisitor}){
             const sel=selectedPhotos.has(k);
             return(
               <div key={i}
-                onClick={()=>{if(galleryEditMode){toggleSelect(p);}else{setLightbox(p);setLbZoom(1);setLbPanX(0);setLbPanY(0);}}}
+                onClick={()=>{if(galleryEditMode){toggleSelect(p);}else{setLightbox(p);}}}
                 style={{borderRadius:12,overflow:'hidden',cursor:'pointer',position:'relative',
                   aspectRatio:'1',
                   outline:sel?'3px solid var(--teal)':'3px solid transparent',outlineOffset:'-3px'}}
