@@ -2037,7 +2037,7 @@ body, [data-theme="dark"] body, [data-theme="light"] body {
   position:absolute;left:0;right:0;bottom:0;
   border-radius:0 0 100px 100px;
   pointer-events:none;
-  background:rgba(255,255,255,0.22);
+  background:rgb(0,116,240);
 }
 .zs-thumb{
   position:absolute;left:50%;transform:translateX(-50%);
@@ -12112,7 +12112,7 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
             }}>
             <span ref={el=>iconRefs.current[i]=el}
               style={{display:'flex',alignItems:'center',justifyContent:'center',
-                width:20,height:20,
+                width:b.wide?'auto':20,height:20,
                 color:(b.ks&&ksActive)?'rgba(255,255,255,1)':'rgba(255,255,255,0.5)',
                 willChange:'color',transition:'none'}}>
               {b.icon}
@@ -12777,14 +12777,17 @@ function CropOverlay({imgSrc,onCommit}){
 
           {/* Apply / Crop */}
           <button onClick={handleCommit}
-            style={{height:38,paddingLeft:22,paddingRight:22,borderRadius:100,border:'none',
+            style={{width:38,height:38,borderRadius:'50%',border:'none',
               background:cropActive?'rgb(34,197,94)':'rgb(0,116,240)',
-              cursor:'pointer',fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif",
+              cursor:'pointer',
               color:'#fff',boxShadow:cropActive?'0 4px 16px rgba(34,197,94,0.4)':'0 4px 16px rgba(0,116,240,0.4)',
-              transition:'background .15s',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}
+              transition:'background .15s',display:'flex',alignItems:'center',justifyContent:'center'}}
             onMouseEnter={e=>e.currentTarget.style.background=cropActive?'rgb(22,163,74)':'rgb(0,100,220)'}
             onMouseLeave={e=>e.currentTarget.style.background=cropActive?'rgb(34,197,94)':'rgb(0,116,240)'}>
-            {cropActive?<>Apply</>:<><_IcoCropIcon/> Crop</>}
+            {cropActive
+              ?<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              :<_IcoCropIcon/>
+            }
           </button>
 
         </div>
@@ -13403,7 +13406,7 @@ function InfoPill({label,open,onToggle,children}){
           background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.13)',
           transition:'background .15s,border-color .15s'}}>
         <span style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,color:'#fff',
-          fontFamily:"'DM Sans',sans-serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>
+          fontFamily:"'DM Sans',sans-serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
           {label}
         </span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)"
@@ -13513,8 +13516,7 @@ function InfoDropdownList({items,filterEnabled}){
           return(
             <div key={item.id}
               ref={el=>rowRefs.current[i]=el}
-              onMouseEnter={e=>{onEnter(i);e.currentTarget.style.color='#fff';}}
-              onMouseLeave={e=>{e.currentTarget.style.color=item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)';}}
+              onMouseEnter={()=>onEnter(i)}
               onClick={item.onSelect}
               style={{position:'relative',zIndex:1,padding:'7px 12px',fontSize:12,
                 color:item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)',
@@ -13524,7 +13526,7 @@ function InfoDropdownList({items,filterEnabled}){
                 background:item.isCurrent?'rgb(0,116,240)':'transparent',
                 border:item.isCurrent?'none':'1.5px solid rgba(255,255,255,0.15)',
                 transition:'background .15s'}}/>
-              <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>{item.label}</span>
+              <span style={{minWidth:0,flex:1,lineHeight:1.3}}>{item.label}</span>
             </div>
           );
         })}
@@ -13887,7 +13889,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
             )}
           </div>
 
-          <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:0}}/>
+          <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
 
           {/* Lesson row */}
           {(lessonN||lessonTitle)&&(
@@ -13962,10 +13964,10 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
             </div>
           )}
 
-          {photo.date&&isDoc&&(<><div style={{height:1,background:'rgba(255,255,255,0.15)',margin:0}}/><div style={{padding:'10px 12px',fontSize:'clamp(11px,1.2vh,13px)',color:'rgba(255,255,255,0.45)',fontFamily:F}}>{photo.date}</div></>)}
+          {photo.date&&isDoc&&(<><div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/><div style={{padding:'10px 12px',fontSize:'clamp(11px,1.2vh,13px)',color:'rgba(255,255,255,0.45)',fontFamily:F}}>{photo.date}</div></>)}
           {lessonKws.length>0&&(
             <>
-              <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:0}}/>
+              <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
               <div style={{padding:'12px 12px 10px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                 {lessonKws.map(k=><span key={k} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:100,padding:'3px 10px',fontFamily:F}}>{k}</span>)}
               </div>
@@ -13973,7 +13975,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           )}
           {(photo.artTags||[]).length>0&&(
             <>
-              <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:0}}/>
+              <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
               <div style={{padding:'12px 12px 12px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                 {(photo.artTags||[]).map(t=><span key={t} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:100,padding:'3px 10px',fontFamily:F}}>{t}</span>)}
               </div>
