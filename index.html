@@ -12976,7 +12976,7 @@ function resolveLessonLabel(raw){
   }
   if(key.startsWith('custom:')){
     const cl=getCustomLessons().find(c=>'custom:'+c.id===key);
-    return cl?cl.label:key;
+    return cl?cl.label:'Custom Lesson';
   }
   return key;
 }
