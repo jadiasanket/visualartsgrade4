@@ -2648,33 +2648,22 @@ const IC={
     <ellipse cx="6.5" cy="5.8" rx="2.5" ry="0.85" fill="rgba(255,255,255,0.32)"/>
   </svg>),
 
-  // p5 Respond & Grow: clay seedling (sky)
-  p5:(<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-    <ellipse cx="12" cy="21" rx="5" ry="1.4" fill="#1a6aaa" opacity="0.18"/>
-    <rect x="11.2" y="10" width="1.6" height="11" rx="0.8" fill="#38bef8"/>
-    <path d="M12 14 C10 11 6 10 5 7 C7 5 11 6 12 10" fill="#56d3f5"/>
-    <path d="M12 11 C14 8 18 7 19 4 C17 2 13 3 12 7" fill="#38bef8"/>
-    <ellipse cx="8" cy="9.5" rx="2.2" ry="0.7" fill="rgba(255,255,255,0.3)" transform="rotate(-20 8 9.5)"/>
-  </svg>),
-
   spark:(<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>),
 };
 
-const PHASE_IC={'p1':IC.p1,'p2':IC.p2,'p3':IC.p3,'p4':IC.p4,'p5':IC.p5};
+const PHASE_IC={'p1':IC.p1,'p2':IC.p2,'p3':IC.p3,'p4':IC.p4};
 function PhaseIcon({id,size=16}){
   const paths={
     p1:[['M12 2a5 5 0 015 5c0 3-2 5-5 8-3-3-5-5-5-8a5 5 0 015-5z'],['M12 7','circle']],
     p2:[['M11 3a8 8 0 100 16A8 8 0 0011 3z'],['M20 20l-3.5-3.5']],
     p3:[['M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71'],['M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71']],
     p4:[['M12 20h9'],['M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z']],
-    p5:[['M12 22V12'],['M12 12C10 9 6 8 5 5c2-2 6-1 7 4'],['M12 12C14 9 18 8 19 5c-2-2-6-1-7 4']],
   };
   const defs={
     p1:{paths:['M12 2a5 5 0 015 5c0 3-2 5-5 8-3-3-5-5-5-8a5 5 0 015-5z','M12 7m-2 0a2 2 0 104 0 2 2 0 10-4 0']},
     p2:{paths:['M11 3a8 8 0 100 16A8 8 0 0011 3z','M20 20l-3.5-3.5']},
     p3:{paths:['M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71','M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71']},
     p4:{paths:['M12 20h9','M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z']},
-    p5:{paths:['M12 22V12','M12 12C10 9 6 8 5 5c2-2 6-1 7 4','M12 12C14 9 18 8 19 5c-2-2-6-1-7 4']},
   };
   const d=defs[id];if(!d)return null;
   return(<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{d.paths.map((p,i)=><path key={i} d={p}/>)}</svg>);
@@ -2708,7 +2697,6 @@ const PM={
   yellow:{l:'var(--yellow)',s:'var(--ys)',b:'var(--yb)',na:'var(--ys)',bg:'var(--ys)'},
   teal:{l:'var(--teal)',s:'var(--ts)',b:'var(--tb)',na:'var(--ts)',bg:'var(--ts)'},
   violet:{l:'var(--violet)',s:'var(--vs)',b:'var(--vb)',na:'var(--vs)',bg:'var(--vs)'},
-  sky:{l:'var(--sky)',s:'var(--sky)',b:'var(--sky)',na:'var(--sky)',bg:'var(--sky)'},
 };
 
 // ── ARTWORK ASSESSMENT TAGS ──
@@ -3113,8 +3101,7 @@ The wave mirrors the execute → refine → title rhythm of Wave 2 but in a new 
       },
     ]
   },
-  {
-    id:'p4',emoji:'🪞',color:'violet',name:'Reflect & Share',months:'September',
+];
     sub:'We look at our journey, give and receive feedback, and present our work',
     monthSummary:'Students revisit their work from across the unit, participate in a structured peer critique, curate a small personal exhibition, and write a final artist statement. The focus is on articulating choices and developing the language of reflection.',
     parentSummary:`This month students will step back and look at everything they have made across the unit. They will take part in a structured peer critique using kind, specific, and helpful language, then curate their own small exhibition — choosing which works to display and how to arrange them.
@@ -3198,89 +3185,6 @@ Each student will write a final artist statement of three to four sentences: wha
       },
     ]
   },
-  {
-    id:'p5',emoji:'🌱',color:'sky',name:'Respond & Grow',months:'October',
-    sub:'We look forward — taking one idea from the unit into something new',
-    monthSummary:'Students identify one idea, question, or technique from the unit that they want to take further. They make a short exploratory piece, share it, and set one personal creative goal for the year ahead.',
-    parentSummary:`In this final phase, students choose one thread from the unit — an idea, a question, or a technique — and follow it somewhere new. They make a short exploratory piece (any medium, no brief), share it in a small group, and set one personal creative goal.
-
-This is deliberately open. The goal is to give students ownership over their next step and to plant the idea that art-making continues beyond the classroom and beyond the unit. By the end, each student will have one new small piece of work and one written creative goal they have chosen for themselves.`,
-    artistPool:[
-      {name:'Agnes Martin',work:'Untitled (grid paintings)',why:'Shows how one artist spent a lifetime following a single idea — line, grid, quiet. The depth of commitment is the lesson.'},
-      {name:'David Hockney',work:'Recent iPad drawings alongside earlier paintings',why:'Shows an artist following curiosity across decades, mediums, and technologies.'},
-      {name:'Kara Walker',work:'Silhouettes series',why:'One consistent technique used to explore endlessly different ideas.'},
-    ],
-    sessions:[
-      {
-        n:18,emoji:'🔭',title:'Choose Your Thread',
-        cluster:null,
-        tags:[{l:'Reflection',c:'violet'},{l:'Planning',c:'sky'}],dur:'50 min',
-        recap:null,
-        bridge:null,
-        overview:'Students look back at their work and identify one idea, question, or technique they want to explore further. They write a short "I want to find out…" statement and make a small plan.',
-        objective:'Develop creative agency. Practise identifying what genuinely interests you, not just what you did well.',
-        activity:[
-          {t:'Look back (10 min)',s:'Students spread out all their work and look quietly. Teacher: "What keeps pulling your eye back? What were you curious about but didn\'t have time to follow?"'},
-          {t:'Identify a thread (10 min)',s:'Students write: "I want to find out what happens if I…" (e.g. "…use only torn edges" / "…combine chaos marks with a grid" / "…work much bigger / smaller")'},
-          {t:'Share threads (10 min)',s:'Students share in groups of three. Others ask: "Why that one?"'},
-          {t:'Make a quick plan (15 min)',s:'Students write two or three sentences: what materials they will use, what they want to try, how they will know if it worked.'},
-          {t:'Close (5 min)',s:'"This is your starting point for next time. Keep this plan somewhere you\'ll see it."'},
-        ],
-        mats:['All student work from the unit','Writing paper','Pencils'],
-        kws:['Curiosity','Thread','Planning','Agency'],
-        bigQ:['What is the difference between following an idea because a teacher told you to and following it because you genuinely want to know what happens?','Can you think of an artist who spent their whole life following one idea?'],
-        refs:[
-          {type:'artist',name:'Agnes Martin',work:'Untitled (grid paintings, 1960s–2000s)',why:'One artist, one idea, a lifetime of exploration.'},
-          {type:'artist',name:'David Hockney',work:'iPad drawings (2009–present)',why:'Curiosity across decades and mediums.'},
-        ],
-        tn:'Students who say "I don\'t know" probably mean "I\'m afraid to choose wrong." Reassure: there is no wrong thread. Even "I want to try something totally different" is a valid thread.',
-      },
-      {
-        n:19,emoji:'🛠️',title:'Exploratory Piece',
-        cluster:null,
-        tags:[{l:'Making',c:'coral'},{l:'Exploration',c:'sky'}],dur:'50 min',
-        recap:null,
-        bridge:null,
-        overview:'Students make a short exploratory piece following their chosen thread. No brief, no required outcome. Process is the focus.',
-        objective:'Experience open-ended making. Build tolerance for not knowing what the outcome will be.',
-        activity:[
-          {t:'Re-read your plan (2 min)',s:'Students read their "I want to find out…" statement from last lesson.'},
-          {t:'Make (35 min)',s:'Students work independently. Teacher circulates with genuine curiosity: "What\'s happening? What surprised you?" Avoid evaluating.'},
-          {t:'Stop and look (8 min)',s:'Students pause and look at what they have. Write two sentences: what happened / what they notice.'},
-          {t:'Close (5 min)',s:'"This is a beginning, not a finished piece. What would the next step be if you kept going?"'},
-        ],
-        mats:['Student choice — any media available'],
-        kws:['Exploration','Process','Openness','Beginning'],
-        bigQ:['What does it feel like to make something when you don\'t know what it will look like at the end?','Is an exploratory piece finished when you stop, or is it finished when it\'s done?'],
-        refs:[
-          {type:'artist',name:'Kara Walker',work:'Silhouettes series',why:'Shows deep exploration of one consistent approach across many works.'},
-        ],
-        tn:'Resist the urge to make this feel productive. The lesson is about the experience of following curiosity, not about producing a good piece.',
-      },
-      {
-        n:20,emoji:'🎯',title:'Share & Set a Goal',
-        cluster:null,
-        tags:[{l:'Reflection',c:'violet'},{l:'Discussion',c:'sky'}],dur:'50 min',
-        recap:null,
-        bridge:null,
-        overview:'Students share their exploratory piece in a small group and set one personal creative goal for the year ahead.',
-        objective:'Practise sharing unfinished work. Develop the language of creative goals.',
-        activity:[
-          {t:'Small group share (20 min)',s:'Groups of three. Each student shares their piece and reads their "what happened" sentences. Others ask one genuine question only — no feedback, just curiosity.'},
-          {t:'Introduce creative goals (5 min)',s:'"A creative goal is not the same as a task. It\'s a direction. Examples: I want to work bigger. I want to try a medium I\'ve never used. I want to slow down and look more carefully."'},
-          {t:'Write your goal (15 min)',s:'Students write one creative goal for the year. As specific as possible. One sentence.'},
-          {t:'Close — read your goal aloud (10 min)',s:'Each student reads their goal to the class. No comments. Just listening.'},
-        ],
-        mats:['Exploratory pieces from Lesson 19','Writing cards','Pencils'],
-        kws:['Goal','Sharing','Direction','Creative Practice'],
-        bigQ:['What is the difference between a goal and a wish?','If you could only get better at one thing in art this year, what would it be — and why that one thing?'],
-        refs:[
-          {type:'artist',name:'David Hockney',work:'Interviews about process and curiosity',why:'A model of sustained creative goal-setting across a long career.'},
-        ],
-        tn:'The closing reading-aloud is quiet and slow. Let it land. This is the last lesson of the unit — make space for it.',
-      },
-    ]
-  },
 ];
 
 
@@ -3289,8 +3193,6 @@ const MONTHS_DATA=[
   {name:'May',color:'yellow',sessions:'Lessons 5–9',phaseId:'p2'},
   {name:'June',color:'teal',sessions:'— No school —',phaseId:null},
   {name:'July–Aug',color:'teal',sessions:'Lessons 10–14',phaseId:'p3'},
-  {name:'September',color:'violet',sessions:'Lessons 15–17',phaseId:'p4'},
-  {name:'October',color:'sky',sessions:'Lessons 18–20',phaseId:'p5'},
 ];
 
 /* ─────────────────────────────── HELPERS ─────────────────────────────── */
@@ -3311,26 +3213,80 @@ function useLocalStorage(key,init){
   return[val,set];
 }
 
-// ── Global custom lessons store ──
-// Custom lessons added manually (e.g. "Field Trip", "Guest Artist") are stored in
-// localStorage under 'g4-custom-lessons' and appear everywhere lessons can be selected.
-// Shape: [{id:string, label:string}]
+// ── Global custom lessons store — Firestore backed ──────────────────────────
+// Stored at customLessons/sns/{lessonId}
+// Shape: {id, title, overview, keywords[], createdBy, createdAt, schoolId}
+// Legacy localStorage key kept for one-time migration only.
 const CUSTOM_LESSONS_KEY='g4-custom-lessons';
+const CUSTOM_LESSONS_SCHOOL='sns';
+const CUSTOM_LESSONS_PATH=()=>window._db.collection('customLessons').doc(CUSTOM_LESSONS_SCHOOL).collection('lessons');
+
+// In-memory cache so getCustomLessons() (sync, used in non-React contexts) works
+let _customLessonsCache=[];
+
+// One-time migration from localStorage → Firestore
+async function migrateCustomLessonsIfNeeded(){
+  try{
+    const raw=localStorage.getItem(CUSTOM_LESSONS_KEY);
+    if(!raw) return;
+    const old=JSON.parse(raw);
+    if(!Array.isArray(old)||old.length===0) return;
+    const col=CUSTOM_LESSONS_PATH();
+    for(const l of old){
+      const id=l.id||('custom_'+Date.now()+'_'+Math.random().toString(36).slice(2,6));
+      await col.doc(id).set({
+        id,
+        title:l.label||l.title||'Untitled',
+        overview:l.overview||'',
+        keywords:l.keywords||[],
+        createdBy:'sanket',
+        createdAt:l.createdAt||Date.now(),
+        schoolId:CUSTOM_LESSONS_SCHOOL,
+      },{merge:true});
+    }
+    localStorage.removeItem(CUSTOM_LESSONS_KEY);
+    console.log('[CustomLessons] Migrated',old.length,'lessons from localStorage to Firestore');
+  }catch(e){console.warn('[CustomLessons] Migration failed',e);}
+}
+
+// Sync getter — uses in-memory cache (populated by useCustomLessons listener)
+function getCustomLessons(){return _customLessonsCache;}
+
+// React hook — listens to Firestore, keeps cache in sync
 function useCustomLessons(){
-  return useLocalStorage(CUSTOM_LESSONS_KEY,[]);
+  const [lessons,setLessons]=React.useState(_customLessonsCache);
+  React.useEffect(()=>{
+    migrateCustomLessonsIfNeeded();
+    const unsub=CUSTOM_LESSONS_PATH().orderBy('createdAt','asc').onSnapshot(snap=>{
+      const data=snap.docs.map(d=>({...d.data(),id:d.id}));
+      _customLessonsCache=data;
+      setLessons(data);
+    },e=>console.warn('[CustomLessons] listener error',e));
+    return unsub;
+  },[]);
+  return lessons;
 }
-function getCustomLessons(){
-  try{const s=localStorage.getItem(CUSTOM_LESSONS_KEY);return s?JSON.parse(s):[];}catch{return[];}
-}
-function addCustomLesson(label){
-  const trimmed=label.trim();
+
+async function addCustomLesson({title,overview='',keywords=[]}){
+  const trimmed=(title||'').trim();
   if(!trimmed) return null;
   const id='custom_'+Date.now();
-  const lessons=getCustomLessons();
-  if(lessons.find(l=>l.label.toLowerCase()===trimmed.toLowerCase())) return null; // dupe
-  const next=[...lessons,{id,label:trimmed}];
-  try{localStorage.setItem(CUSTOM_LESSONS_KEY,JSON.stringify(next));}catch{}
-  return{id,label:trimmed};
+  const doc={id,title:trimmed,overview:overview.trim(),keywords:Array.isArray(keywords)?keywords:[],
+    createdBy:'sanket',createdAt:Date.now(),schoolId:CUSTOM_LESSONS_SCHOOL};
+  await CUSTOM_LESSONS_PATH().doc(id).set(doc);
+  return doc;
+}
+
+async function updateCustomLesson(id,{title,overview,keywords}){
+  const updates={};
+  if(title!==undefined) updates.title=title.trim();
+  if(overview!==undefined) updates.overview=overview.trim();
+  if(keywords!==undefined) updates.keywords=keywords;
+  await CUSTOM_LESSONS_PATH().doc(id).update(updates);
+}
+
+async function deleteCustomLesson(id){
+  await CUSTOM_LESSONS_PATH().doc(id).delete();
 }
 
 // ── Firestore hook — replaces useLocalStorage for section data only ──
@@ -5897,12 +5853,144 @@ function MonthsView(){
   );
 }
 
+// ── CustomLessonCard — matches SessionCard style ──────────────────────────────
+function CustomLessonCard({lesson,teacherMode,onEdit,onDelete}){
+  const [open,setOpen]=React.useState(false);
+  const kws=Array.isArray(lesson.keywords)?lesson.keywords:[];
+  return(
+    <div className="sc" style={{marginBottom:8}}>
+      <div className="sc-hdr" onClick={()=>setOpen(v=>!v)} style={{cursor:'pointer'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
+          <span style={{fontSize:15}}>★</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div className="sc-title" style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:700,color:'var(--tx)',fontFamily:"'DM Sans',sans-serif"}}>{lesson.title}</span>
+              <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.06em',color:'var(--violet)',background:'var(--vs)',border:'1px solid var(--vb)',borderRadius:100,padding:'1px 7px',flexShrink:0,textTransform:'uppercase'}}>Custom</span>
+            </div>
+            {lesson.overview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'var(--tx3)',fontStyle:'italic',lineHeight:1.5,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:open?'normal':'nowrap'}}>{lesson.overview}</div>}
+          </div>
+        </div>
+        <span style={{fontSize:11,color:'var(--tx3)',marginLeft:8,flexShrink:0}}>{open?'▲':'▼'}</span>
+      </div>
+      {open&&(
+        <div className="sc-panel" style={{padding:'10px 14px 12px'}}>
+          {lesson.overview&&(
+            <div style={{fontSize:'clamp(11px,1.2vh,13px)',color:'var(--tx2)',lineHeight:1.6,marginBottom:kws.length?10:0}}>{lesson.overview}</div>
+          )}
+          {kws.length>0&&(
+            <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:teacherMode?10:0}}>
+              {kws.map((k,i)=><span key={i} style={{fontSize:'clamp(9px,1vh,11px)',color:'var(--tx2)',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:100,padding:'3px 10px'}}>{k}</span>)}
+            </div>
+          )}
+          {teacherMode&&(
+            <div style={{display:'flex',gap:8,marginTop:4}}>
+              <button onClick={e=>{e.stopPropagation();onEdit(lesson);}}
+                style={{fontSize:11,fontWeight:600,padding:'4px 12px',borderRadius:7,border:'1px solid var(--glass-border2)',background:'transparent',color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
+              <button onClick={e=>{e.stopPropagation();onDelete(lesson.id);}}
+                style={{fontSize:11,fontWeight:600,padding:'4px 12px',borderRadius:7,border:'1px solid rgba(220,80,60,0.3)',background:'transparent',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Delete</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── CustomLessonsPanel — create/edit/delete, shown in PhaseDetail ─────────────
+function CustomLessonsPanel({teacherMode}){
+  const lessons=useCustomLessons();
+  const [editing,setEditing]=React.useState(null); // null | 'new' | lesson object
+  const [form,setForm]=React.useState({title:'',overview:'',keywords:''});
+  const [saving,setSaving]=React.useState(false);
+
+  function openNew(){setEditing('new');setForm({title:'',overview:'',keywords:''});}
+  function openEdit(l){setEditing(l);setForm({title:l.title||'',overview:l.overview||'',keywords:(l.keywords||[]).join(', ')});}
+  function closeForm(){setEditing(null);setForm({title:'',overview:'',keywords:''});}
+
+  async function handleSave(){
+    if(!form.title.trim()) return;
+    setSaving(true);
+    const kws=form.keywords.split(',').map(k=>k.trim()).filter(Boolean);
+    try{
+      if(editing==='new'){
+        await addCustomLesson({title:form.title,overview:form.overview,keywords:kws});
+      } else {
+        await updateCustomLesson(editing.id,{title:form.title,overview:form.overview,keywords:kws});
+      }
+      closeForm();
+    }catch(e){console.error('Save custom lesson failed',e);}
+    setSaving(false);
+  }
+
+  async function handleDelete(id){
+    if(!window.confirm('Delete this custom lesson?')) return;
+    try{await deleteCustomLesson(id);}catch(e){console.error(e);}
+  }
+
+  if(lessons.length===0&&!teacherMode) return null;
+
+  return(
+    <div style={{marginTop:24}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+        <div className="sec-hed" style={{margin:0}}>My Custom Lessons</div>
+        {teacherMode&&<button onClick={openNew}
+          style={{fontSize:11,fontWeight:700,padding:'4px 12px',borderRadius:100,border:'1px solid var(--glass-border2)',
+            background:'transparent',color:'var(--teal)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>+ New Lesson</button>}
+      </div>
+
+      {lessons.length===0&&teacherMode&&(
+        <div style={{fontSize:12,color:'var(--tx3)',fontStyle:'italic',marginBottom:8}}>No custom lessons yet. Add one above.</div>
+      )}
+
+      {lessons.map(l=>(
+        <CustomLessonCard key={l.id} lesson={l} teacherMode={teacherMode} onEdit={openEdit} onDelete={handleDelete}/>
+      ))}
+
+      {/* Create / Edit form */}
+      {editing&&(
+        <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border2)',borderRadius:12,padding:'14px 16px',marginTop:8}}>
+          <div style={{fontSize:12,fontWeight:700,color:'var(--tx2)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>
+            {editing==='new'?'New Custom Lesson':'Edit Lesson'}
+          </div>
+          <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}
+            placeholder="Lesson title (e.g. Field Trip, Guest Artist…)"
+            style={{width:'100%',fontSize:13,padding:'7px 10px',borderRadius:8,border:'1px solid var(--glass-border2)',
+              background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',marginBottom:8}}/>
+          <textarea value={form.overview} onChange={e=>setForm(f=>({...f,overview:e.target.value}))}
+            placeholder="Overview (optional — what happens in this lesson?)"
+            rows={3}
+            style={{width:'100%',fontSize:12,padding:'7px 10px',borderRadius:8,border:'1px solid var(--glass-border2)',
+              background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',
+              resize:'none',marginBottom:8,lineHeight:1.5}}/>
+          <input value={form.keywords} onChange={e=>setForm(f=>({...f,keywords:e.target.value}))}
+            placeholder="Keywords, comma separated (e.g. Texture, Collage, Observation)"
+            style={{width:'100%',fontSize:12,padding:'7px 10px',borderRadius:8,border:'1px solid var(--glass-border2)',
+              background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',marginBottom:12}}/>
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={handleSave} disabled={!form.title.trim()||saving}
+              style={{fontSize:12,fontWeight:700,padding:'6px 18px',borderRadius:8,border:'none',
+                background:form.title.trim()?'var(--teal)':'var(--glass-bg2)',
+                color:form.title.trim()?'#fff':'var(--tx3)',cursor:form.title.trim()?'pointer':'default',
+                fontFamily:"'DM Sans',sans-serif",opacity:saving?0.6:1}}>
+              {saving?'Saving…':'Save'}
+            </button>
+            <button onClick={closeForm}
+              style={{fontSize:12,padding:'6px 14px',borderRadius:8,border:'1px solid var(--glass-border)',
+                background:'transparent',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PhaseDetail({phase,onBack,progress,toggle,classView,isVisitor}){
   const pm=PM[phase.color];
   const done=phase.sessions.filter(s=>progress[phase.id+':'+s.n]).length;
   const total=phase.sessions.length;
   const pct=total?Math.round(done/total*100):0;
   const [openSession,setOpenSession]=React.useState(null);
+  const {teacherMode}=React.useContext(KWContext);
   return(
     <div className="detail-view">
       {!classView&&(
@@ -5935,6 +6023,7 @@ function PhaseDetail({phase,onBack,progress,toggle,classView,isVisitor}){
           <SessionCard key={s.n} s={s} color={phase.color} phaseId={phase.id} progress={progress} toggle={toggle} classView={classView} openSession={openSession} setOpenSession={setOpenSession} isVisitor={isVisitor}/>
         ))}
       </div>
+      {phase.id==='p1'&&<CustomLessonsPanel teacherMode={!isVisitor&&teacherMode}/>}
     </div>
   );
 }
@@ -9464,7 +9553,7 @@ function AddSessionModal({phases,onAdd,onClose}){
   const [sessType,setSessType]=React.useState('normal'); // normal | sub | cancelled
   const [isExtra,setIsExtra]=React.useState(false);
   const [linkedSession,setLinkedSession]=React.useState(null);
-  const [customLessons,setCustomLessons]=useCustomLessons();
+  const customLessons=useCustomLessons();
   const [newCustomName,setNewCustomName]=React.useState('');
   const [showAddCustom,setShowAddCustom]=React.useState(false);
   const allSessions=[];
@@ -9476,17 +9565,15 @@ function AddSessionModal({phases,onAdd,onClose}){
       manualTitle:'',manualActivity:''});
     onClose();
   }
-  function handleAddCustomLesson(){
+  async function handleAddCustomLesson(){
     const trimmed=newCustomName.trim();
     if(!trimmed) return;
-    const exists=customLessons.find(l=>l.label.toLowerCase()===trimmed.toLowerCase());
+    const exists=customLessons.find(l=>(l.title||l.label||'').toLowerCase()===trimmed.toLowerCase());
     if(!exists){
-      const id='custom_'+Date.now();
-      const newLesson={id,label:trimmed};
-      setCustomLessons(prev=>[...prev,newLesson]);
-      setLinkedSession({key:'custom:'+id,label:trimmed,isCustom:true,customId:id});
+      const doc=await addCustomLesson({title:trimmed});
+      if(doc) setLinkedSession({key:'custom:'+doc.id,label:doc.title,isCustom:true,customId:doc.id});
     } else {
-      setLinkedSession({key:'custom:'+exists.id,label:exists.label,isCustom:true,customId:exists.id});
+      setLinkedSession({key:'custom:'+exists.id,label:exists.title||exists.label,isCustom:true,customId:exists.id});
     }
     setNewCustomName('');
     setShowAddCustom(false);
@@ -9557,7 +9644,7 @@ function AddSessionModal({phases,onAdd,onClose}){
               else if(e.target.value.startsWith('custom:')){
                 const id=e.target.value.replace('custom:','');
                 const cl=customLessons.find(l=>l.id===id);
-                if(cl) setLinkedSession({key:'custom:'+cl.id,label:cl.label,isCustom:true,customId:cl.id});
+                if(cl) setLinkedSession({key:'custom:'+cl.id,label:cl.title||cl.title||cl.label,isCustom:true,customId:cl.id});
               }
               else setLinkedSession(allSessions.find(s=>s.key===e.target.value)||null);
             }}>
@@ -9565,7 +9652,7 @@ function AddSessionModal({phases,onAdd,onClose}){
               <option value="none">No lesson link</option>
               {allSessions.map((s,i)=><option key={i} value={s.key}>{s.label}</option>)}
               {customLessons.length>0&&<option disabled>── My lessons ──</option>}
-              {customLessons.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
+              {customLessons.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.title||cl.label}</option>)}
             </select>
             {/* Add custom lesson inline */}
             {showAddCustom&&(
@@ -9823,7 +9910,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   const [logUploading,setLogUploading]=React.useState(false);
   const [logGalleryUploadOpen,setLogGalleryUploadOpen]=React.useState(false);
   const [logLightbox,setLogLightbox]=React.useState(null); // {photos:[url,...], idx:N}
-  const [customLessonsLog]=useCustomLessons();
+  const customLessonsLog=useCustomLessons();
   const allPhaseLessonsLog=PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`})));
 
   function getAvgRating(){
@@ -10215,7 +10302,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                                       if(val.startsWith('custom:')){
                                         const id=val.replace('custom:','');
                                         const cl=getCustomLessons().find(l=>l.id===id);
-                                        if(cl) picked={key:'custom:'+cl.id,label:cl.label,isCustom:true,customId:cl.id};
+                                        if(cl) picked={key:'custom:'+cl.id,label:cl.title||cl.label,isCustom:true,customId:cl.id};
                                       } else if(val){
                                         picked=allLessons.find(l=>l.key===val)||null;
                                       }
@@ -10226,7 +10313,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                                     <option value="">— No link —</option>
                                     {(()=>{const ll=[];PHASES.forEach(p=>p.sessions.forEach(s=>ll.push({key:p.id+':'+s.n,label:'S'+s.n+': '+s.title})));return ll.map((l,i)=><option key={i} value={l.key}>{l.label}</option>);})()}
                                     {getCustomLessons().length>0&&<option disabled>── My lessons ──</option>}
-                                    {getCustomLessons().map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
+                                    {getCustomLessons().map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.title||cl.label}</option>)}
                                   </select>
                                   {/* Add custom lesson inline */}
                                   <div style={{display:'flex',gap:3,marginTop:3}}>
@@ -10237,10 +10324,10 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                                         e.stopPropagation();
                                         if(e.key==='Enter'&&linkPickerCustomInput.trim()){
                                           const trimmed=linkPickerCustomInput.trim();
-                                          const existing=getCustomLessons().find(l=>l.label.toLowerCase()===trimmed.toLowerCase());
-                                          const newLesson=existing||addCustomLesson(trimmed);
+                                          const existing=getCustomLessons().find(l=>(l.title||l.label||'').toLowerCase()===trimmed.toLowerCase());
+                                          const newLesson=existing||(await addCustomLesson({title:trimmed}));
                                           if(newLesson){
-                                            const picked={key:'custom:'+newLesson.id,label:newLesson.label,isCustom:true,customId:newLesson.id};
+                                            const picked={key:'custom:'+newLesson.id,label:newLesson.title||newLesson.label,isCustom:true,customId:newLesson.id};
                                             updateData(d=>{d.sessions[si].linkedSession=picked;});
                                           }
                                           setLinkPickerCustomInput('');
@@ -10249,14 +10336,14 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                                         if(e.key==='Escape'){setLinkPickerCustomInput('');setLinkPickerFor(null);}
                                       }}
                                       style={{flex:1,fontSize:9,padding:'2px 5px',borderRadius:4,border:'1px solid var(--glass-border)',background:'var(--glass-bg)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',minWidth:0}}/>
-                                    <button onClick={e=>{
+                                    <button onClick={async e=>{
                                       e.stopPropagation();
                                       const trimmed=linkPickerCustomInput.trim();
                                       if(!trimmed) return;
-                                      const existing=getCustomLessons().find(l=>l.label.toLowerCase()===trimmed.toLowerCase());
-                                      const newLesson=existing||addCustomLesson(trimmed);
+                                      const existing=getCustomLessons().find(l=>(l.title||l.label||'').toLowerCase()===trimmed.toLowerCase());
+                                      const newLesson=existing||(await addCustomLesson({title:trimmed}));
                                       if(newLesson){
-                                        const picked={key:'custom:'+newLesson.id,label:newLesson.label,isCustom:true,customId:newLesson.id};
+                                        const picked={key:'custom:'+newLesson.id,label:newLesson.title||newLesson.label,isCustom:true,customId:newLesson.id};
                                         updateData(d=>{d.sessions[si].linkedSession=picked;});
                                       }
                                       setLinkPickerCustomInput('');setLinkPickerFor(null);
@@ -10437,7 +10524,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                 <option value="">— link to a lesson (optional) —</option>
                 {allPhaseLessonsLog.map(l=><option key={l.key} value={l.key}>{l.label}</option>)}
                 {customLessonsLog.length>0&&<option disabled>── My lessons ──</option>}
-                {customLessonsLog.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
+                {customLessonsLog.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.title||cl.label}</option>)}
               </select>
               <textarea className="sec-note-input" style={{width:'100%',boxSizing:'border-box',minHeight:72,marginBottom:8,fontSize:13}}
                 placeholder="Class note..."
@@ -10474,7 +10561,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
                 if(l.lessonKey){
                   if(l.lessonKey.startsWith('custom:')){
                     const cl=getCustomLessons().find(x=>x.id===l.lessonKey.replace('custom:',''));
-                    lessonLabel=cl?('★ '+cl.label):l.lessonKey;
+                    lessonLabel=cl?('★ '+(cl.title||cl.label)):l.lessonKey;
                   } else {
                     const parts=l.lessonKey.split(':');
                     const ph=PHASES.find(x=>x.id===parts[0]);
@@ -10785,7 +10872,7 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
   const [globalType,setGlobalType]=React.useState(initialType||'artwork');
   const [globalSectionId,setGlobalSectionId]=React.useState(initialSection||G4_SECTIONS[0].id);
   const [globalLessonKey,setGlobalLessonKey]=React.useState(initialLesson||'');
-  const [customLessons]=useCustomLessons();
+  const customLessons=useCustomLessons();
   const allPhaseLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`})));
   const globalSection=G4_SECTIONS.find(s=>s.id===globalSectionId)||G4_SECTIONS[0];
 
@@ -11324,7 +11411,7 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
                         <option value="">— no lesson link —</option>
                         {allPhaseLessons.map(l=><option key={l.key} value={l.key}>{l.label}</option>)}
                         {customLessons.length>0&&<option disabled>── My lessons ──</option>}
-                        {customLessons.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
+                        {customLessons.map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.title||cl.label}</option>)}
                       </select>
                     </div>
 
@@ -13381,15 +13468,15 @@ function resolveLessonLabel(raw){
     return sess?'S'+sess.n+': '+sess.title:key;
   }
   if(key.startsWith('custom:')){
-    const cl=getCustomLessons().find(c=>'custom:'+c.id===key);
-    return cl?cl.label:'Custom Lesson';
+    const cl=getCustomLessons().find(c=>'custom:'+c.id===key||c.id===key.replace('custom:',''));
+    return cl?(cl.title||cl.label||'Custom Lesson'):'Custom Lesson';
   }
   return key;
 }
 
 
 // ── PhotoLightbox ────────────────────────────────────────────────────────────
-function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,onPhotoEdit,editedUrls}){
+function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,onPhotoEdit,onPhotoReassign,editedUrls}){
   if(!photo) return null;
 
   const containerRef=React.useRef(null);
@@ -13406,6 +13493,16 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const onCloseRef=React.useRef(onClose);
   React.useEffect(()=>{onCloseRef.current=onClose;},[onClose]);
 
+  // Close reassign dropdown on outside click
+  React.useEffect(()=>{
+    if(!reassignField) return;
+    function handle(e){
+      if(!infoPanelRef.current||!infoPanelRef.current.contains(e.target)) setReassignField(null);
+    }
+    document.addEventListener('mousedown',handle);
+    return()=>document.removeEventListener('mousedown',handle);
+  },[reassignField]);
+
   const [isZoomed,setIsZoomed]=React.useState(false);
   const [sliderVal,setSliderVal]=React.useState(100);
   const [sliderActive,setSliderActive]=React.useState(false);
@@ -13414,13 +13511,17 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const [infoPos,setInfoPos]=React.useState(null);
   const [lessonOverlayOpen,setLessonOverlayOpen]=React.useState(false);
   const [currentUrl,setCurrentUrl]=React.useState(photo.url);
-  const [filterStyle,setFilterStyle]=React.useState(''); // CSS filter for current photo
+  const [filterStyle,setFilterStyle]=React.useState('');
   const originalUrl=React.useRef(photo.url);
-  const croppedSrcRef=React.useRef(null); // persists KS/crop result across re-entry
-  const photoFiltersRef=React.useRef({}); // stores filter slider state per photo.url
-  const photoFilterStrRef=React.useRef({}); // stores baked filter string per photo.url
+  const croppedSrcRef=React.useRef(null);
+  const photoFiltersRef=React.useRef({});
+  const photoFilterStrRef=React.useRef({});
   const infoPanelRef=React.useRef(null);
   const [panelBg,setPanelBg]=React.useState('rgba(7,7,8,0.87)');
+  // E: inline reassign state
+  const [reassignField,setReassignField]=React.useState(null); // null | 'student' | 'lesson' | 'section'
+  const [reassignSaving,setReassignSaving]=React.useState(false);
+  const customLessons=useCustomLessons();
 
   // C3 — Adaptive tone: sample image brightness, adjust panel opacity
   React.useEffect(()=>{
@@ -13620,10 +13721,87 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
         <div className="lb-glass-panel" ref={infoPanelRef} style={{...infoPanelStyle,zIndex:20,width:'clamp(220px,20vw,280px)',background:panelBg,backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:15,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 12px 40px rgba(0,0,0,0.65)',animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards'}}
           onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
           <div style={{padding:'14px 16px 12px',cursor:'grab'}} onMouseDown={startInfoDrag}>
-            {!isDoc&&(<><div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2}}>{photo.studentName||'—'}</div><div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.42)',fontFamily:F,display:'flex',alignItems:'center',gap:5}}><SectionDot sectionId={photo.sectionId} size={5}/>{photo.sectionName||''}</div></>)}
+            {!isDoc&&(
+              <>
+                {/* Student name — tappable in teacher mode */}
+                <div style={{position:'relative'}}>
+                  <div
+                    onClick={teacherMode&&onPhotoReassign?()=>setReassignField(reassignField==='student'?null:'student'):undefined}
+                    style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2,
+                      cursor:teacherMode&&onPhotoReassign?'pointer':'default',
+                      borderBottom:teacherMode&&onPhotoReassign?'1px dashed rgba(255,255,255,0.25)':'none',
+                      display:'inline-block',paddingBottom:1}}>
+                    {photo.studentName||'—'}
+                    {teacherMode&&onPhotoReassign&&<span style={{fontSize:9,marginLeft:5,opacity:0.5}}>✎</span>}
+                  </div>
+                  {reassignField==='student'&&teacherMode&&onPhotoReassign&&(
+                    <div style={{position:'absolute',top:'100%',left:0,zIndex:100,marginTop:4,
+                      background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:10,
+                      boxShadow:'0 8px 32px rgba(0,0,0,0.6)',minWidth:200,maxHeight:220,overflowY:'auto',scrollbarWidth:'none'}}
+                      onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+                      {G4_SECTIONS.flatMap(sec=>
+                        (sec.students||[]).map((name,idx)=>({name,idx,sec}))
+                      ).map(({name,idx,sec})=>(
+                        <div key={sec.id+'-'+idx}
+                          onClick={async()=>{
+                            if(reassignSaving) return;
+                            setReassignSaving(true);
+                            await onPhotoReassign(photo,{newStudentIdx:idx,newSectionId:sec.id});
+                            setReassignSaving(false);
+                            setReassignField(null);
+                          }}
+                          style={{padding:'7px 14px',fontSize:12,color:name===photo.studentName?'#fff':'rgba(255,255,255,0.7)',
+                            fontFamily:F,cursor:'pointer',background:name===photo.studentName?'rgba(255,255,255,0.08)':'transparent',
+                            borderBottom:'1px solid rgba(255,255,255,0.05)',display:'flex',alignItems:'center',gap:8}}>
+                          <span style={{fontSize:9,color:'rgba(255,255,255,0.35)'}}>{sec.name}</span>
+                          {name}
+                          {name===photo.studentName&&<span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.4)'}}>current</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.42)',fontFamily:F,display:'flex',alignItems:'center',gap:5}}>
+                  <SectionDot sectionId={photo.sectionId} size={5}/>{photo.sectionName||''}
+                </div>
+              </>
+            )}
             {isDoc&&(
-              <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',lineHeight:1.3}}>
-                {lessonN?('L'+lessonN+': '+lessonSession.title):(lessonTitle||'Documentation')}
+              <div style={{position:'relative'}}>
+                {/* Section — tappable in teacher mode for documentation */}
+                <div
+                  onClick={teacherMode&&onPhotoReassign?()=>setReassignField(reassignField==='section'?null:'section'):undefined}
+                  style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',lineHeight:1.3,
+                    cursor:teacherMode&&onPhotoReassign?'pointer':'default',
+                    borderBottom:teacherMode&&onPhotoReassign?'1px dashed rgba(255,255,255,0.25)':'none',
+                    display:'inline-block',paddingBottom:1}}>
+                  {lessonN?('L'+lessonN+': '+lessonSession.title):(lessonTitle||'Documentation')}
+                  {teacherMode&&onPhotoReassign&&<span style={{fontSize:9,marginLeft:5,opacity:0.5}}>✎</span>}
+                </div>
+                {reassignField==='section'&&teacherMode&&onPhotoReassign&&(
+                  <div style={{position:'absolute',top:'100%',left:0,zIndex:100,marginTop:4,
+                    background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:10,
+                    boxShadow:'0 8px 32px rgba(0,0,0,0.6)',minWidth:180,overflowY:'auto',scrollbarWidth:'none'}}
+                    onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+                    {G4_SECTIONS.map((sec,secIdx)=>(
+                      <div key={sec.id}
+                        onClick={async()=>{
+                          if(reassignSaving) return;
+                          setReassignSaving(true);
+                          // For documentation, move to first student of new section
+                          await onPhotoReassign(photo,{newSectionId:sec.id,newStudentIdx:0});
+                          setReassignSaving(false);
+                          setReassignField(null);
+                        }}
+                        style={{padding:'7px 14px',fontSize:12,color:sec.id===photo.sectionId?'#fff':'rgba(255,255,255,0.7)',
+                          fontFamily:F,cursor:'pointer',background:sec.id===photo.sectionId?'rgba(255,255,255,0.08)':'transparent',
+                          borderBottom:'1px solid rgba(255,255,255,0.05)',display:'flex',alignItems:'center',gap:8}}>
+                        <SectionDot sectionId={sec.id} size={5}/>{sec.name}
+                        {sec.id===photo.sectionId&&<span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.4)'}}>current</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -13631,13 +13809,73 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           {(lessonN||lessonTitle)&&(
             <div style={{padding:'12px 16px'}}>
               {!isDoc&&(
-                <div
-                  onClick={lessonSession?()=>setLessonOverlayOpen(true):undefined}
-                  style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,color:lessonSession?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.75)',fontFamily:F,marginBottom:lessonOverview?7:0,lineHeight:1.3,cursor:lessonSession?'pointer':'default',textDecoration:lessonSession?'underline':'none',textDecorationColor:'rgba(255,255,255,0.25)',textUnderlineOffset:'3px'}}>
-                  {lessonN?('L'+lessonN+': '+lessonSession.title):lessonTitle}
+                <div style={{position:'relative'}}>
+                  <div
+                    onClick={teacherMode&&onPhotoReassign?()=>setReassignField(reassignField==='lesson'?null:'lesson'):lessonSession?()=>setLessonOverlayOpen(true):undefined}
+                    style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,
+                      color:lessonSession?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.75)',
+                      fontFamily:F,marginBottom:lessonOverview?7:0,lineHeight:1.3,
+                      cursor:'pointer',
+                      textDecoration:(!teacherMode||!onPhotoReassign)&&lessonSession?'underline':'none',
+                      textDecorationColor:'rgba(255,255,255,0.25)',textUnderlineOffset:'3px',
+                      borderBottom:teacherMode&&onPhotoReassign?'1px dashed rgba(255,255,255,0.25)':'none',
+                      display:'inline-block',paddingBottom:1}}>
+                    {lessonN?('L'+lessonN+': '+lessonSession.title):lessonTitle}
+                    {teacherMode&&onPhotoReassign&&<span style={{fontSize:9,marginLeft:5,opacity:0.5}}>✎</span>}
+                  </div>
+                  {reassignField==='lesson'&&teacherMode&&onPhotoReassign&&(
+                    <div style={{position:'absolute',top:'100%',left:0,zIndex:100,marginTop:4,
+                      background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:10,
+                      boxShadow:'0 8px 32px rgba(0,0,0,0.6)',minWidth:220,maxHeight:260,overflowY:'auto',scrollbarWidth:'none'}}
+                      onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+                      <div style={{padding:'6px 14px 4px',fontSize:9,fontWeight:700,letterSpacing:'0.08em',color:'rgba(255,255,255,0.3)',textTransform:'uppercase'}}>Phase Lessons</div>
+                      {PHASES.flatMap(ph=>ph.sessions.map(s=>({key:`${ph.id}:${s.n}`,label:`S${s.n}: ${s.title}`,color:ph.color}))).map(opt=>{
+                        const currentKey=(photo.lessons&&photo.lessons[0])||'';
+                        const isCurrent=currentKey===opt.key||currentKey==='L'+opt.key;
+                        return(
+                          <div key={opt.key}
+                            onClick={async()=>{
+                              if(reassignSaving) return;
+                              setReassignSaving(true);
+                              await onPhotoReassign(photo,{newLesson:opt.key});
+                              setReassignSaving(false);
+                              setReassignField(null);
+                            }}
+                            style={{padding:'6px 14px',fontSize:11,color:isCurrent?'#fff':'rgba(255,255,255,0.65)',
+                              fontFamily:F,cursor:'pointer',background:isCurrent?'rgba(255,255,255,0.08)':'transparent',
+                              borderBottom:'1px solid rgba(255,255,255,0.04)',display:'flex',alignItems:'center',gap:6}}>
+                            {opt.label}
+                            {isCurrent&&<span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.4)'}}>current</span>}
+                          </div>
+                        );
+                      })}
+                      {customLessons.length>0&&<div style={{padding:'6px 14px 4px',fontSize:9,fontWeight:700,letterSpacing:'0.08em',color:'rgba(255,255,255,0.3)',textTransform:'uppercase',borderTop:'1px solid rgba(255,255,255,0.08)',marginTop:4}}>My Lessons</div>}
+                      {customLessons.map(cl=>{
+                        const key='custom:'+cl.id;
+                        const isCurrent=(photo.lessons&&photo.lessons[0])===key;
+                        return(
+                          <div key={cl.id}
+                            onClick={async()=>{
+                              if(reassignSaving) return;
+                              setReassignSaving(true);
+                              await onPhotoReassign(photo,{newLesson:key});
+                              setReassignSaving(false);
+                              setReassignField(null);
+                            }}
+                            style={{padding:'6px 14px',fontSize:11,color:isCurrent?'#fff':'rgba(255,255,255,0.65)',
+                              fontFamily:F,cursor:'pointer',background:isCurrent?'rgba(255,255,255,0.08)':'transparent',
+                              display:'flex',alignItems:'center',gap:6}}>
+                            ★ {cl.title||cl.label}
+                            {isCurrent&&<span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.4)'}}>current</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
                 </div>
               )}
-              {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
+              {isDoc&&lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
             </div>
           )}
           {photo.date&&isDoc&&(<><div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 16px'}}/><div style={{padding:'10px 16px',fontSize:'clamp(11px,1.2vh,13px)',color:'rgba(255,255,255,0.45)',fontFamily:F}}>{photo.date}</div></>)}
@@ -13863,7 +14101,55 @@ function GalleryView({isVisitor}){
     }catch(e){console.error('Edit save failed',e);}
   }
 
-  const allLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color})));
+  async function handlePhotoReassign(photo,{newStudentIdx,newSectionId,newLesson}){
+    // Reassign photo metadata in Firestore — no Storage move
+    try{
+      const oldSid=photo.sectionId;
+      const oldStudentIdx=photo.studentIdx;
+      const oldPhotoIdx=photo.photoIdx;
+
+      // Determine new values (fall back to current if not changing)
+      const targetSid=newSectionId||oldSid;
+      const targetStudentIdx=newStudentIdx!==undefined?newStudentIdx:oldStudentIdx;
+
+      // Read both sections (may be same)
+      const oldSnap=await window._db.collection('sections').doc('shared-'+oldSid).get();
+      if(!oldSnap.exists) return;
+      const oldData=oldSnap.data();
+      const photoEntry=oldData.students[oldStudentIdx]?.portfolio?.[oldPhotoIdx];
+      if(!photoEntry) return;
+
+      // Update lesson if provided
+      if(newLesson!==undefined) photoEntry.lessons=newLesson?[newLesson]:[];
+
+      if(targetSid===oldSid&&targetStudentIdx===oldStudentIdx){
+        // Just updating lesson — write back in place
+        oldData.students[oldStudentIdx].portfolio[oldPhotoIdx]=photoEntry;
+        await window._db.collection('sections').doc('shared-'+oldSid).set(oldData);
+      } else {
+        // Moving to different student/section — remove from old, add to new
+        oldData.students[oldStudentIdx].portfolio.splice(oldPhotoIdx,1);
+
+        if(targetSid===oldSid){
+          // Same section, different student
+          if(!oldData.students[targetStudentIdx].portfolio) oldData.students[targetStudentIdx].portfolio=[];
+          oldData.students[targetStudentIdx].portfolio.push(photoEntry);
+          await window._db.collection('sections').doc('shared-'+oldSid).set(oldData);
+        } else {
+          // Different section
+          await window._db.collection('sections').doc('shared-'+oldSid).set(oldData);
+          const newSnap=await window._db.collection('sections').doc('shared-'+targetSid).get();
+          if(!newSnap.exists) return;
+          const newData=newSnap.data();
+          if(!newData.students[targetStudentIdx].portfolio) newData.students[targetStudentIdx].portfolio=[];
+          newData.students[targetStudentIdx].portfolio.push(photoEntry);
+          await window._db.collection('sections').doc('shared-'+targetSid).set(newData);
+        }
+      }
+      // Close lightbox after reassign since the photo has moved
+      setLightbox(null);
+    }catch(e){console.error('Reassign failed',e);}
+  }
   const artworkTags=getArtworkTags();
   const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
   const phaseColors={coral:'var(--coral)',yellow:'var(--yellow)',teal:'var(--teal)',violet:'var(--violet)'};
@@ -13912,7 +14198,7 @@ function GalleryView({isVisitor}){
             const lk=rawLk&&rawLk.startsWith('L')?rawLk.slice(1):rawLk;
             if(lk.startsWith('custom:')){
               const cl=customLessons.find(l=>l.id===lk.replace('custom:',''));
-              resolvedLesson=cl?cl.label:lk;
+              resolvedLesson=cl?(cl.title||cl.label||lk):lk;
             } else {
               // phase lesson — find from PHASES
               const parts=lk.split(':');
@@ -14247,7 +14533,7 @@ function GalleryView({isVisitor}){
                 <option value="__none__">Remove lesson link</option>
                 {(()=>{const ll=[];PHASES.forEach(ph=>ph.sessions.forEach(s=>ll.push({key:ph.id+':'+s.n,label:'S'+s.n+': '+s.title})));return ll.map((l,i)=><option key={i} value={l.key}>{l.label}</option>);})()}
                 {getCustomLessons().length>0&&<option disabled>── My lessons ──</option>}
-                {getCustomLessons().map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.label}</option>)}
+                {getCustomLessons().map(cl=><option key={cl.id} value={'custom:'+cl.id}>★ {cl.title||cl.label}</option>)}
               </select>
             </div>
             {/* Section */}
@@ -14315,6 +14601,7 @@ function GalleryView({isVisitor}){
         setStudentPopup={setStudentPopup}
         zIndex={4000}
         onPhotoEdit={handlePhotoEdit}
+        onPhotoReassign={handlePhotoReassign}
         editedUrls={editedUrls}
       />}
             {/* Student popup — click student name in lightbox */}
