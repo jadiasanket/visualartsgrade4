@@ -8311,7 +8311,7 @@ async function uploadPortfolioPhoto(file, sectionId, studentIdx){
       const reader=new FileReader();
       reader.onload=e=>{
         img.onload=()=>{
-          const MAX=800;
+          const MAX=1600;
           let w=img.width,h=img.height;
           if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
           const canvas=document.createElement('canvas');
@@ -8325,7 +8325,7 @@ async function uploadPortfolioPhoto(file, sectionId, studentIdx){
               const url=await ref.getDownloadURL();
               resolve(url);
             }catch(err){reject(err);}
-          },'image/jpeg',0.82);
+          },'image/jpeg',0.92);
         };
         img.src=e.target.result;
       };
@@ -13169,7 +13169,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
         rafRef.current=requestAnimationFrame(applyTransform);
       }}>
 
-      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',padding:`${_CROP_MARGIN_V*100}vh ${_CROP_MARGIN_H*100}vw`}}>
+      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
         <img ref={imgRef} src={currentUrl} alt="" draggable={false}
           style={{maxWidth:`${(1-_CROP_MARGIN_H*2)*100}vw`,maxHeight:`${(1-_CROP_MARGIN_V*2)*100}vh`,objectFit:'contain',display:'block',imageRendering:'high-quality',WebkitImageRendering:'crisp-edges',transformOrigin:'center center',willChange:'transform',borderRadius:12,transition:'border-radius 0.4s ease',filter:filterStyle||undefined}}/>
       </div>
