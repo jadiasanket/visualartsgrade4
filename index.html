@@ -13240,7 +13240,8 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           onClick={()=>setLessonOverlayOpen(false)}>
           <div style={{width:'min(680px,92vw)',maxHeight:'88vh',borderRadius:14,boxShadow:'0 12px 40px rgba(0,0,0,0.65)',border:'1px solid rgba(255,255,255,0.07)',background:'rgba(18,18,22,0.82)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',overflow:'hidden'}}
             onClick={e=>e.stopPropagation()}>
-            <div style={{overflowY:'auto',maxHeight:'88vh',scrollbarWidth:'none'}}>
+            <style>{'.lesson-overlay .sc.open-card{background:rgba(18,18,22,0.0)!important;border:none!important;box-shadow:none!important;transform:none!important;}.lesson-overlay .sc-panel{background:transparent!important;}.lesson-overlay .sc-tabs{background:rgba(255,255,255,0.04)!important;border-bottom-color:rgba(255,255,255,0.08)!important;}.lesson-overlay .sc-hdr{cursor:default!important;}.lesson-overlay .sc-title{font-size:16px!important;}.lesson-overlay .pbox{background:rgba(255,255,255,0.04)!important;border-color:rgba(255,255,255,0.07)!important;}.lesson-overlay .recap-box{background:rgba(255,255,255,0.04)!important;border-color:rgba(255,255,255,0.07)!important;}.lesson-overlay .tn{background:rgba(255,255,255,0.04)!important;}.lesson-overlay .step{background:rgba(255,255,255,0.04)!important;border-color:rgba(255,255,255,0.07)!important;}'}</style>
+            <div className="lesson-overlay" style={{overflowY:'auto',maxHeight:'88vh',scrollbarWidth:'none'}}>
             {(()=>{
               const ph=PHASES.find(p=>p.sessions.find(s=>s.n===lessonSession.n));
               if(!ph) return null;
