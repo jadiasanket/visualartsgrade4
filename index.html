@@ -13403,6 +13403,7 @@ function GalleryView({isVisitor}){
       setEditedUrls(prev=>({...prev,[photo.url]:url}));
     }catch(e){console.error('Edit save failed',e);}
   }
+
   const allLessons=PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color})));
   const artworkTags=getArtworkTags();
   const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
