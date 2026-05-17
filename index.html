@@ -13393,8 +13393,32 @@ function resolveLessonLabel(raw){
 }
 
 
-// ── InfoDropdown — spring-physics highlight, used in info panel ───────────────
-function InfoDropdown({items,panelRef}){
+// ── InfoPill — collapsed pill showing current value, expands to list ──────────
+function InfoPill({label,open,onToggle,children}){
+  return(
+    <div style={{marginTop:6}}>
+      <div onClick={onToggle}
+        style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+          padding:'7px 12px',borderRadius:100,cursor:'pointer',userSelect:'none',
+          background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.13)',
+          transition:'background .15s,border-color .15s'}}>
+        <span style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,color:'#fff',
+          fontFamily:"'DM Sans',sans-serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+          {label}
+        </span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)"
+          strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0,marginLeft:8,
+            transform:open?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s'}}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      {open&&children}
+    </div>
+  );
+}
+
+// ── InfoDropdownList — spring-physics list inside expanded pill ───────────────
+function InfoDropdownList({items,panelRef}){
   const containerRef=React.useRef(null);
   const bubbleRef=React.useRef(null);
   const rowRefs=React.useRef([]);
@@ -13421,14 +13445,9 @@ function InfoDropdown({items,panelRef}){
     }
     s.opacity+=(s.to-s.opacity)*0.18;
     const b=bubbleRef.current;
-    if(b){
-      b.style.top=s.y+'px';
-      b.style.height=s.h+'px';
-      b.style.opacity=s.opacity;
-    }
+    if(b){b.style.top=s.y+'px';b.style.height=s.h+'px';b.style.opacity=s.opacity;}
     const done=Math.abs(s.vy)<0.3&&Math.abs(s.vh)<0.3&&
-      Math.abs(s.y-s.ty)<0.3&&Math.abs(s.h-s.th)<0.3&&
-      Math.abs(s.opacity-s.to)<0.002;
+      Math.abs(s.y-s.ty)<0.3&&Math.abs(s.h-s.th)<0.3&&Math.abs(s.opacity-s.to)<0.002;
     if(!done) rafRef.current=requestAnimationFrame(tick);
     else rafRef.current=null;
   }
@@ -13442,28 +13461,29 @@ function InfoDropdown({items,panelRef}){
     s.ty=r.y; s.th=r.h; s.to=1;
     startTick();
   }
-  function onLeave(){
-    sp.current.to=0; startTick();
-  }
-
-  // Width: panel width minus 6px each side
-  const panelW=panelRef&&panelRef.current?panelRef.current.offsetWidth:260;
-  const dropW=panelW-12;
+  function onLeave(){sp.current.to=0;startTick();}
 
   return(
-    <div ref={containerRef} style={{position:'absolute',top:'100%',left:-16,zIndex:200,marginTop:3,
-      width:dropW,maxHeight:280,overflowY:'auto',scrollbarWidth:'none',
-      background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.18)',
-      borderRadius:10,boxShadow:'0 8px 32px rgba(0,0,0,0.65)'}}
-      onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
-      onMouseLeave={onLeave}>
+    <div ref={containerRef}
+      style={{position:'relative',marginTop:4,maxHeight:240,overflowY:'auto',scrollbarWidth:'none',
+        background:'rgba(7,7,8,0.95)',border:'1px solid rgba(255,255,255,0.12)',
+        borderRadius:10,boxShadow:'0 6px 24px rgba(0,0,0,0.5)'}}
+      onMouseLeave={onLeave}
+      onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
       {/* Spring bubble */}
       <div ref={bubbleRef} style={{position:'absolute',left:3,right:3,borderRadius:6,
-        background:'rgba(255,255,255,0.09)',pointerEvents:'none',zIndex:0,opacity:0,
+        background:'rgba(255,255,255,0.08)',pointerEvents:'none',zIndex:0,opacity:0,
         willChange:'top,height,opacity'}}/>
       {items.map((item,i)=>{
         if(item.isDivider) return(
-          <div key={item.id} style={{height:1,background:'rgba(255,255,255,0.12)',margin:'4px 0'}}/>
+          <div key={item.id||i} style={{height:1,background:'rgba(255,255,255,0.10)',margin:'3px 0'}}/>
+        );
+        if(item.isHeader) return(
+          <div key={item.id||i} style={{padding:'6px 12px 3px',fontSize:9,fontWeight:700,
+            letterSpacing:'0.08em',color:'rgba(255,255,255,0.3)',textTransform:'uppercase',
+            userSelect:'none'}}>
+            {item.label}
+          </div>
         );
         return(
           <div key={item.id}
@@ -13471,11 +13491,12 @@ function InfoDropdown({items,panelRef}){
             onMouseEnter={()=>onEnter(i)}
             onClick={item.onSelect}
             style={{position:'relative',zIndex:1,padding:'7px 12px',fontSize:12,
-              color:item.isCurrent?'#fff':'rgba(255,255,255,0.7)',
+              color:item.isCurrent?'#fff':'rgba(255,255,255,0.72)',
               fontFamily:"'DM Sans',sans-serif",cursor:'pointer',
               display:'flex',alignItems:'center',gap:8,userSelect:'none'}}>
             {item.label}
-            {item.isCurrent&&<span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.35)',whiteSpace:'nowrap'}}>current</span>}
+            {item.isCurrent&&<span style={{marginLeft:'auto',fontSize:9,
+              color:'rgba(255,255,255,0.35)',whiteSpace:'nowrap',flexShrink:0}}>current</span>}
           </div>
         );
       })}
@@ -13517,11 +13538,12 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const infoPanelRef=React.useRef(null);
   const [panelBg,setPanelBg]=React.useState('rgba(7,7,8,0.87)');
   // E: inline reassign state
-  const [reassignField,setReassignField]=React.useState(null);
+  const [infoEditMode,setInfoEditMode]=React.useState(false); // pencil toggle
+  const [reassignField,setReassignField]=React.useState(null); // which pill is open: 'student'|'lesson'|'section'|null
   const [reassignSaving,setReassignSaving]=React.useState(false);
   const customLessons=useCustomLessons();
 
-  // Close reassign dropdown on outside click
+  // Close open pill on outside click (but keep edit mode on)
   React.useEffect(()=>{
     if(!reassignField) return;
     function handle(e){
@@ -13530,6 +13552,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
     document.addEventListener('mousedown',handle);
     return()=>document.removeEventListener('mousedown',handle);
   },[reassignField]);
+
+  // Exit edit mode resets everything
+  function exitEditMode(){setInfoEditMode(false);setReassignField(null);}
 
   // C3 — Adaptive tone: sample image brightness, adjust panel opacity
   React.useEffect(()=>{
@@ -13726,76 +13751,107 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
 
       {/* INFO PANEL */}
       {activeControl==='info'&&infoVisible&&(
-        <div className="lb-glass-panel" ref={infoPanelRef} style={{...infoPanelStyle,zIndex:20,width:'clamp(220px,20vw,280px)',background:panelBg,backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:15,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 12px 40px rgba(0,0,0,0.65)',animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards'}}
+        <div className="lb-glass-panel" ref={infoPanelRef}
+          style={{...infoPanelStyle,zIndex:20,width:'clamp(220px,20vw,280px)',
+            background:panelBg,backdropFilter:'blur(6px) saturate(200%)',
+            WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:15,
+            border:'1px solid '+(infoEditMode?'rgb(0,116,240)':'rgba(255,255,255,0.15)'),
+            boxShadow:'0 12px 40px rgba(0,0,0,0.65)',
+            animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards',
+            transition:'border-color .2s'}}
           onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
 
-          {/* Header row: student/doc title + edit pencil button */}
+          {/* Header: name + section dot + edit/tick button */}
           <div style={{padding:'14px 16px 12px',cursor:'grab',position:'relative'}} onMouseDown={startInfoDrag}>
-            {/* Edit pencil — teacher only */}
+
+            {/* Pencil / green tick button — teacher only */}
             {teacherMode&&onPhotoReassign&&(
               <button
-                onClick={e=>{e.stopPropagation();setReassignField(reassignField?null:(isDoc?'section':'student'));}}
-                style={{position:'absolute',top:12,right:12,width:24,height:24,borderRadius:'50%',
-                  border:'1px solid rgba(255,255,255,'+(reassignField?'0.35':'0.15')+')',
-                  background:reassignField?'rgba(255,255,255,0.12)':'transparent',
-                  color:'rgba(255,255,255,'+(reassignField?'0.9':'0.4')+')',
+                onClick={e=>{e.stopPropagation();infoEditMode?exitEditMode():setInfoEditMode(true);}}
+                onMouseEnter={e=>{if(!infoEditMode)e.currentTarget.style.color='rgb(0,116,240)';}}
+                onMouseLeave={e=>{if(!infoEditMode)e.currentTarget.style.color='rgba(255,255,255,0.4)';}}
+                style={{position:'absolute',top:10,right:10,width:28,height:28,
+                  borderRadius:'50%',border:'none',
+                  background:infoEditMode?'rgb(34,197,94)':'transparent',
+                  color:infoEditMode?'#fff':'rgba(255,255,255,0.4)',
                   cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:11,transition:'all .15s',flexShrink:0}}>
-                ✎
+                  transition:'background .18s,color .18s',flexShrink:0,padding:0}}>
+                {infoEditMode
+                  ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+                }
               </button>
             )}
 
+            {/* Student name (artwork) */}
             {!isDoc&&(
               <>
-                <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2,paddingRight:teacherMode&&onPhotoReassign?28:0}}>
+                <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',
+                  fontFamily:F,letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2,
+                  paddingRight:teacherMode&&onPhotoReassign?34:0}}>
                   {photo.studentName||'—'}
                 </div>
-                <div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.42)',fontFamily:F,display:'flex',alignItems:'center',gap:5}}>
+                <div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.42)',
+                  fontFamily:F,display:'flex',alignItems:'center',gap:5}}>
                   <SectionDot sectionId={photo.sectionId} size={5}/>{photo.sectionName||''}
                 </div>
-                {/* Student dropdown — only when edit active */}
-                {reassignField==='student'&&teacherMode&&onPhotoReassign&&(
-                  <InfoDropdown
-                    items={(()=>{
-                      const sec=G4_SECTIONS.find(s=>s.id===photo.sectionId);
-                      return (sec?sec.students:[]).map((name,idx)=>({
-                        id:sec.id+'-'+idx, label:name, sub:null,
-                        isCurrent:name===photo.studentName,
-                        onSelect:async()=>{
-                          if(reassignSaving) return;
-                          setReassignSaving(true);
-                          await onPhotoReassign(photo,{newStudentIdx:idx,newSectionId:sec.id});
-                          setReassignSaving(false);
-                          setReassignField(null);
-                        }
-                      }));
-                    })()}
-                    panelRef={infoPanelRef}
-                  />
+                {/* Student pill — only in edit mode */}
+                {infoEditMode&&teacherMode&&onPhotoReassign&&(
+                  <InfoPill
+                    label={photo.studentName||'—'}
+                    open={reassignField==='student'}
+                    onToggle={()=>setReassignField(reassignField==='student'?null:'student')}>
+                    <InfoDropdownList
+                      items={(()=>{
+                        const sec=G4_SECTIONS.find(s=>s.id===photo.sectionId);
+                        return(sec?sec.students:[]).map((name,idx)=>({
+                          id:sec.id+'-'+idx,label:name,
+                          isCurrent:name===photo.studentName,
+                          onSelect:async()=>{
+                            if(reassignSaving) return;
+                            setReassignSaving(true);
+                            await onPhotoReassign(photo,{newStudentIdx:idx,newSectionId:sec.id});
+                            setReassignSaving(false);
+                            setReassignField(null);
+                          }
+                        }));
+                      })()}
+                      panelRef={infoPanelRef}
+                    />
+                  </InfoPill>
                 )}
               </>
             )}
+
+            {/* Doc title (documentation) */}
             {isDoc&&(
               <>
-                <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',lineHeight:1.3,paddingRight:teacherMode&&onPhotoReassign?28:0}}>
+                <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',
+                  fontFamily:F,letterSpacing:'0.01em',lineHeight:1.3,
+                  paddingRight:teacherMode&&onPhotoReassign?34:0}}>
                   {lessonN?('L'+lessonN+': '+lessonSession.title):(lessonTitle||'Documentation')}
                 </div>
-                {/* Section dropdown for docs — only when edit active */}
-                {reassignField==='section'&&teacherMode&&onPhotoReassign&&(
-                  <InfoDropdown
-                    items={G4_SECTIONS.map(sec=>({
-                      id:sec.id, label:sec.name, sub:null,
-                      isCurrent:sec.id===photo.sectionId,
-                      onSelect:async()=>{
-                        if(reassignSaving) return;
-                        setReassignSaving(true);
-                        await onPhotoReassign(photo,{newSectionId:sec.id,newStudentIdx:0});
-                        setReassignSaving(false);
-                        setReassignField(null);
-                      }
-                    }))}
-                    panelRef={infoPanelRef}
-                  />
+                {/* Section pill — only in edit mode, docs only */}
+                {infoEditMode&&teacherMode&&onPhotoReassign&&(
+                  <InfoPill
+                    label={photo.sectionName||'Section'}
+                    open={reassignField==='section'}
+                    onToggle={()=>setReassignField(reassignField==='section'?null:'section')}>
+                    <InfoDropdownList
+                      items={G4_SECTIONS.map(sec=>({
+                        id:sec.id,label:sec.name,
+                        isCurrent:sec.id===photo.sectionId,
+                        onSelect:async()=>{
+                          if(reassignSaving) return;
+                          setReassignSaving(true);
+                          await onPhotoReassign(photo,{newSectionId:sec.id,newStudentIdx:0});
+                          setReassignSaving(false);
+                          setReassignField(null);
+                        }
+                      }))}
+                      panelRef={infoPanelRef}
+                    />
+                  </InfoPill>
                 )}
               </>
             )}
@@ -13803,74 +13859,78 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
 
           <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 16px'}}/>
 
+          {/* Lesson row */}
           {(lessonN||lessonTitle)&&(
-            <div style={{padding:'12px 16px',position:'relative'}}>
+            <div style={{padding:'12px 16px'}}>
               {!isDoc&&(
                 <>
-                  <div
-                    onClick={()=>{
-                      if(reassignField==='lesson'){setReassignField(null);return;}
-                      // In edit mode: open lesson dropdown. Otherwise: open lesson overlay
-                      if(reassignField&&teacherMode&&onPhotoReassign){setReassignField('lesson');return;}
-                      if(lessonSession) setLessonOverlayOpen(true);
-                    }}
-                    style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,
-                      color:lessonSession?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.75)',
-                      fontFamily:F,marginBottom:lessonOverview?7:0,lineHeight:1.3,
-                      cursor:'pointer',
-                      textDecoration:lessonSession&&!reassignField?'underline':'none',
-                      textDecorationColor:'rgba(255,255,255,0.25)',textUnderlineOffset:'3px'}}>
-                    {lessonN?('L'+lessonN+': '+lessonSession.title):lessonTitle}
-                    {reassignField&&teacherMode&&onPhotoReassign&&<span style={{fontSize:9,marginLeft:5,opacity:0.5,textDecoration:'none'}}>▾</span>}
-                  </div>
-                  {/* Lesson dropdown — only when edit active */}
-                  {reassignField==='lesson'&&teacherMode&&onPhotoReassign&&(
-                    <InfoDropdown
-                      items={[
-                        ...PHASES.flatMap(ph=>ph.sessions.map(s=>{
-                          const key=ph.id+':'+s.n;
-                          const currentKey=(photo.lessons&&photo.lessons[0])||'';
-                          return{
-                            id:key,
-                            label:'S'+s.n+': '+s.title,
-                            sub:null,
-                            isCurrent:currentKey===key||currentKey==='L'+key,
-                            onSelect:async()=>{
-                              if(reassignSaving) return;
-                              setReassignSaving(true);
-                              await onPhotoReassign(photo,{newLesson:key});
-                              setReassignSaving(false);
-                              setReassignField(null);
-                            }
-                          };
-                        })),
-                        ...(customLessons.length>0?[{id:'__divider__',label:'',sub:null,isCurrent:false,isDivider:true,onSelect:()=>{}}]:[]),
-                        ...customLessons.map(cl=>{
-                          const key='custom:'+cl.id;
-                          return{
-                            id:cl.id,
-                            label:'★ '+(cl.title||cl.label),
-                            sub:null,
-                            isCurrent:(photo.lessons&&photo.lessons[0])===key,
-                            onSelect:async()=>{
-                              if(reassignSaving) return;
-                              setReassignSaving(true);
-                              await onPhotoReassign(photo,{newLesson:key});
-                              setReassignSaving(false);
-                              setReassignField(null);
-                            }
-                          };
-                        })
-                      ]}
-                      panelRef={infoPanelRef}
-                    />
+                  {/* Read mode: click opens lesson overlay */}
+                  {!infoEditMode&&(
+                    <div
+                      onClick={lessonSession?()=>setLessonOverlayOpen(true):undefined}
+                      style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,
+                        color:lessonSession?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.75)',
+                        fontFamily:F,marginBottom:lessonOverview?7:0,lineHeight:1.3,
+                        cursor:lessonSession?'pointer':'default'}}>
+                      {lessonN?('L'+lessonN+': '+lessonSession.title):lessonTitle}
+                    </div>
                   )}
-                  {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
+                  {/* Edit mode: lesson pill */}
+                  {infoEditMode&&teacherMode&&onPhotoReassign&&(
+                    <InfoPill
+                      label={lessonN?('L'+lessonN+': '+lessonSession.title):(lessonTitle||'No lesson')}
+                      open={reassignField==='lesson'}
+                      onToggle={()=>setReassignField(reassignField==='lesson'?null:'lesson')}>
+                      <InfoDropdownList
+                        items={[
+                          {id:'__h_lessons__',label:'Lessons',isHeader:true,isCurrent:false,onSelect:()=>{}},
+                          ...PHASES.flatMap(ph=>ph.sessions.map(s=>{
+                            const key=ph.id+':'+s.n;
+                            const currentKey=(photo.lessons&&photo.lessons[0])||'';
+                            return{
+                              id:key,
+                              label:'S'+s.n+': '+s.title,
+                              isCurrent:currentKey===key||currentKey==='L'+key,
+                              onSelect:async()=>{
+                                if(reassignSaving) return;
+                                setReassignSaving(true);
+                                await onPhotoReassign(photo,{newLesson:key});
+                                setReassignSaving(false);
+                                setReassignField(null);
+                              }
+                            };
+                          })),
+                          ...(customLessons.length>0?[
+                            {id:'__div__',isDivider:true,label:'',isCurrent:false,onSelect:()=>{}},
+                            {id:'__h_custom__',label:'Custom Lessons',isHeader:true,isCurrent:false,onSelect:()=>{}},
+                            ...customLessons.map(cl=>{
+                              const key='custom:'+cl.id;
+                              return{
+                                id:cl.id,
+                                label:'★ '+(cl.title||cl.label),
+                                isCurrent:(photo.lessons&&photo.lessons[0])===key,
+                                onSelect:async()=>{
+                                  if(reassignSaving) return;
+                                  setReassignSaving(true);
+                                  await onPhotoReassign(photo,{newLesson:key});
+                                  setReassignSaving(false);
+                                  setReassignField(null);
+                                }
+                              };
+                            })
+                          ]:[])
+                        ]}
+                        panelRef={infoPanelRef}
+                      />
+                    </InfoPill>
+                  )}
+                  {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic',marginTop:6}}>{lessonOverview}</div>}
                 </>
               )}
               {isDoc&&lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
             </div>
           )}
+
           {photo.date&&isDoc&&(<><div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 16px'}}/><div style={{padding:'10px 16px',fontSize:'clamp(11px,1.2vh,13px)',color:'rgba(255,255,255,0.45)',fontFamily:F}}>{photo.date}</div></>)}
           {lessonKws.length>0&&(
             <>
