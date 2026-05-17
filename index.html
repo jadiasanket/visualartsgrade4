@@ -2648,22 +2648,33 @@ const IC={
     <ellipse cx="6.5" cy="5.8" rx="2.5" ry="0.85" fill="rgba(255,255,255,0.32)"/>
   </svg>),
 
+  // p5 Respond & Grow: clay seedling (sky)
+  p5:(<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+    <ellipse cx="12" cy="21" rx="5" ry="1.4" fill="#1a6aaa" opacity="0.18"/>
+    <rect x="11.2" y="10" width="1.6" height="11" rx="0.8" fill="#38bef8"/>
+    <path d="M12 14 C10 11 6 10 5 7 C7 5 11 6 12 10" fill="#56d3f5"/>
+    <path d="M12 11 C14 8 18 7 19 4 C17 2 13 3 12 7" fill="#38bef8"/>
+    <ellipse cx="8" cy="9.5" rx="2.2" ry="0.7" fill="rgba(255,255,255,0.3)" transform="rotate(-20 8 9.5)"/>
+  </svg>),
+
   spark:(<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>),
 };
 
-const PHASE_IC={'p1':IC.p1,'p2':IC.p2,'p3':IC.p3,'p4':IC.p4};
+const PHASE_IC={'p1':IC.p1,'p2':IC.p2,'p3':IC.p3,'p4':IC.p4,'p5':IC.p5};
 function PhaseIcon({id,size=16}){
   const paths={
     p1:[['M12 2a5 5 0 015 5c0 3-2 5-5 8-3-3-5-5-5-8a5 5 0 015-5z'],['M12 7','circle']],
     p2:[['M11 3a8 8 0 100 16A8 8 0 0011 3z'],['M20 20l-3.5-3.5']],
     p3:[['M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71'],['M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71']],
     p4:[['M12 20h9'],['M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z']],
+    p5:[['M12 22V12'],['M12 12C10 9 6 8 5 5c2-2 6-1 7 4'],['M12 12C14 9 18 8 19 5c-2-2-6-1-7 4']],
   };
   const defs={
     p1:{paths:['M12 2a5 5 0 015 5c0 3-2 5-5 8-3-3-5-5-5-8a5 5 0 015-5z','M12 7m-2 0a2 2 0 104 0 2 2 0 10-4 0']},
     p2:{paths:['M11 3a8 8 0 100 16A8 8 0 0011 3z','M20 20l-3.5-3.5']},
     p3:{paths:['M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71','M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71']},
     p4:{paths:['M12 20h9','M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z']},
+    p5:{paths:['M12 22V12','M12 12C10 9 6 8 5 5c2-2 6-1 7 4','M12 12C14 9 18 8 19 5c-2-2-6-1-7 4']},
   };
   const d=defs[id];if(!d)return null;
   return(<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{d.paths.map((p,i)=><path key={i} d={p}/>)}</svg>);
@@ -2697,6 +2708,7 @@ const PM={
   yellow:{l:'var(--yellow)',s:'var(--ys)',b:'var(--yb)',na:'var(--ys)',bg:'var(--ys)'},
   teal:{l:'var(--teal)',s:'var(--ts)',b:'var(--tb)',na:'var(--ts)',bg:'var(--ts)'},
   violet:{l:'var(--violet)',s:'var(--vs)',b:'var(--vb)',na:'var(--vs)',bg:'var(--vs)'},
+  sky:{l:'var(--sky)',s:'var(--sky)',b:'var(--sky)',na:'var(--sky)',bg:'var(--sky)'},
 };
 
 // ── ARTWORK ASSESSMENT TAGS ──
@@ -3101,6 +3113,174 @@ The wave mirrors the execute → refine → title rhythm of Wave 2 but in a new 
       },
     ]
   },
+  {
+    id:'p4',emoji:'🪞',color:'violet',name:'Reflect & Share',months:'September',
+    sub:'We look at our journey, give and receive feedback, and present our work',
+    monthSummary:'Students revisit their work from across the unit, participate in a structured peer critique, curate a small personal exhibition, and write a final artist statement. The focus is on articulating choices and developing the language of reflection.',
+    parentSummary:`This month students will step back and look at everything they have made across the unit. They will take part in a structured peer critique using kind, specific, and helpful language, then curate their own small exhibition — choosing which works to display and how to arrange them.
+
+Each student will write a final artist statement of three to four sentences: what they made, one decision they are proud of, and what they would do differently. The goal is to develop the habit of reflection as part of the creative process, not just an add-on at the end.`,
+    artistPool:[
+      {name:'Louise Bourgeois',work:'Spider (1997)',why:'Bourgeois often reflected publicly on her own process. Her work is deeply personal and articulate.'},
+      {name:'Yayoi Kusama',work:'Artist statements and interviews',why:'Accessible, honest language about obsession, repetition, and intention.'},
+      {name:'Jean-Michel Basquiat',work:'Studio photographs and interviews',why:'Show how artists talk about their own work — sometimes simply, sometimes with humour.'},
+    ],
+    sessions:[
+      {
+        n:15,emoji:'👁️',title:'Gallery Walk & Peer Critique',
+        cluster:null,
+        tags:[{l:'Reflection',c:'violet'},{l:'Discussion',c:'sky'}],dur:'50 min',
+        recap:null,
+        bridge:null,
+        overview:'Students display their three main works (mark-making, coloured composition, collage). Structured gallery walk with sticky-note feedback. Introduction to kind, specific, helpful critique language.',
+        objective:'Develop language for looking at and talking about art. Give and receive constructive feedback.',
+        activity:[
+          {t:'Set up the gallery (5 min)',s:'Students place their three works on desks or pin to walls. Sticky notes and pens ready.'},
+          {t:'Introduce critique language (5 min)',s:'Teach: "I notice… / I wonder… / What if…" Write these on the board. Model one example.'},
+          {t:'Gallery walk round 1 (15 min)',s:'Half the class walks, half stays with their work. Walkers leave one sticky note per work they visit.'},
+          {t:'Gallery walk round 2 (15 min)',s:'Switch. Other half walks.'},
+          {t:'Read and reflect (10 min)',s:'Students read their feedback silently. Choose one note that surprised them. Share with a partner.'},
+        ],
+        mats:['Sticky notes (two colours)','Pens','Wall/desk space for display'],
+        kws:['Critique','Reflection','Feedback','Gallery'],
+        bigQ:['What is the difference between saying "I like it" and saying "I notice the lines feel tense here — why did you do that?"','Is it harder to give feedback or receive it? Why?'],
+        refs:[
+          {type:'artist',name:'Louise Bourgeois',work:'Spider (1997)',why:'Bourgeois often reflected publicly on her own process.'},
+          {type:'ref',name:'Video',work:'Artist talks (short clips — MoMA or Tate)',why:'Show how professional artists talk about their own work.'},
+        ],
+        tn:'Keep the critique language visible all lesson. Students will default to "I like it" — redirect gently every time.',
+      },
+      {
+        n:16,emoji:'🗂️',title:'Curate Your Exhibition',
+        cluster:null,
+        tags:[{l:'Reflection',c:'violet'},{l:'Decision-making',c:'coral'}],dur:'50 min',
+        recap:null,
+        bridge:null,
+        overview:'Students choose which of their works to display and how to arrange them. Introduction to the idea of curation as a creative decision.',
+        objective:'Understand that choosing and arranging work is itself a creative act. Make intentional decisions about presentation.',
+        activity:[
+          {t:'Introduce curation (5 min)',s:'"A curator decides what goes in an exhibition, in what order, and why. Today you are the curator of your own work."'},
+          {t:'Choose and arrange (20 min)',s:'Students lay out all their work and choose: which three pieces tell the story of their journey? How do they want to arrange them?'},
+          {t:'Write a label (15 min)',s:'For each work, students write a small label: title, medium, one sentence about the process.'},
+          {t:'Share your curation (10 min)',s:'Students explain their arrangement to a partner: "I put this one first because…"'},
+        ],
+        mats:['All student works','Small cards for labels','Pencils'],
+        kws:['Curation','Arrangement','Intention','Presentation'],
+        bigQ:['Does the order you put works in change how they feel together?','If you could only show one piece from this unit to someone who hadn\'t seen any of it, which would you choose — and why?'],
+        refs:[
+          {type:'ref',name:'Concept',work:'Gallery labels from a museum or art book',why:'Show students what professional labels look like.'},
+        ],
+        tn:null,
+      },
+      {
+        n:17,emoji:'✍️',title:'Artist Statement',
+        cluster:null,
+        tags:[{l:'Writing',c:'sky'},{l:'Reflection',c:'violet'}],dur:'50 min',
+        recap:null,
+        bridge:null,
+        overview:'Students write a 3–4 sentence artist statement: what they made, one decision they are proud of, and what they would do differently next time.',
+        objective:'Articulate creative choices in writing. Develop the habit of reflection as part of the artistic process.',
+        activity:[
+          {t:'Read example statements (10 min)',s:'Teacher shares two or three short artist statements (simplified for Grade 4). What do they have in common?'},
+          {t:'Introduce the structure (5 min)',s:'Three sentences: (1) What I made. (2) One decision I\'m proud of. (3) What I\'d change or try next time.'},
+          {t:'Draft (20 min)',s:'Students write their own statement. Teacher circulates. Prompt: "Why did you use that colour / that shape / that approach?"'},
+          {t:'Peer read and respond (10 min)',s:'Students swap with a partner. Partner reads and asks one genuine question.'},
+          {t:'Revise and finalise (5 min)',s:'Students make one small improvement based on the question they received.'},
+        ],
+        mats:['Writing paper or cards','Pencils','Example artist statements (printed or projected)'],
+        kws:['Artist Statement','Reflection','Intention','Writing'],
+        bigQ:['Can writing about your art change how you see it?','Is it possible to make something and not know why — and is that okay?'],
+        refs:[
+          {type:'artist',name:'Yayoi Kusama',work:'Artist statements and interviews',why:'Accessible, honest language about obsession, repetition, and intention.'},
+          {type:'artist',name:'Jean-Michel Basquiat',work:'Interviews',why:'Simple, direct language about making and meaning.'},
+        ],
+        tn:'Sentence starters on the board help students who freeze: "In this unit I made… / I decided to… / Next time I would…"',
+      },
+    ]
+  },
+  {
+    id:'p5',emoji:'🌱',color:'sky',name:'Respond & Grow',months:'October',
+    sub:'We look forward — taking one idea from the unit into something new',
+    monthSummary:'Students identify one idea, question, or technique from the unit that they want to take further. They make a short exploratory piece, share it, and set one personal creative goal for the year ahead.',
+    parentSummary:`In this final phase, students choose one thread from the unit — an idea, a question, or a technique — and follow it somewhere new. They make a short exploratory piece (any medium, no brief), share it in a small group, and set one personal creative goal.
+
+This is deliberately open. The goal is to give students ownership over their next step and to plant the idea that art-making continues beyond the classroom and beyond the unit. By the end, each student will have one new small piece of work and one written creative goal they have chosen for themselves.`,
+    artistPool:[
+      {name:'Agnes Martin',work:'Untitled (grid paintings)',why:'Shows how one artist spent a lifetime following a single idea — line, grid, quiet. The depth of commitment is the lesson.'},
+      {name:'David Hockney',work:'Recent iPad drawings alongside earlier paintings',why:'Shows an artist following curiosity across decades, mediums, and technologies.'},
+      {name:'Kara Walker',work:'Silhouettes series',why:'One consistent technique used to explore endlessly different ideas.'},
+    ],
+    sessions:[
+      {
+        n:18,emoji:'🔭',title:'Choose Your Thread',
+        cluster:null,
+        tags:[{l:'Reflection',c:'violet'},{l:'Planning',c:'sky'}],dur:'50 min',
+        recap:null,
+        bridge:null,
+        overview:'Students look back at their work and identify one idea, question, or technique they want to explore further. They write a short "I want to find out…" statement and make a small plan.',
+        objective:'Develop creative agency. Practise identifying what genuinely interests you, not just what you did well.',
+        activity:[
+          {t:'Look back (10 min)',s:'Students spread out all their work and look quietly. Teacher: "What keeps pulling your eye back? What were you curious about but didn\'t have time to follow?"'},
+          {t:'Identify a thread (10 min)',s:'Students write: "I want to find out what happens if I…" (e.g. "…use only torn edges" / "…combine chaos marks with a grid" / "…work much bigger / smaller")'},
+          {t:'Share threads (10 min)',s:'Students share in groups of three. Others ask: "Why that one?"'},
+          {t:'Make a quick plan (15 min)',s:'Students write two or three sentences: what materials they will use, what they want to try, how they will know if it worked.'},
+          {t:'Close (5 min)',s:'"This is your starting point for next time. Keep this plan somewhere you\'ll see it."'},
+        ],
+        mats:['All student work from the unit','Writing paper','Pencils'],
+        kws:['Curiosity','Thread','Planning','Agency'],
+        bigQ:['What is the difference between following an idea because a teacher told you to and following it because you genuinely want to know what happens?','Can you think of an artist who spent their whole life following one idea?'],
+        refs:[
+          {type:'artist',name:'Agnes Martin',work:'Untitled (grid paintings, 1960s–2000s)',why:'One artist, one idea, a lifetime of exploration.'},
+          {type:'artist',name:'David Hockney',work:'iPad drawings (2009–present)',why:'Curiosity across decades and mediums.'},
+        ],
+        tn:'Students who say "I don\'t know" probably mean "I\'m afraid to choose wrong." Reassure: there is no wrong thread. Even "I want to try something totally different" is a valid thread.',
+      },
+      {
+        n:19,emoji:'🛠️',title:'Exploratory Piece',
+        cluster:null,
+        tags:[{l:'Making',c:'coral'},{l:'Exploration',c:'sky'}],dur:'50 min',
+        recap:null,
+        bridge:null,
+        overview:'Students make a short exploratory piece following their chosen thread. No brief, no required outcome. Process is the focus.',
+        objective:'Experience open-ended making. Build tolerance for not knowing what the outcome will be.',
+        activity:[
+          {t:'Re-read your plan (2 min)',s:'Students read their "I want to find out…" statement from last lesson.'},
+          {t:'Make (35 min)',s:'Students work independently. Teacher circulates with genuine curiosity: "What\'s happening? What surprised you?" Avoid evaluating.'},
+          {t:'Stop and look (8 min)',s:'Students pause and look at what they have. Write two sentences: what happened / what they notice.'},
+          {t:'Close (5 min)',s:'"This is a beginning, not a finished piece. What would the next step be if you kept going?"'},
+        ],
+        mats:['Student choice — any media available'],
+        kws:['Exploration','Process','Openness','Beginning'],
+        bigQ:['What does it feel like to make something when you don\'t know what it will look like at the end?','Is an exploratory piece finished when you stop, or is it finished when it\'s done?'],
+        refs:[
+          {type:'artist',name:'Kara Walker',work:'Silhouettes series',why:'Shows deep exploration of one consistent approach across many works.'},
+        ],
+        tn:'Resist the urge to make this feel productive. The lesson is about the experience of following curiosity, not about producing a good piece.',
+      },
+      {
+        n:20,emoji:'🎯',title:'Share & Set a Goal',
+        cluster:null,
+        tags:[{l:'Reflection',c:'violet'},{l:'Discussion',c:'sky'}],dur:'50 min',
+        recap:null,
+        bridge:null,
+        overview:'Students share their exploratory piece in a small group and set one personal creative goal for the year ahead.',
+        objective:'Practise sharing unfinished work. Develop the language of creative goals.',
+        activity:[
+          {t:'Small group share (20 min)',s:'Groups of three. Each student shares their piece and reads their "what happened" sentences. Others ask one genuine question only — no feedback, just curiosity.'},
+          {t:'Introduce creative goals (5 min)',s:'"A creative goal is not the same as a task. It\'s a direction. Examples: I want to work bigger. I want to try a medium I\'ve never used. I want to slow down and look more carefully."'},
+          {t:'Write your goal (15 min)',s:'Students write one creative goal for the year. As specific as possible. One sentence.'},
+          {t:'Close — read your goal aloud (10 min)',s:'Each student reads their goal to the class. No comments. Just listening.'},
+        ],
+        mats:['Exploratory pieces from Lesson 19','Writing cards','Pencils'],
+        kws:['Goal','Sharing','Direction','Creative Practice'],
+        bigQ:['What is the difference between a goal and a wish?','If you could only get better at one thing in art this year, what would it be — and why that one thing?'],
+        refs:[
+          {type:'artist',name:'David Hockney',work:'Interviews about process and curiosity',why:'A model of sustained creative goal-setting across a long career.'},
+        ],
+        tn:'The closing reading-aloud is quiet and slow. Let it land. This is the last lesson of the unit — make space for it.',
+      },
+    ]
+  },
 ];
 
 
@@ -3109,6 +3289,8 @@ const MONTHS_DATA=[
   {name:'May',color:'yellow',sessions:'Lessons 5–9',phaseId:'p2'},
   {name:'June',color:'teal',sessions:'— No school —',phaseId:null},
   {name:'July–Aug',color:'teal',sessions:'Lessons 10–14',phaseId:'p3'},
+  {name:'September',color:'violet',sessions:'Lessons 15–17',phaseId:'p4'},
+  {name:'October',color:'sky',sessions:'Lessons 18–20',phaseId:'p5'},
 ];
 
 /* ─────────────────────────────── HELPERS ─────────────────────────────── */
@@ -11810,6 +11992,9 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
       bubble.style.left=(s.x+offsetX)+'px';
       bubble.style.width=(s.w+stretchW)+'px';
       bubble.style.opacity=s.opacity;
+      // Dissolve: when fading out, scale down slightly so it "sinks back" naturally
+      const sc=0.85+0.15*s.opacity; // 1.0 when visible, 0.85 when gone
+      bubble.style.transform='scaleY('+sc+')';
     }
 
     // Icon colour: white under bubble, dim otherwise
@@ -11894,37 +12079,36 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
         background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',
         WebkitBackdropFilter:'blur(6px) saturate(200%)',
         borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',
-        boxShadow:'0 4px 20px rgba(0,0,0,0.35)',height:38,overflow:'hidden'}}
+        boxShadow:'0 4px 20px rgba(0,0,0,0.35)',height:38}}
       onMouseLeave={onLeave}
       onMouseMove={onMouseMove}>
 
-      {/* Flat blue bubble — same as ToolbarPill active state */}
+      {/* Flat blue bubble — no overflow:hidden on parent so no compositing artifacts */}
       <div ref={bubbleRef} style={{
         position:'absolute',top:0,height:'100%',
         borderRadius:100,pointerEvents:'none',zIndex:1,opacity:0,
-        background: ksActive ? 'rgb(0,116,240)' : 'rgb(0,116,240)',
-        willChange:'left,width,opacity',
+        background:'rgb(0,116,240)',
+        willChange:'left,width,opacity,transform',
       }}/>
 
       {buttons.map((b,i)=>(
         <React.Fragment key={i}>
-          {i>0&&<div style={{width:1,height:16,background:'rgba(255,255,255,0.10)',flexShrink:0,pointerEvents:'none',zIndex:1}}/>}
+          {i>0&&<div style={{width:1,height:16,background:'rgba(255,255,255,0.10)',flexShrink:0,pointerEvents:'none',zIndex:2}}/>}
           <button
             ref={el=>btnRefs.current[i]=el}
             onClick={()=>handleClick(b,i)} title={b.title}
             onMouseEnter={()=>onEnter(i)}
             style={{
               background:'transparent',border:'none',cursor:'pointer',
-              height:38,
-              width:b.wide?undefined:44,
-              paddingLeft:b.wide?16:0,paddingRight:b.wide?16:0,
+              height:38,minWidth:44,
+              paddingLeft:12,paddingRight:12,
               display:'flex',alignItems:'center',justifyContent:'center',
               flexShrink:0,position:'relative',zIndex:2,
             }}>
             <span ref={el=>iconRefs.current[i]=el}
-              style={{display:'flex',alignItems:'center',gap:0,
+              style={{display:'flex',alignItems:'center',justifyContent:'center',
+                width:20,height:20,
                 color:(b.ks&&ksActive)?'rgba(255,255,255,1)':'rgba(255,255,255,0.5)',
-                transformOrigin:'center center',
                 willChange:'color',transition:'none'}}>
               {b.icon}
             </span>
@@ -12672,8 +12856,12 @@ function ToolbarPill({activeControl,teacherMode,onSetControl}){
       pill.style.transform='translateX('+(s.x+offsetX)+'px)';
       pill.style.width=Math.max(4,s.w+stretchW)+'px';
       pill.style.opacity=s.opacity;
+      const sc=0.85+0.15*s.opacity;
+      pill.style.transform='translateX('+(s.x+offsetX)+'px) scaleY('+sc+')';
     } else if(pill){
+      const sc=0.85+0.15*s.opacity;
       pill.style.opacity=s.opacity;
+      pill.style.transform='translateX('+s.x+'px) scaleY('+sc+')';
     }
 
     const settled=
@@ -12714,9 +12902,9 @@ function ToolbarPill({activeControl,teacherMode,onSetControl}){
 
   const btnBase={
     background:'transparent',border:'none',cursor:'pointer',
-    paddingLeft:14,paddingRight:14,height:34,borderRadius:100,lineHeight:1,
+    paddingLeft:12,paddingRight:12,height:34,borderRadius:100,lineHeight:1,
     display:'flex',alignItems:'center',justifyContent:'center',
-    flexShrink:0,position:'relative',zIndex:2,transition:'color .12s',
+    flexShrink:0,position:'relative',zIndex:2,
   };
 
   return (
@@ -12760,7 +12948,9 @@ function ToolbarPill({activeControl,teacherMode,onSetControl}){
                 background:isActive?'rgb(0,116,240)':'transparent',
                 animation:isActive?'pill-pop .22s cubic-bezier(0.34,1.56,0.64,1) forwards':undefined,
               }}>
-              {b.icon}
+              <span style={{display:'flex',alignItems:'center',justifyContent:'center',width:20,height:20}}>
+                {b.icon}
+              </span>
             </button>
           </React.Fragment>
         );
