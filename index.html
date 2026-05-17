@@ -13496,7 +13496,7 @@ function InfoDropdownList({items,filterEnabled}){
        onMouseLeave={onLeave}
         onClick={e=>e.stopPropagation()}>        {/* Spring bubble */}
         <div ref={bubbleRef} style={{position:'absolute',left:3,right:3,borderRadius:6,
-          background:'rgba(0,116,240,0.22)',pointerEvents:'none',zIndex:0,opacity:0,
+          background:'rgb(0,116,240)',pointerEvents:'none',zIndex:0,opacity:0,
           willChange:'top,height,opacity'}}/>
         {filteredItems.map((item,i)=>{
           if(item.isDivider) return(
