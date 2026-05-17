@@ -2028,7 +2028,7 @@ body, [data-theme="dark"] body, [data-theme="light"] body {
 }
 .zs-track{
   position:absolute;inset:0;border-radius:100px;cursor:pointer;
-  background:rgb(7,7,8,0.87);
+  background:rgba(7,7,8,0.87);
   border:1px solid rgba(255,255,255,0.15);
   box-shadow:0 2px 12px rgba(0,0,0,0.5);
   overflow:hidden;
@@ -4232,7 +4232,7 @@ function RefCard_({card,i,activeIdx,n,onOpen,onSetActive,onEdit,onDelete,onArtUp
       {/* Bottom gradient info — always visible on all cards */}
       {!isEditing&&(
         <div style={{position:'absolute',bottom:0,left:0,right:0,
-          background:'linear-gradient(to top,rgb(7,7,8,0.87) 0%,rgba(0,0,0,0.45) 50%,transparent 100%)',
+          background:'linear-gradient(to top,rgba(7,7,8,0.87) 0%,rgba(0,0,0,0.45) 50%,transparent 100%)',
           padding:'44px 14px 14px',pointerEvents:'none',
           opacity:isActive?1:0.75,transition:'opacity .32s'}}>
           {card.badge&&<span style={{fontSize:8,fontWeight:700,padding:'2px 6px',borderRadius:5,
@@ -12222,9 +12222,9 @@ function CropOverlay({imgSrc,onCommit}){
 
   function iconBtn(onClick,children,title){
     return(
-      <button onClick={onClick} title={title} style={{width:40,height:40,padding:'9px',borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',background:'rgb(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}
+      <button onClick={onClick} title={title} style={{width:40,height:40,padding:'9px',borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}
         onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.background='rgba(40,40,55,0.95)';}}
-        onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgb(7,7,8,0.87)';}}>
+        onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgba(7,7,8,0.87)';}}>
         {children}
       </button>
     );
@@ -12240,9 +12240,9 @@ function CropOverlay({imgSrc,onCommit}){
   }
   function secBtn(onClick,children){
     return(
-      <button onClick={onClick} style={{padding:'8px 18px',borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',background:'rgb(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',cursor:'pointer',fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",color:'rgba(255,255,255,0.45)',transition:'all .15s',display:'flex',alignItems:'center',gap:6}}
+      <button onClick={onClick} style={{padding:'8px 18px',borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',cursor:'pointer',fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",color:'rgba(255,255,255,0.45)',transition:'all .15s',display:'flex',alignItems:'center',gap:6}}
         onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.82)';e.currentTarget.style.background='rgba(40,40,55,0.95)';}}
-        onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgb(7,7,8,0.87)';}}>
+        onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgba(7,7,8,0.87)';}}>
         {children}
       </button>
     );
@@ -12324,7 +12324,7 @@ function CropOverlay({imgSrc,onCommit}){
             thumb.style.background='rgba(220,220,230,0.9)';
             setFineRot(fineRotRef.current);
           }}>
-          <div style={{position:'absolute',inset:0,borderRadius:100,background:'rgb(7,7,8,0.87)',border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 24px rgba(0,0,0,0.28)'}}/>
+          <div style={{position:'absolute',inset:0,borderRadius:100,background:'rgba(7,7,8,0.87)',border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 24px rgba(0,0,0,0.28)'}}/>
           <div ref={barFillRef} style={{position:'absolute',left:1,right:1,background:'rgba(255,255,255,0.15)',pointerEvents:'none',top:'50%',bottom:'50%'}}/>
           <div style={{position:'absolute',left:'50%',top:'50%',width:20,height:1,background:'rgba(255,255,255,0.30)',transform:'translate(-50%,-50%)',pointerEvents:'none',zIndex:3}}/>
           <div ref={barThumbRef} data-h="30" style={{position:'absolute',left:'50%',top:'calc(50% - 15px)',transform:'translateX(-50%)',width:17,height:30,borderRadius:100,background:'rgba(220,220,230,0.9)',border:'1px solid rgba(255,255,255,0.45)',boxShadow:'0 2px 8px rgba(0,0,0,0.55)',pointerEvents:'none',zIndex:2,transition:'width .12s,height .12s'}}/>
@@ -12376,12 +12376,12 @@ function CropOverlay({imgSrc,onCommit}){
             onClick={ksCorners?applyKS:startKS}
             style={{width:40,height:40,padding:'9px',borderRadius:100,
               border:`1px solid ${ksCorners?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.15)'}`,
-              background:ksCorners?'rgb(0,116,240)':'rgb(7,7,8,0.87)',
+              background:ksCorners?'rgb(0,116,240)':'rgba(7,7,8,0.87)',
               backdropFilter:'blur(6px) saturate(200%)',cursor:'pointer',
               color:ksCorners?'#fff':'rgba(255,255,255,0.45)',
               display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}
             onMouseEnter={e=>{if(!ksCorners){e.currentTarget.style.color='rgba(255,255,255,0.9)';e.currentTarget.style.background='rgba(40,40,55,0.95)';}}}
-            onMouseLeave={e=>{if(!ksCorners){e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgb(7,7,8,0.87)';}}}
+            onMouseLeave={e=>{if(!ksCorners){e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.background='rgba(7,7,8,0.87)';}}}
 
           ><_IcoKeystone/></button>
           {cropActive
@@ -12509,7 +12509,7 @@ function ToolbarPill({activeControl,teacherMode,onSetControl}){
   return (
     <div className="tb-pill-wrap lb-glass-panel"
       style={{position:'relative',display:'flex',alignItems:'center',gap:0,
-        background:'rgb(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',
+        background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',
         WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:100,
         border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)'}}
       onMouseLeave={onLeave}>
@@ -12876,7 +12876,7 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange}){
 
   return (
     <div ref={panelRef} className="lb-glass-panel" style={{position:'absolute',top:'8vh',right:'2.5vw',width:253,
-      background:'rgb(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
+      background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
       borderRadius:15,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 12px 40px rgba(0,0,0,0.65)',
       userSelect:'none',zIndex:20,animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards'}}
       onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
@@ -13191,7 +13191,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
 
       {/* INFO PANEL */}
       {activeControl==='info'&&infoVisible&&(
-        <div className="lb-glass-panel" ref={infoPanelRef} style={{...infoPanelStyle,zIndex:20,width:'clamp(220px,20vw,280px)',background:'rgb(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:15,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 12px 40px rgba(0,0,0,0.65)',animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards'}}
+        <div className="lb-glass-panel" ref={infoPanelRef} style={{...infoPanelStyle,zIndex:20,width:'clamp(220px,20vw,280px)',background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:15,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 12px 40px rgba(0,0,0,0.65)',animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards'}}
           onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
           <div style={{padding:'14px 16px 12px',cursor:'grab'}} onMouseDown={startInfoDrag}>
             {!isDoc&&(<><div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',fontFamily:F,letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2}}>{photo.studentName||'—'}</div><div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.42)',fontFamily:F,display:'flex',alignItems:'center',gap:5}}><SectionDot sectionId={photo.sectionId} size={5}/>{photo.sectionName||''}</div></>)}
@@ -13238,7 +13238,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
       {lessonOverlayOpen&&lessonSession&&ReactDOM.createPortal(
         <div style={{position:'fixed',inset:0,zIndex:4500,display:'flex',alignItems:'center',justifyContent:'center',padding:'5vh 4vw'}}
           onClick={()=>setLessonOverlayOpen(false)}>
-          <div className="lb-glass-panel" style={{width:'min(680px,92vw)',maxHeight:'88vh',borderRadius:15,boxShadow:'0 12px 40px rgba(0,0,0,0.65)',border:'1px solid rgba(255,255,255,0.15)',background:'rgb(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)'}}
+          <div className="lb-glass-panel" style={{width:'min(680px,92vw)',maxHeight:'88vh',borderRadius:15,boxShadow:'0 12px 40px rgba(0,0,0,0.65)',border:'1px solid rgba(255,255,255,0.15)',background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)'}}
             onClick={e=>e.stopPropagation()}>
             <style>{'.lesson-overlay .sc.open-card{background:rgba(18,18,22,0.0)!important;border:none!important;box-shadow:none!important;transform:none!important;}.lesson-overlay .sc-panel{background:transparent!important;}.lesson-overlay .sc-tabs{background:rgba(255,255,255,0.04)!important;border-bottom-color:rgba(255,255,255,0.08)!important;}.lesson-overlay .sc-hdr{cursor:default!important;}.lesson-overlay .sc-title{font-size:16px!important;}.lesson-overlay .pbox{background:rgba(255,255,255,0.04)!important;border-color:rgba(255,255,255,0.07)!important;}.lesson-overlay .recap-box{background:rgba(255,255,255,0.04)!important;border-color:rgba(255,255,255,0.07)!important;}.lesson-overlay .tn{background:rgba(255,255,255,0.04)!important;}.lesson-overlay .step{background:rgba(255,255,255,0.04)!important;border-color:rgba(255,255,255,0.07)!important;}'}</style>
             <div className="lesson-overlay" style={{overflowY:'auto',maxHeight:'88vh',scrollbarWidth:'none'}}>
@@ -13315,7 +13315,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
       onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
       <ToolbarPill activeControl={activeControl} teacherMode={teacherMode} onSetControl={setControl}/>
       <button onClick={e=>{e.stopPropagation();onClose();}}
-        style={{background:'rgb(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.55)',fontSize:16,fontWeight:300,lineHeight:1,flexShrink:0,boxShadow:'0 4px 20px rgba(0,0,0,0.35)',transition:'background .18s,border-color .18s,color .18s'}}
+        style={{background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.55)',fontSize:16,fontWeight:300,lineHeight:1,flexShrink:0,boxShadow:'0 4px 20px rgba(0,0,0,0.35)',transition:'background .18s,border-color .18s,color .18s'}}
         onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,40,0.85)';e.currentTarget.style.borderColor='rgba(220,50,40,0.6)';e.currentTarget.style.color='#fff';}}
         onMouseLeave={e=>{e.currentTarget.style.background='rgba(15,15,20,0.45)';e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';e.currentTarget.style.color='rgba(255,255,255,0.55)';}}>✕</button>
     </div>,
