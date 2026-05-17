@@ -13675,8 +13675,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   React.useEffect(()=>{
     const el=containerRef.current;if(!el) return;
     function onWheel(e){
-      // Disable scroll/pinch zoom while crop tool is active
       if(activeControlRef.current==='crop'){e.preventDefault();return;}
+      const inScroll=e.target&&e.target.closest&&e.target.closest('[data-scrollable]');
+      if(inScroll) return;
       e.preventDefault();
       const absDX=Math.abs(e.deltaX),absDY=Math.abs(e.deltaY);
       if(e.ctrlKey){applyZoom(zoomRef.current-e.deltaY*0.022);}
