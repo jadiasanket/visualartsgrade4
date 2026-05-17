@@ -3170,7 +3170,7 @@ async function uploadPhotoToStorage(file, sectionId, studentIdx) {
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
-      const MAX = 800;
+      const MAX = 1600;
       let w = img.width, h = img.height;
       if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
       else        { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
@@ -3180,7 +3180,7 @@ async function uploadPhotoToStorage(file, sectionId, studentIdx) {
       ctx.clearRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0, w, h);
       const mime = isPng ? 'image/png' : 'image/jpeg';
-      canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas toBlob failed')), mime, isPng ? 1 : 0.85);
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas toBlob failed')), mime, isPng ? 1 : 0.92);
     };
     img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Could not read image file.')); };
     img.src = objectUrl;
@@ -3199,7 +3199,7 @@ function compressPhoto(file) {
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
-      const MAX = 800;
+      const MAX = 1600;
       let w = img.width, h = img.height;
       if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
       else        { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
@@ -12637,10 +12637,62 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange}){
       +(sepia>0?` sepia(${sepia}%) hue-rotate(-15deg)`:'')
       +(hue<0?` hue-rotate(${hue}deg)`:'');
   }
+  function applySharpness(amount,src,callback){
+    // amount: 0-100, 50=neutral. Only run convolution if amount != 50
+    if(amount===50){callback(null);return;}
+    const el=src||imgRef&&imgRef.current;
+    if(!el){callback(null);return;}
+    const strength=(amount-50)/50; // -1 to +1
+    const cv=document.createElement('canvas');
+    cv.width=el.naturalWidth||el.width||el.offsetWidth;
+    cv.height=el.naturalHeight||el.height||el.offsetHeight;
+    const cx=cv.getContext('2d');
+    cx.drawImage(el,0,0,cv.width,cv.height);
+    try{
+      const imgData=cx.getImageData(0,0,cv.width,cv.height);
+      const d=imgData.data,w=cv.width,h=cv.height;
+      const out=new Uint8ClampedArray(d);
+      const k=strength>0?strength*2:0; // only sharpen, not blur, via CSS unsharp
+      // Laplacian sharpen kernel scaled by strength
+      for(let y=1;y<h-1;y++){
+        for(let x=1;x<w-1;x++){
+          const i=(y*w+x)*4;
+          for(let c=0;c<3;c++){
+            const center=d[i+c];
+            const neighbors=d[((y-1)*w+x)*4+c]+d[((y+1)*w+x)*4+c]+d[(y*w+x-1)*4+c]+d[(y*w+x+1)*4+c];
+            out[i+c]=Math.min(255,Math.max(0,Math.round(center*(1+4*k)-neighbors*k)));
+          }
+        }
+      }
+      cx.putImageData(new ImageData(out,w,h),0,0);
+      callback(cv.toDataURL('image/jpeg',0.92));
+    }catch(e){callback(null);}
+  }
   function applyFilters(){
     const filterStr=buildFilterStr();
-    if(imgRef&&imgRef.current) imgRef.current.style.filter=filterStr;
-    if(onFilterChange) onFilterChange({...filtersRef.current},filterStr);
+    const el=imgRef&&imgRef.current;
+    if(!el) return;
+    const sharpness=filtersRef.current.sharpness||50;
+    if(sharpness===50){
+      el.style.filter=filterStr;
+      if(onFilterChange) onFilterChange({...filtersRef.current},filterStr);
+    } else {
+      // Load fresh CORS-safe image for pixel access if needed
+      const doSharp=(src)=>{
+        applySharpness(sharpness,src,(dataUrl)=>{
+          if(dataUrl) el.src=dataUrl;
+          el.style.filter=filterStr;
+          if(onFilterChange) onFilterChange({...filtersRef.current},filterStr);
+        });
+      };
+      if(el.complete&&el.naturalWidth>0){
+        doSharp(el);
+      } else {
+        const fresh=new Image();fresh.crossOrigin='anonymous';
+        fresh.onload=()=>doSharp(fresh);
+        fresh.src=el.src;
+      }
+    }
   }
 
   function applyTransformImg(){
@@ -12739,13 +12791,22 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange}){
       const SIZE=80;
       const applyVals=(r2,g2,b2,rms)=>{
         const lum=0.299*r2+0.587*g2+0.114*b2;
+        // Brightness: target midtone 128
         const bTarget=50+(128-lum)*0.18;
+        // Contrast: flat histogram = low rms → boost
         const cTarget=50+(80-rms)*0.12;
-        const wTarget=50+(r2-b2)*0.06;
+        // Gray World colour cast: if avg channel deviates from neutral, correct warmth
+        const avg=(r2+g2+b2)/3;
+        const castR=r2-avg,castB=b2-avg;
+        // Positive castR = warm cast → pull warmth down; positive castB = cool cast → push warmth up
+        const wTarget=50+(castR-castB)*0.09;
+        // Saturation: boost slightly if image looks desaturated (low channel variance)
+        const chVar=((r2-avg)**2+(g2-avg)**2+(b2-avg)**2)/3;
+        const sTarget=chVar<200?60:57; // if channels are similar (grey) boost sat more
         const vals={
           brightness:Math.round(Math.min(85,Math.max(20,bTarget))),
           contrast:Math.round(Math.min(75,Math.max(35,cTarget))),
-          saturation:57,sharpness:54,
+          saturation:sTarget,sharpness:54,
           warmth:Math.round(Math.min(65,Math.max(38,wTarget))),
         };
         Object.assign(filtersRef.current,vals);
