@@ -11535,6 +11535,10 @@ function RefsStrip_(){
   const [lightbox,setLightbox]=React.useState(null);
   const [studentPopup,setStudentPopup]=React.useState(null);
   const [allPhotos,setAllPhotos]=React.useState([]);
+  const [hlEditedUrls,setHlEditedUrls]=React.useState({});
+  const handleHlPhotoEdit=React.useCallback((newUrl,photo)=>{
+    setHlEditedUrls(prev=>({...prev,[photo.url]:newUrl}));
+  },[]);
   const scrollAccum=React.useRef(0);
   const lastRefresh=React.useRef(0);
   const activeIdxRef=React.useRef(START_ACTIVE);
@@ -11698,6 +11702,8 @@ function RefsStrip_(){
         teacherMode={false}
         setStudentPopup={setStudentPopup}
         zIndex={5000}
+        onPhotoEdit={handleHlPhotoEdit}
+        editedUrls={hlEditedUrls}
       />}
             {/* Student popup */}
       {studentPopup&&(
@@ -11734,15 +11740,22 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
   const lensRef=React.useRef(null);
   const btnRefs=React.useRef([]);
   const iconRefs=React.useRef([]);
-  // Spring state: lens x position + scale of hovered icon
-  const sp=React.useRef({x:0,w:44,tx:0,tw:44,vx:0,vw:0,idx:-1,opacity:0,to:0,scale:1,ts:1,vs:0});
+  // Spring state: lens x/w/scale + icon scale + opacity
+  // lensScale: lens itself grows 1.05x when active
+  const sp=React.useRef({x:0,w:44,tx:0,tw:44,vx:0,vw:0,idx:-1,opacity:0,to:0,scale:1,ts:1,vs:0,lensScale:1,tlensScale:1,vlensScale:0});
   const rafRef=React.useRef(null);
+  // ksActive: keystone persistent active state
+  const [ksActive,setKsActive]=React.useState(false);
+  // punchIdx: index currently being punch-animated (-1 = none)
+  const punchRef=React.useRef({idx:-1,t:0,rafId:null});
   const S=520,D=26;
 
+  const KS_IDX=3; // index of Keystone in buttons array
+
   const buttons=[
-    {fn:onCCW,        icon:<_IcoCCW/>,          title:'Rotate 90° CCW'},
-    {fn:onCW,         icon:<_IcoCW/>,            title:'Rotate 90° CW'},
-    {fn:onStraighten, icon:<_IcoStraighten/>,    title:'Auto Straighten'},
+    {fn:onCCW,        icon:<_IcoCCW/>,          title:'Rotate 90° CCW',   punch:true},
+    {fn:onCW,         icon:<_IcoCW/>,            title:'Rotate 90° CW',    punch:true},
+    {fn:onStraighten, icon:<_IcoStraighten/>,    title:'Auto Straighten',  punch:true},
     {fn:onKeystone,   icon:<_IcoKeystone/>,      title:ksCorners?'Apply Keystone':'Manual Keystone', ks:true},
     {fn:onReset,      icon:<><_IcoReset/><span style={{fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",marginLeft:5}}>Reset</span></>, title:'Reset', wide:true},
   ];
@@ -11761,9 +11774,9 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
       s.vx+=(-S*(s.x-s.tx)-D*s.vx)*ddt;
       s.vw+=(-S*(s.w-s.tw)-D*s.vw)*ddt;
       s.vs+=(-S*(s.scale-s.ts)-D*s.vs)*ddt;
-      s.x+=s.vx*ddt; s.w+=s.vw*ddt; s.scale+=s.vs*ddt;
+      s.vlensScale+=(-S*(s.lensScale-s.tlensScale)-D*s.vlensScale)*ddt;
+      s.x+=s.vx*ddt; s.w+=s.vw*ddt; s.scale+=s.vs*ddt; s.lensScale+=s.vlensScale*ddt;
     }
-    // Opacity — snap fast
     s.opacity+=(s.to-s.opacity)*0.18;
 
     const lens=lensRef.current;
@@ -11771,11 +11784,21 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
       lens.style.left=s.x+'px';
       lens.style.width=s.w+'px';
       lens.style.opacity=s.opacity;
+      // Fix 4: lens z-index 1, icons z-index 2 (handled in JSX)
+      // Fix 2: lens grows with icon
+      lens.style.transform='translateY(-50%) scale('+s.lensScale+')';
     }
+
+    // Fix 3: keystone active = blue lens + white icon (applied in JSX via ksActive state)
     iconRefs.current.forEach((el,i)=>{
       if(!el) return;
       const active=i===s.idx;
-      if(active){
+      const isKsActive=(i===KS_IDX)&&ksActive;
+      if(isKsActive){
+        // Keystone persistent: always white, no spring scale
+        el.style.transform='';
+        el.style.color='rgba(255,255,255,1)';
+      } else if(active){
         el.style.transform='scale('+s.scale+') translateY(-1px)';
         el.style.color='rgba(255,255,255,0.95)';
       } else {
@@ -11786,8 +11809,10 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
 
     const settled=
       Math.abs(s.vx)<0.3&&Math.abs(s.vw)<0.3&&Math.abs(s.vs)<0.01&&
+      Math.abs(s.vlensScale)<0.01&&
       Math.abs(s.x-s.tx)<0.3&&Math.abs(s.w-s.tw)<0.3&&
-      Math.abs(s.scale-s.ts)<0.002&&Math.abs(s.opacity-s.to)<0.002;
+      Math.abs(s.scale-s.ts)<0.002&&Math.abs(s.lensScale-s.tlensScale)<0.002&&
+      Math.abs(s.opacity-s.to)<0.002;
     if(!settled) rafRef.current=requestAnimationFrame(tick);
     else rafRef.current=null;
   }
@@ -11799,13 +11824,54 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
   function onEnter(i){
     const r=getBtnRect(i); if(!r) return;
     const s=sp.current;
-    if(s.idx===-1){s.x=r.x;s.w=r.w;} // snap on first entry
-    s.tx=r.x; s.tw=r.w; s.idx=i; s.to=1; s.ts=1.15;
+    if(s.idx===-1){s.x=r.x;s.w=r.w;}
+    s.tx=r.x; s.tw=r.w; s.idx=i; s.to=1; s.ts=1.15; s.tlensScale=1.05;
     startTick();
   }
   function onLeave(){
-    const s=sp.current; s.idx=-1; s.to=0; s.ts=1; startTick();
+    const s=sp.current; s.idx=-1; s.to=0; s.ts=1; s.tlensScale=1; startTick();
   }
+
+  // Fix 5: punch animation for CCW/CW/Straighten
+  function doPunch(i){
+    const p=punchRef.current;
+    if(p.rafId){cancelAnimationFrame(p.rafId);p.rafId=null;}
+    p.idx=i; p.t=0;
+    const DURATION=200;
+    const start=performance.now();
+    function punchTick(now){
+      const el=iconRefs.current[i]; if(!el){p.idx=-1;return;}
+      p.t=(now-start)/DURATION;
+      let sc;
+      if(p.t<0.5) sc=1+(0.2*(p.t/0.5)); // 1.0 → 1.2
+      else sc=1.2-(0.2*((p.t-0.5)/0.5)); // 1.2 → 1.0
+      sc=Math.max(1,Math.min(1.2,sc));
+      el.style.transform='scale('+sc+')';
+      if(p.t<1) p.rafId=requestAnimationFrame(punchTick);
+      else{ el.style.transform=''; p.idx=-1; p.rafId=null; }
+    }
+    p.rafId=requestAnimationFrame(punchTick);
+  }
+
+  function handleClick(b,i){
+    if(b.punch){
+      doPunch(i);
+      // After punch, lens retreats
+      setTimeout(()=>{
+        const s=sp.current; s.to=0; s.ts=1; s.tlensScale=1; s.idx=-1; startTick();
+      },120);
+    }
+    if(b.ks){
+      // Fix 3: toggle keystone active state
+      setKsActive(prev=>!prev);
+    }
+    b.fn&&b.fn();
+  }
+
+  // Sync ksActive with ksCorners prop (when corners are applied, ks mode ends)
+  React.useEffect(()=>{
+    if(!ksCorners) setKsActive(false);
+  },[ksCorners]);
 
   return(
     <div ref={wrapRef} className="lb-glass-panel"
@@ -11816,17 +11882,21 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
         boxShadow:'0 4px 20px rgba(0,0,0,0.35)',height:38,overflow:'hidden'}}
       onMouseLeave={onLeave}>
 
-      {/* Liquid glass lens — slides behind icons */}
+      {/* Fix 1: thinner/subtler lens outline. Fix 4: z-index 1 so icons (z:2) render above */}
       <div ref={lensRef} style={{
         position:'absolute',top:'50%',transform:'translateY(-50%)',
         height:34,borderRadius:100,pointerEvents:'none',
+        zIndex:1,
         opacity:0,
-        // Glass surface: blur + light tint
-        background:'linear-gradient(180deg,rgba(255,255,255,0.18) 0%,rgba(255,255,255,0.07) 60%,rgba(255,255,255,0.04) 100%)',
+        background: ksActive
+          ? 'linear-gradient(180deg,rgba(80,160,255,0.35) 0%,rgba(60,130,255,0.18) 60%,rgba(40,100,255,0.10) 100%)'
+          : 'linear-gradient(180deg,rgba(255,255,255,0.18) 0%,rgba(255,255,255,0.07) 60%,rgba(255,255,255,0.04) 100%)',
         backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',
-        // Specular rim — bright top edge like curved glass
-        boxShadow:'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -1px 0 rgba(255,255,255,0.08), 0 2px 12px rgba(0,0,0,0.4)',
-        border:'1px solid rgba(255,255,255,0.22)',
+        // Fix 1: subtler outline (was 0.22, now 0.10)
+        boxShadow: ksActive
+          ? 'inset 0 1px 0 rgba(120,190,255,0.45), inset 0 -1px 0 rgba(80,160,255,0.08), 0 2px 12px rgba(0,0,0,0.4)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.40), inset 0 -1px 0 rgba(255,255,255,0.06), 0 2px 12px rgba(0,0,0,0.4)',
+        border: ksActive ? '1px solid rgba(80,160,255,0.35)' : '1px solid rgba(255,255,255,0.10)',
       }}/>
 
       {buttons.map((b,i)=>(
@@ -11834,7 +11904,7 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
           {i>0&&<div style={{width:1,height:16,background:'rgba(255,255,255,0.10)',flexShrink:0,pointerEvents:'none',zIndex:1}}/>}
           <button
             ref={el=>btnRefs.current[i]=el}
-            onClick={b.fn} title={b.title}
+            onClick={()=>handleClick(b,i)} title={b.title}
             onMouseEnter={()=>onEnter(i)}
             style={{
               background:'transparent',border:'none',cursor:'pointer',
@@ -11846,7 +11916,7 @@ function CropToolPill({ksCorners,onCCW,onCW,onStraighten,onKeystone,onReset}){
             }}>
             <span ref={el=>iconRefs.current[i]=el}
               style={{display:'flex',alignItems:'center',gap:0,
-                color:'rgba(255,255,255,0.5)',
+                color: (b.ks&&ksActive) ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.5)',
                 transformOrigin:'center center',
                 willChange:'transform,color',transition:'none'}}>
               {b.icon}
