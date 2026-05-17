@@ -2037,7 +2037,7 @@ body, [data-theme="dark"] body, [data-theme="light"] body {
   position:absolute;left:0;right:0;bottom:0;
   border-radius:0 0 100px 100px;
   pointer-events:none;
-  background:rgba(255,255,255,0.22);
+  background:rgb(0,116,240);
 }
 .zs-thumb{
   position:absolute;left:50%;transform:translateX(-50%);
@@ -13426,8 +13426,6 @@ function InfoDropdownList({items,filterEnabled}){
   const containerRef=React.useRef(null);
   const bubbleRef=React.useRef(null);
   const rowRefs=React.useRef([]);
-  const filteredItemsRef=React.useRef([]);
-  const activeRowRef=React.useRef(-1);
   const sp=React.useRef({y:0,h:0,ty:0,th:0,vy:0,vh:0,opacity:0,to:0});
   const rafRef=React.useRef(null);
   const [query,setQuery]=React.useState('');
@@ -13438,8 +13436,6 @@ function InfoDropdownList({items,filterEnabled}){
     const q=query.trim().toLowerCase();
     return items.filter(it=>it.isDivider||it.isHeader||it.label.toLowerCase().includes(q));
   },[items,query,filterEnabled]);
-
-  filteredItemsRef.current=filteredItems;
 
   function getRowRect(i){
     const row=rowRefs.current[i];
@@ -13469,47 +13465,14 @@ function InfoDropdownList({items,filterEnabled}){
 
   function startTick(){if(!rafRef.current) rafRef.current=requestAnimationFrame(tick);}
 
-  function activateRow(i){
+  function onEnter(i){
     const r=getRowRect(i); if(!r) return;
     const s=sp.current;
     if(s.to===0){s.y=r.y;s.h=r.h;}
     s.ty=r.y; s.th=r.h; s.to=1;
     startTick();
-    if(activeRowRef.current!==i){
-      if(activeRowRef.current>=0){
-        const prev=rowRefs.current[activeRowRef.current];
-        const prevItem=filteredItemsRef.current[activeRowRef.current];
-        if(prev&&prevItem) prev.style.color=prevItem.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)';
-      }
-      const cur=rowRefs.current[i];
-      if(cur) cur.style.color='#fff';
-      activeRowRef.current=i;
-    }
   }
-
-  function deactivate(){
-    const s=sp.current; s.to=0; startTick();
-    if(activeRowRef.current>=0){
-      const prev=rowRefs.current[activeRowRef.current];
-      const prevItem=filteredItemsRef.current[activeRowRef.current];
-      if(prev&&prevItem) prev.style.color=prevItem.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)';
-      activeRowRef.current=-1;
-    }
-  }
-
-  React.useEffect(()=>{
-    const wrap=containerRef.current; if(!wrap) return;
-    function onMove(e){
-      const el=document.elementFromPoint(e.clientX,e.clientY);
-      if(!el) return;
-      const idx=rowRefs.current.findIndex(r=>r&&(r===el||r.contains(el)));
-      if(idx>=0) activateRow(idx);
-    }
-    function onLeave(){deactivate();}
-    wrap.addEventListener('mousemove',onMove,{passive:true});
-    wrap.addEventListener('mouseleave',onLeave,{passive:true});
-    return()=>{wrap.removeEventListener('mousemove',onMove);wrap.removeEventListener('mouseleave',onLeave);};
-  },[]);
+  function onLeave(){sp.current.to=0;startTick();}
 
   return(
     <div style={{marginTop:4,background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.12)',
@@ -13531,6 +13494,7 @@ function InfoDropdownList({items,filterEnabled}){
         data-scrollable="1"
         style={{position:'relative',maxHeight:220,overflowY:'auto',scrollbarWidth:'thin',
           scrollbarColor:'rgba(255,255,255,0.15) transparent'}}
+       onMouseLeave={onLeave}
         onClick={e=>e.stopPropagation()}>
         {/* Spring bubble */}
         <div ref={bubbleRef} style={{position:'absolute',left:3,right:3,borderRadius:6,
@@ -13550,6 +13514,8 @@ function InfoDropdownList({items,filterEnabled}){
           return(
             <div key={item.id}
               ref={el=>rowRefs.current[i]=el}
+              onMouseEnter={e=>{onEnter(i);e.currentTarget.style.color='#fff';}}
+              onMouseLeave={e=>{e.currentTarget.style.color=item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)';}}
               onClick={item.onSelect}
               style={{position:'relative',zIndex:1,padding:'7px 12px',fontSize:12,
                 color:item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)',
@@ -13928,8 +13894,8 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
 
           <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
 
-          {/* Lesson row */}
-          {(lessonN||lessonTitle)&&(
+          {/* Lesson row — always visible in edit mode, otherwise only if lesson exists */}
+          {(lessonN||lessonTitle||(infoEditMode&&teacherMode&&onPhotoReassign&&!isDoc))&&(
             <div style={{padding:'6px 12px 8px',overflow:'visible'}}>
               {!isDoc&&(
                 <>
@@ -14015,6 +13981,35 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
               <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
               <div style={{padding:'12px 12px 12px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                 {(photo.artTags||[]).map(t=><span key={t} style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.52)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:100,padding:'3px 10px',fontFamily:F}}>{t}</span>)}
+              </div>
+            </>
+          )}
+
+          {/* Artwork / Documentation toggle — edit mode only */}
+          {infoEditMode&&teacherMode&&onPhotoReassign&&(
+            <>
+              <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
+              <div style={{padding:'10px 12px',display:'flex',alignItems:'center',gap:6}}>
+                {['artwork','documentation'].map(type=>{
+                  const active=(photo.type||'artwork')===type;
+                  return(
+                    <button key={type}
+                      onClick={async()=>{
+                        if(active||reassignSaving) return;
+                        setReassignSaving(true);
+                        await onPhotoReassign(photo,{newType:type});
+                        setReassignSaving(false);
+                      }}
+                      style={{flex:1,padding:'6px 0',borderRadius:100,border:'1px solid',
+                        borderColor:active?'rgb(0,116,240)':'rgba(255,255,255,0.13)',
+                        background:active?'rgb(0,116,240)':'rgba(255,255,255,0.05)',
+                        color:active?'#fff':'rgba(255,255,255,0.45)',
+                        fontSize:11,fontWeight:600,fontFamily:F,cursor:active?'default':'pointer',
+                        transition:'all .15s',textTransform:'capitalize'}}>
+                      {type}
+                    </button>
+                  );
+                })}
               </div>
             </>
           )}
@@ -14224,7 +14219,7 @@ function GalleryView({isVisitor}){
     }catch(e){console.error('Edit save failed',e);}
   }
 
-  async function handlePhotoReassign(photo,{newStudentIdx,newSectionId,newLesson}){
+  async function handlePhotoReassign(photo,{newStudentIdx,newSectionId,newLesson,newType}){
     // Reassign photo metadata in Firestore — no Storage move
     try{
       const oldSid=photo.sectionId;
@@ -14244,6 +14239,8 @@ function GalleryView({isVisitor}){
 
       // Update lesson if provided
       if(newLesson!==undefined) photoEntry.lessons=newLesson?[newLesson]:[];
+      // Update type if provided
+      if(newType!==undefined) photoEntry.type=newType;
 
       if(targetSid===oldSid&&targetStudentIdx===oldStudentIdx){
         // Just updating lesson — write back in place
@@ -14269,8 +14266,8 @@ function GalleryView({isVisitor}){
           await window._db.collection('sections').doc('shared-'+targetSid).set(newData);
         }
       }
-      // Close lightbox after reassign only if student/section changed (photo has moved)
-      if(newLesson===undefined) setLightbox(null);
+      // Close lightbox only if student/section changed (photo has moved)
+      if(newLesson===undefined&&newType===undefined) setLightbox(null);
     }catch(e){console.error('Reassign failed',e);}
   }
   const artworkTags=getArtworkTags();
