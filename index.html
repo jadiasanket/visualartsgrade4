@@ -5151,7 +5151,7 @@ function StepLightbox({steps,startIndex,pm,tickedSteps,onTick,onClose}){
   );
 }
 
-function SessionCard({s,color,phaseId,progress,toggle,classView,openSession,setOpenSession,isVisitor}){
+function SessionCard({s,color,phaseId,progress,toggle,classView,openSession,setOpenSession,isVisitor,hideControls}){
   const open=openSession===s.n;
   const setOpen=(val)=>setOpenSession(val?s.n:null);
   const [tab,setTab]=React.useState('overview');
@@ -5218,8 +5218,8 @@ function SessionCard({s,color,phaseId,progress,toggle,classView,openSession,setO
               ⤓ PDF
             </button>
           )}
-          {!classView&&<div className={`sc-chk ${isDone?'checked':''}`} onClick={e=>{e.stopPropagation();if(!isVisitor)toggle(phaseId,s.n);}} title={isVisitor?'Sign in to mark sessions':isDone?'Mark incomplete':'Mark complete'} style={isVisitor?{opacity:0.4,cursor:'not-allowed'}:{}}>{isDone?'✓':''}</div>}
-          <span className={`sc-chev ${open?'open':''}`}>▼</span>
+          {!classView&&!hideControls&&<div className={`sc-chk ${isDone?'checked':''}`} onClick={e=>{e.stopPropagation();if(!isVisitor)toggle(phaseId,s.n);}} title={isVisitor?'Sign in to mark sessions':isDone?'Mark incomplete':'Mark complete'} style={isVisitor?{opacity:0.4,cursor:'not-allowed'}:{}}>{isDone?'✓':''}</div>}
+          {!hideControls&&<span className={`sc-chev ${open?'open':''}`}>▼</span>}
         </div>
       </div>
 
@@ -13236,10 +13236,11 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
 
       {/* LESSON OVERLAY — opens full SessionCard when lesson title tapped in info card */}
       {lessonOverlayOpen&&lessonSession&&ReactDOM.createPortal(
-        <div style={{position:'fixed',inset:0,zIndex:4500,display:'flex',alignItems:'center',justifyContent:'center',padding:'5vh 5vw'}}
+        <div style={{position:'fixed',inset:0,zIndex:4500,display:'flex',alignItems:'center',justifyContent:'center',padding:'5vh 4vw',background:'rgba(6,8,16,0.55)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)'}}
           onClick={()=>setLessonOverlayOpen(false)}>
-          <div style={{width:'min(620px,90vw)',maxHeight:'85vh',overflowY:'auto',borderRadius:16,boxShadow:'0 24px 80px rgba(0,0,0,0.8)',scrollbarWidth:'none'}}
+          <div style={{width:'min(680px,92vw)',maxHeight:'88vh',overflowY:'auto',borderRadius:18,boxShadow:'0 24px 80px rgba(0,0,0,0.75)',scrollbarWidth:'none',border:'1px solid rgba(255,255,255,0.10)',background:'rgba(18,18,22,0.82)',backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',overflow:'hidden'}}
             onClick={e=>e.stopPropagation()}>
+            <div style={{overflowY:'auto',maxHeight:'88vh',scrollbarWidth:'none'}}>
             {(()=>{
               const ph=PHASES.find(p=>p.sessions.find(s=>s.n===lessonSession.n));
               if(!ph) return null;
@@ -13252,13 +13253,11 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
                 classView:false,
                 openSession:lessonSession.n,
                 setOpenSession:()=>{},
-                isVisitor:false
+                isVisitor:false,
+                hideControls:true
               });
             })()}
-            <button onClick={()=>setLessonOverlayOpen(false)}
-              style={{position:'sticky',bottom:12,left:'100%',display:'block',marginLeft:'auto',marginRight:12,
-                background:'rgba(220,50,40,0.85)',border:'none',borderRadius:'50%',width:32,height:32,
-                color:'#fff',fontSize:16,cursor:'pointer',lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+            </div>
           </div>
         </div>,
         document.body
