@@ -14273,6 +14273,7 @@ function GalleryView({isVisitor}){
   const artworkTags=getArtworkTags();
   const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
   const phaseColors={coral:'var(--coral)',yellow:'var(--yellow)',teal:'var(--teal)',violet:'var(--violet)'};
+  const allLessons=React.useMemo(()=>PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color,phaseId:ph.id}))),[]);
 
   React.useEffect(()=>{
     let unsubs=[];
