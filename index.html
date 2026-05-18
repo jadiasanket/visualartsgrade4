@@ -7462,7 +7462,7 @@ function EnterSubPINModal({section,onSuccess,onClose}){
 
 
 // ── STUDENT NAME POPUP — school ID card design ──
-function StudentNamePopup({studentIdx,student,section,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio,isPortfolioOpen}){
+function StudentNamePopup({studentIdx,student,section,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,displayNumber,updateData,onOpenPortfolio,isPortfolioOpen}){
   const obs=observations||[];
   const [flipped,setFlipped]=React.useState(false);
   const [flipping,setFlipping]=React.useState(false);
@@ -7620,9 +7620,12 @@ function StudentNamePopup({studentIdx,student,section,observations,totalSessions
   // Glow colour based on overall progress
   const glowColor=greenObs>yellowObs+redObs?'34,197,94':yellowObs>=redObs?'234,179,8':'239,68,68';
 
-  // Attendance bar — green for present, red for absent
-  const attGreenPct=totalSessions?attendanceCount/totalSessions*100:0;
-  const attRedPct=100-attGreenPct;
+  // Attendance bar — green for present, yellow for late, red for absent
+  const lateCount=student&&student.attendance?Object.keys(student.attendance).filter(ki=>student.attendance[ki]==='late').length:0;
+  const presentOnlyCount=attendanceCount-lateCount;
+  const attGreenPct=totalSessions?presentOnlyCount/totalSessions*100:0;
+  const attYellowPct=totalSessions?lateCount/totalSessions*100:0;
+  const attRedPct=100-attGreenPct-attYellowPct;
 
   // Thumbs bar
   const totalThumbs=Math.max(thumbsUp+thumbsDown,1);
@@ -7701,7 +7704,7 @@ function StudentNamePopup({studentIdx,student,section,observations,totalSessions
           <div style={{display:'flex',alignItems:'center',gap:4}}>
             <button onClick={editMode?()=>{saveEdits();onPrev&&onPrev();}:onPrev} disabled={!onPrev}
               style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:8,color:onPrev?'var(--tx2)':'var(--tx3)',fontSize:14,cursor:onPrev?'pointer':'not-allowed',padding:'3px 10px',opacity:onPrev?1:0.3}}>&#8249;</button>
-            {totalStudents&&<span style={{fontSize:10,color:'var(--tx3)',minWidth:40,textAlign:'center'}}>{studentIdx+1} / {totalStudents}</span>}
+            {totalStudents&&<span style={{fontSize:10,color:'var(--tx3)',minWidth:40,textAlign:'center'}}>{displayNumber||studentIdx+1} / {totalStudents}</span>}
             <button onClick={editMode?()=>{saveEdits();onNext&&onNext();}:onNext} disabled={!onNext}
               style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',borderRadius:8,color:onNext?'var(--tx2)':'var(--tx3)',fontSize:14,cursor:onNext?'pointer':'not-allowed',padding:'3px 10px',opacity:onNext?1:0.3}}>&#8250;</button>
           </div>
@@ -7835,14 +7838,16 @@ function StudentNamePopup({studentIdx,student,section,observations,totalSessions
                     {totalSessions===0
                       ?<div style={{flex:1,background:cardGreyBar}}/>
                       :<><div style={{width:`${attGreenPct}%`,background:'#22c55e',transition:'width .5s ease'}}
-                          onMouseEnter={()=>setBarTooltip(`Present: ${attendanceCount} sessions`)}/>
+                          onMouseEnter={()=>setBarTooltip('Present: '+presentOnlyCount+' sessions')}/>
+                        <div style={{width:`${attYellowPct}%`,background:'#eab308',transition:'width .5s ease'}}
+                          onMouseEnter={()=>setBarTooltip('Late: '+lateCount+' sessions')}/>
                         <div style={{flex:1,background:'#ef4444',transition:'width .5s ease'}}
-                          onMouseEnter={()=>setBarTooltip(`Absent: ${totalSessions-attendanceCount} sessions`)}/></>
+                          onMouseEnter={()=>setBarTooltip('Absent: '+(totalSessions-attendanceCount)+' sessions')}/></>
                     }
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
                     <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#7a6f65',fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
-                    <span style={{fontSize:13,fontWeight:400,color:'#7a6f65',fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
+                    <span style={{fontSize:13,fontWeight:400,color:'#7a6f65',fontFamily:"'DM Sans',sans-serif"}}>{presentOnlyCount}{lateCount>0?'+'+lateCount+'L':''}/{totalSessions}</span>
                   </div>
                 </div>
 
@@ -9948,10 +9953,13 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
   function getObsColor(student){
     const obs=student.observations||[];
     if(obs.length===0) return 'empty';
-    // Check most concerning tag
     const lastObs=obs[obs.length-1];
+    // Red tag = red
     const hasConcerning=(lastObs.tags||[]).some(t=>OBS_TAGS.find(td=>td.label===t&&td.color==='red'));
     if(hasConcerning) return 'red';
+    // Yellow tag = yellow
+    const hasYellow=(lastObs.tags||[]).some(t=>OBS_TAGS.find(td=>td.label===t&&td.color==='yellow'));
+    if(hasYellow) return 'yellow';
     const sessions=data.sessions.filter(s=>!s.isDivider);
     if(sessions.length===0) return 'green';
     const lastObsSessionIdx=lastObs.sessionIdx!=null?lastObs.sessionIdx:sessions.length-1;
@@ -10726,9 +10734,10 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
               setTimeout(()=>setPhotoError(null),8000);
             }finally{setPhotoUploading(false);}
           }}
-          onPrev={namePopup>0?()=>setNamePopup(p=>Math.max(0,p-1)):null}
-          onNext={namePopup<data.students.length-1?()=>setNamePopup(p=>Math.min(data.students.length-1,p+1)):null}
-          totalStudents={data.students.length}
+          onPrev={(()=>{const si=sortedIndices.indexOf(namePopup);return si>0?()=>setNamePopup(sortedIndices[si-1]):null;})()}
+          onNext={(()=>{const si=sortedIndices.indexOf(namePopup);return si<sortedIndices.length-1?()=>setNamePopup(sortedIndices[si+1]):null;})()}
+          displayNumber={sortedIndices.indexOf(namePopup)+1}
+          totalStudents={sortedIndices.length}
           updateData={updateData}
           onOpenPortfolio={()=>{setPortfolioPopup(namePopup);}}
           isPortfolioOpen={portfolioPopup!==null}
