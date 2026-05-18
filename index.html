@@ -7819,11 +7819,11 @@ function StudentNamePopup({studentIdx,student,section,observations,totalSessions
 
                 {/* ID — editable */}
                 {editMode
-                  ?<input value={String(studentIdx+1).padStart(6,'0')} readOnly
+                  ?<input value={String(displayNumber||studentIdx+1).padStart(6,'0')} readOnly
                       style={{fontSize:20,color:'#b5a899',letterSpacing:'.06em',marginBottom:10,
                         fontFamily:"'DM Sans',sans-serif",background:'transparent',border:'none',outline:'none',width:'100%',fontWeight:400}}/>
                   :<div style={{fontSize:20,color:'#b5a899',letterSpacing:'.06em',marginBottom:10,fontFamily:"'DM Sans',sans-serif",fontWeight:400,display:'flex',alignItems:'center',gap:8}}>
-                    #{String(studentIdx+1).padStart(6,'0')}
+                    #{String(displayNumber||studentIdx+1).padStart(6,'0')}
                     {escalations>0&&<span style={{color:'#ef4444',fontWeight:700,fontSize:12}}>⚠ Escalation</span>}
                   </div>
                 }
@@ -7847,7 +7847,7 @@ function StudentNamePopup({studentIdx,student,section,observations,totalSessions
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%'}}>
                     <span style={{fontSize:13,fontWeight:400,letterSpacing:'.04em',color:'#7a6f65',fontFamily:"'DM Sans',sans-serif"}}>ATTENDANCE</span>
-                    <span style={{fontSize:13,fontWeight:400,color:'#7a6f65',fontFamily:"'DM Sans',sans-serif"}}>{presentOnlyCount}{lateCount>0?'+'+lateCount+'L':''}/{totalSessions}</span>
+                    <span style={{fontSize:13,fontWeight:400,color:'#7a6f65',fontFamily:"'DM Sans',sans-serif"}}>{attendanceCount}/{totalSessions}</span>
                   </div>
                 </div>
 
@@ -14133,9 +14133,9 @@ function GalleryView({isVisitor}){
   const [bulkEditSection,setBulkEditSection]=React.useState('');
   const [bulkEditSaving,setBulkEditSaving]=React.useState(false);
   const [confirmDelete,setConfirmDelete]=React.useState(false);
-  const [filterSection,setFilterSection]=React.useState('all');
-  const [filterLesson,setFilterLesson]=React.useState(null);
-  const [filterTag,setFilterTag]=React.useState(null);
+  const [filterSections,setFilterSections]=React.useState(new Set());
+  const [filterLessons,setFilterLessons]=React.useState(new Set());
+  const [filterTags,setFilterTags]=React.useState(new Set());
   const [showFilter,setShowFilter]=React.useState(false);
   const [showUpload,setShowUpload]=React.useState(false);
   const [lightbox,setLightbox]=React.useState(null);
@@ -14351,15 +14351,15 @@ function GalleryView({isVisitor}){
   const filtered=React.useMemo(()=>{
     return allPhotos.filter(p=>{
       if(effectiveFilterType!=='all'&&(p.type||'artwork')!==effectiveFilterType) return false;
-      if(filterSection!=='all'&&p.sectionId!==filterSection) return false;
-      if(filterLesson!==null&&!(p.lessons||[]).includes(filterLesson)) return false;
-      if(filterTag!==null&&!(p.artTags||[]).includes(filterTag)) return false;
+      if(filterSections.size>0&&!filterSections.has(p.sectionId)) return false;
+      if(filterLessons.size>0&&!(p.lessons||[]).some(l=>filterLessons.has(l))) return false;
+      if(filterTags.size>0&&!(p.artTags||[]).some(t=>filterTags.has(t))) return false;
       return true;
     });
-  },[allPhotos,effectiveFilterType,filterSection,filterLesson,filterTag]);
+  },[allPhotos,effectiveFilterType,filterSections,filterLessons,filterTags]);
 
-  const activeFilterCount=[filterType!=='all',filterSection!=='all',filterLesson!==null,filterTag!==null].filter(Boolean).length;
-  const clearFilters=()=>{setFilterType('all');setFilterSection('all');setFilterLesson(null);setFilterTag(null);};
+  const activeFilterCount=[filterType!=='all',filterSections.size>0,filterLessons.size>0,filterTags.size>0].filter(Boolean).length;
+  const clearFilters=()=>{setFilterType('all');setFilterSections(new Set());setFilterLessons(new Set());setFilterTags(new Set());};
 
   // filteredRef for navigate callback
   const filteredRef=React.useRef(filtered);
@@ -14460,35 +14460,37 @@ function GalleryView({isVisitor}){
               <div>
                 <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Section</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-                  <button onClick={()=>setFilterSection('all')}
-                    style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                      border:filterSection==='all'?'1px solid var(--violet)':'1px solid var(--glass-border)',
-                      background:filterSection==='all'?'rgba(155,127,232,0.15)':'var(--glass-bg)',
-                      color:filterSection==='all'?'var(--violet)':'var(--tx3)'}}>All</button>
-                  {G4_SECTIONS.map(s=>(
-                    <button key={s.id} onClick={()=>setFilterSection(filterSection===s.id?'all':s.id)}
-                      style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                        border:filterSection===s.id?'1px solid var(--violet)':'1px solid var(--glass-border)',
-                        background:filterSection===s.id?'rgba(155,127,232,0.15)':'var(--glass-bg)',
-                        color:filterSection===s.id?'var(--violet)':'var(--tx3)'}}>
-                      {s.icon} {s.name}
-                    </button>
-                  ))}
+                  {G4_SECTIONS.map(s=>{
+                    const on=filterSections.has(s.id);
+                    return(
+                      <button key={s.id} onClick={()=>setFilterSections(prev=>{const n=new Set(prev);on?n.delete(s.id):n.add(s.id);return n;})}
+                        style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                          border:on?'1px solid var(--violet)':'1px solid var(--glass-border)',
+                          background:on?'rgba(155,127,232,0.15)':'var(--glass-bg)',
+                          color:on?'var(--violet)':'var(--tx3)'}}>
+                        {s.icon} {s.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               {/* Lesson */}
               <div>
                 <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                  {allLessons.map(l=>(
-                    <button key={l.n} onClick={()=>setFilterLesson(filterLesson===l.n?null:l.n)}
-                      style={{fontSize:9,padding:'2px 8px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:filterLesson===l.n?700:400,
-                        border:filterLesson===l.n?`1px solid ${phaseColors[l.color]}`:'1px solid var(--glass-border)',
-                        background:filterLesson===l.n?'rgba(255,255,255,0.08)':'var(--glass-bg)',
-                        color:filterLesson===l.n?phaseColors[l.color]:'var(--tx3)'}}>
-                      L{l.n}
-                    </button>
-                  ))}
+                  {allLessons.map(l=>{
+                    const key=l.phaseId+':'+l.n;
+                    const on=filterLessons.has(key);
+                    return(
+                      <button key={l.n} onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);on?n.delete(key):n.add(key);return n;})}
+                        style={{fontSize:9,padding:'2px 8px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:on?700:400,
+                          border:on?'1px solid '+phaseColors[l.color]:'1px solid var(--glass-border)',
+                          background:on?'rgba(255,255,255,0.08)':'var(--glass-bg)',
+                          color:on?phaseColors[l.color]:'var(--tx3)'}}>
+                        L{l.n}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               {/* Assessment — hidden for visitors */}
@@ -14496,15 +14498,18 @@ function GalleryView({isVisitor}){
                 <div>
                   <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Assessment</div>
                   <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                    {artworkTags.map(t=>(
-                      <button key={t.label} onClick={()=>setFilterTag(filterTag===t.label?null:t.label)}
-                        style={{fontSize:9,padding:'2px 9px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:filterTag===t.label?700:400,
-                          border:filterTag===t.label?`1px solid ${tagColors[t.color]}`:'1px solid var(--glass-border)',
-                          background:filterTag===t.label?'rgba(255,255,255,0.08)':'var(--glass-bg)',
-                          color:filterTag===t.label?tagColors[t.color]:'var(--tx3)'}}>
-                        {t.label}
-                      </button>
-                    ))}
+                    {artworkTags.map(t=>{
+                      const on=filterTags.has(t.label);
+                      return(
+                        <button key={t.label} onClick={()=>setFilterTags(prev=>{const n=new Set(prev);on?n.delete(t.label):n.add(t.label);return n;})}
+                          style={{fontSize:9,padding:'2px 9px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:on?700:400,
+                            border:on?'1px solid '+tagColors[t.color]:'1px solid var(--glass-border)',
+                            background:on?'rgba(255,255,255,0.08)':'var(--glass-bg)',
+                            color:on?tagColors[t.color]:'var(--tx3)'}}>
+                          {t.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
