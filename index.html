@@ -7462,7 +7462,7 @@ function EnterSubPINModal({section,onSuccess,onClose}){
 
 
 // ── STUDENT NAME POPUP — school ID card design ──
-function StudentNamePopup({studentIdx,student,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio,isPortfolioOpen}){
+function StudentNamePopup({studentIdx,student,section,observations,totalSessions,attendanceCount,onDeleteObs,onPhotoChange,onClose,onPrev,onNext,totalStudents,updateData,onOpenPortfolio,isPortfolioOpen}){
   const obs=observations||[];
   const [flipped,setFlipped]=React.useState(false);
   const [flipping,setFlipping]=React.useState(false);
@@ -7799,7 +7799,7 @@ function StudentNamePopup({studentIdx,student,observations,totalSessions,attenda
 
                 {/* School label */}
                 <div style={{fontSize:13,color:'#b5a899',letterSpacing:'.04em',marginBottom:6,fontFamily:"'DM Sans',sans-serif",textTransform:'uppercase',fontWeight:400}}>
-                  SNS | Grade 4: Kanha | 2026–27
+                  {'SNS | '+(section?section.name:'Grade 4')+' | 2026\u201327'}–27
                 </div>
 
                 {/* Name — first bold, last regular, 31.5px */}
@@ -10706,6 +10706,7 @@ function SectionView({section,phases,onOpenLinkedSession,teacherMode,subSectionI
         <StudentNamePopup
           studentIdx={namePopup}
           student={data.students[namePopup]}
+          section={section}
           observations={data.students[namePopup].observations||[]}
           totalSessions={totalSessions}
           attendanceCount={getAttCount(data.students[namePopup])}
