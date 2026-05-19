@@ -13490,6 +13490,14 @@ function InfoDropdownList({items,filterEnabled}){
   }
   function onLeave(){sp.current.to=0;startTick();}
 
+  // Scroll to current item on mount
+  React.useEffect(()=>{
+    const currentIdx=filteredItems.findIndex(it=>it.isCurrent);
+    if(currentIdx<0||!containerRef.current) return;
+    const row=rowRefs.current[currentIdx];
+    if(row) row.scrollIntoView({block:'nearest'});
+  },[]);
+
   return(
     <div data-dropdown="1" style={{marginTop:4,background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.12)',
       borderRadius:10,boxShadow:'0 8px 32px rgba(0,0,0,0.7)'}}>
@@ -13857,7 +13865,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
                 {/* Student pill — only in edit mode, all sections */}
                 {infoEditMode&&teacherMode&&onPhotoReassign&&(
                   <InfoPill
-                    label={photo.studentName||'—'}
+                    label={photo.studentName||'Unknown student'}
                     open={reassignField==='student'}
                     onToggle={()=>setReassignField(reassignField==='student'?null:'student')}>
                     <InfoDropdownList
@@ -14745,7 +14753,7 @@ function GalleryView({isVisitor}){
 
       {/* Lightbox */}
       {lightbox&&<PhotoLightbox
-        photo={lightbox}
+        photo={filtered.find(p=>p.url===lightbox.url&&p.sectionId===lightbox.sectionId)||lightbox}
         allPhotos={filtered}
         onClose={()=>{if(lightbox._returnTo){setLightbox(lightbox._returnTo);}else{setLightbox(null);}}}
         onNavigate={handleLightboxNavigate}
