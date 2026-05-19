@@ -12761,7 +12761,7 @@ function CropOverlay({imgSrc,onCommit}){
           {ksCorners.map((c,i)=>(
             <div key={i}
               style={{position:'fixed',left:c.x-5,top:c.y-5,width:10,height:10,borderRadius:2,
-                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'nwse-resize',zIndex:26,
+                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'move',zIndex:26,
                 boxShadow:'0 1px 6px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
               onMouseDown={e=>{
                 e.stopPropagation();e.preventDefault();
@@ -13445,7 +13445,7 @@ function InfoDropdownList({items,filterEnabled}){
   const sp=React.useRef({y:0,h:0,ty:0,th:0,vy:0,vh:0,opacity:0,to:0});
   const rafRef=React.useRef(null);
   const [query,setQuery]=React.useState('');
-  const S=900,D=42;
+  const S=1400,D=58;
 
   const filteredItems=React.useMemo(()=>{
     if(!filterEnabled||!query.trim()) return items;
@@ -13539,7 +13539,8 @@ function InfoDropdownList({items,filterEnabled}){
               ref={el=>rowRefs.current[i]=el}
               onMouseEnter={e=>{onEnter(i);e.currentTarget.style.color='#fff';}}
               onMouseLeave={e=>{e.currentTarget.style.color=item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)';}}
-              onClick={item.onSelect}
+              onMouseDown={e=>{e.stopPropagation();}}
+              onClick={e=>{e.stopPropagation();if(item.onSelect)item.onSelect();}}
               style={{position:'relative',zIndex:1,padding:'7px 12px',fontSize:12,
                 color:item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)',
                 fontFamily:"'DM Sans',sans-serif",cursor:'pointer',
@@ -13766,7 +13767,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   },[infoVisible]);
 
   function startInfoDrag(e){
-    if(e.target.closest('[data-scrollable],button,input')) return;
+    if(e.target.closest('[data-scrollable],[data-dropdown],button,input')) return;
     e.stopPropagation();
     const panel=infoPanelRef.current;if(!panel) return;
     const rect=panel.getBoundingClientRect();
