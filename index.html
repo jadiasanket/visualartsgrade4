@@ -4127,7 +4127,7 @@ function compressRefImage(file){
     const objectUrl=URL.createObjectURL(file);
     img.onload=()=>{
       URL.revokeObjectURL(objectUrl);
-      const MAX=1200;
+      const MAX=1600;
       let w=img.width,h=img.height;
       if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}
       else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
@@ -4137,7 +4137,7 @@ function compressRefImage(file){
       ctx.clearRect(0,0,w,h);
       ctx.drawImage(img,0,0,w,h);
       const mime=isPng?'image/png':'image/jpeg';
-      canvas.toBlob(b=>b?resolve(b):reject(new Error('toBlob failed')),mime,isPng?1:0.88);
+      canvas.toBlob(b=>b?resolve(b):reject(new Error('toBlob failed')),mime,isPng?1:0.95);
     };
     img.onerror=()=>{URL.revokeObjectURL(objectUrl);reject(new Error('Could not read image'));};
     img.src=objectUrl;
@@ -13866,7 +13866,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
                 {/* Student pill — only in edit mode, all sections */}
                 {infoEditMode&&teacherMode&&onPhotoReassign&&(
                   <InfoPill
-                    label={photo.studentName||'Unknown student'}
+                    label={photo.studentName||'— assign student —'}
                     open={reassignField==='student'}
                     onToggle={()=>setReassignField(reassignField==='student'?null:'student')}>
                     <InfoDropdownList
@@ -14301,15 +14301,6 @@ function GalleryView({isVisitor}){
           newData.students[targetStudentIdx].portfolio.push(photoEntry);
           await window._db.collection('sections').doc('shared-'+targetSid).set(newData);
         }
-      }
-      // Update lightbox snapshot so info panel reflects new student immediately
-      if(newStudentIdx!==undefined||newSectionId!==undefined){
-        const updatedSid=newSectionId||oldSid;
-        const updatedIdx=newStudentIdx!==undefined?newStudentIdx:oldStudentIdx;
-        const updatedSec=G4_SECTIONS.find(s=>s.id===updatedSid);
-        const updatedName=(updatedSec&&updatedSec.students[updatedIdx])||photo.studentName;
-        const updatedSecName=updatedSec?updatedSec.name:photo.sectionName;
-        setLightbox(prev=>prev?{...prev,studentName:updatedName,studentIdx:updatedIdx,sectionId:updatedSid,sectionName:updatedSecName,photoIdx:prev.photoIdx}:prev);
       }
       if(newStudentIdx!==undefined||newSectionId!==undefined){
         const updatedSid=newSectionId||oldSid;
