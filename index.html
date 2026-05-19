@@ -13510,8 +13510,7 @@ function InfoDropdownList({items,filterEnabled}){
         data-scrollable="1"
         style={{position:'relative',maxHeight:220,overflowY:'auto',scrollbarWidth:'thin',
           scrollbarColor:'rgba(255,255,255,0.15) transparent'}}
-       onMouseLeave={onLeave}
-        onClick={e=>e.stopPropagation()}>
+        onMouseLeave={onLeave}>
         {/* Spring bubble */}
         <div ref={bubbleRef} style={{position:'absolute',left:3,right:3,borderRadius:6,
           background:'rgb(0,116,240)',pointerEvents:'none',zIndex:0,opacity:0,
