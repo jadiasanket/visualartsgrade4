@@ -4416,11 +4416,29 @@ function RefsPanel({refs,sessionKey}){
   // ── Lightbox ──
   const [lbIdx,setLbIdx]=React.useState(null);
   const [metaVisible,setMetaVisible]=React.useState(true);
-  const [zoom,setZoom]=React.useState(1);
-  const [panX,setPanX]=React.useState(0);
-  const [panY,setPanY]=React.useState(0);
+  const zoomRef=React.useRef(1);
+  const [sliderVal,setSliderVal]=React.useState(100);
+  const [sliderActive,setSliderActive]=React.useState(false);
+  const panXRef=React.useRef(0);
+  const panYRef=React.useRef(0);
+  const lbImgRef=React.useRef(null);
+  const lbRafRef=React.useRef(null);
   const [dragging,setDragging]=React.useState(false);
   const dragStart=React.useRef(null);
+
+  function applyLbTransform(){
+    if(!lbImgRef.current) return;
+    lbImgRef.current.style.transform='scale('+zoomRef.current+') translate('+panXRef.current/zoomRef.current+'px,'+panYRef.current/zoomRef.current+'px)';
+  }
+  function setLbZoom(v){
+    const clamped=Math.min(4,Math.max(1,v));
+    if(clamped===1){panXRef.current=0;panYRef.current=0;}
+    zoomRef.current=clamped;
+    setSliderVal(Math.round(clamped*100));
+    if(lbRafRef.current) cancelAnimationFrame(lbRafRef.current);
+    lbRafRef.current=requestAnimationFrame(applyLbTransform);
+  }
+  function resetLbZoom(){zoomRef.current=1;panXRef.current=0;panYRef.current=0;setSliderVal(100);if(lbRafRef.current)cancelAnimationFrame(lbRafRef.current);lbRafRef.current=requestAnimationFrame(applyLbTransform);}
 
   // ── Carousel state ──
   const [activeIdx,setActiveIdx]=React.useState(0);
@@ -4979,17 +4997,18 @@ function RefsPanel({refs,sessionKey}){
           overflow:'hidden'}}
           onClick={closeLb}
           onMouseMove={e=>{if(!dragging||!dragStart.current)return;
-            const dx=e.clientX-dragStart.current.x-panX;
-            const dy=e.clientY-dragStart.current.y-panY;
+            const dx=e.clientX-dragStart.current.x-panXRef.current;
+            const dy=e.clientY-dragStart.current.y-panYRef.current;
             if(Math.abs(dx)>3||Math.abs(dy)>3)dragStart.current.moved=true;
-            setPanX(e.clientX-dragStart.current.x);
-            setPanY(e.clientY-dragStart.current.y);}}
+            panXRef.current=e.clientX-dragStart.current.x;
+            panYRef.current=e.clientY-dragStart.current.y;
+            if(lbRafRef.current)cancelAnimationFrame(lbRafRef.current);
+            lbRafRef.current=requestAnimationFrame(applyLbTransform);}}
           onMouseUp={()=>{setDragging(false);
             setTimeout(()=>{if(dragStart.current)dragStart.current.moved=false;},50);}}
           onWheel={e=>{if(curItem.type!=='video'){e.preventDefault();
             const delta=e.deltaY>0?-0.08:0.08;
-            setZoom(z=>{const nz=+(Math.min(4,Math.max(1,z+delta)).toFixed(2));
-              if(nz===1){setPanX(0);setPanY(0);}return nz;});}}}>
+            setLbZoom(zoomRef.current+delta);}}}>
 
           {/* Hidden preload for prev/next images so navigation feels instant */}
           {lbIdx>0&&lbItems[lbIdx-1]?.type==='image'&&
@@ -5010,18 +5029,16 @@ function RefsPanel({refs,sessionKey}){
                 setMetaVisible(v=>!v);
               }}>
               {/* The image — blur+darken when info visible */}
-              <img src={curItem.src} alt="" draggable={false}
-                onMouseDown={e=>{e.stopPropagation();if(zoom>1){e.preventDefault();
-                  setDragging(true);dragStart.current={x:e.clientX-panX,y:e.clientY-panY,moved:false};}}}
+              <img ref={lbImgRef} src={curItem.src} alt="" draggable={false}
+                onMouseDown={e=>{e.stopPropagation();if(zoomRef.current>1){e.preventDefault();
+                  setDragging(true);dragStart.current={x:e.clientX-panXRef.current,y:e.clientY-panYRef.current,moved:false};}}}
                 style={{
                   maxWidth:'100%',maxHeight:'100%',
                   objectFit:'contain',display:'block',
-                  transform:`scale(${zoom}) translate(${panX/zoom}px,${panY/zoom}px)`,
-                  transition:dragging?'none':'transform .18s cubic-bezier(.25,0.1,.25,1), filter .3s ease',
-                  willChange:'transform',
+                  transformOrigin:'center center',willChange:'transform',
                   filter:metaVisible&&(curItem.title||curItem.subtitle||curItem.why)
                     ?'blur(7px) brightness(0.78)':'none',
-                  cursor:zoom>1?(dragging?'grabbing':'grab'):'pointer',
+                  cursor:zoomRef.current>1?(dragging?'grabbing':'grab'):'pointer',
                   userSelect:'none',imageRendering:'high-quality'}}/>
 
               {/* Info overlay — appears centred over the blurred image */}
@@ -5072,12 +5089,12 @@ function RefsPanel({refs,sessionKey}){
 
           {/* Arrows */}
           {lbIdx>0&&<button onClick={e=>{e.stopPropagation();setLbIdx(i=>i-1);
-            setZoom(1);setPanX(0);setPanY(0);setMetaVisible(true);}}
+            resetLbZoom();setMetaVisible(true);}}
             style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',
               background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
               borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:'pointer'}}>&#8249;</button>}
           {lbIdx<lbItems.length-1&&<button onClick={e=>{e.stopPropagation();setLbIdx(i=>i+1);
-            setZoom(1);setPanX(0);setPanY(0);setMetaVisible(true);}}
+            resetLbZoom();setMetaVisible(true);}}
             style={{position:'absolute',right:70,top:'50%',transform:'translateY(-50%)',
               background:'rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.15)',
               borderRadius:10,color:'#fff',fontSize:26,padding:'6px 14px',cursor:'pointer'}}>&#8250;</button>}
@@ -5090,25 +5107,16 @@ function RefsPanel({refs,sessionKey}){
             {lbIdx+1} / {lbItems.length}
           </div>}
 
-          {/* Zoom slider */}
+          {/* Zoom slider — same as Gallery lightbox */}
           {curItem.type==='image'&&(
-            <div style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',
-              display:'flex',flexDirection:'column',alignItems:'center',gap:6,zIndex:10}}
-              onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-              <span style={{color:'rgba(255,255,255,0.4)',fontSize:9}}>4×</span>
-              <input type="range" min={100} max={400} step={5} value={Math.round(zoom*100)}
-                onChange={e=>{const v=Number(e.target.value)/100;setZoom(v);
-                  if(v===1){setPanX(0);setPanY(0);}}}
-                style={{writingMode:'vertical-lr',direction:'rtl',
-                  WebkitAppearance:'slider-vertical',height:140,
-                  accentColor:'rgba(255,255,255,0.7)',cursor:'pointer'}}/>
-              <span style={{color:'rgba(255,255,255,0.4)',fontSize:9}}>1×</span>
-            </div>
+            <ZoomSlider value={sliderVal} active={sliderActive}
+              onChange={v=>{setLbZoom(v/100);}}
+              onActiveChange={setSliderActive}/>
           )}
-          {zoom>1&&<div style={{position:'fixed',bottom:56,left:'50%',
+          {sliderVal>100&&<div style={{position:'fixed',bottom:56,left:'50%',
             transform:'translateX(-50%)',background:'rgba(0,0,0,0.55)',
             color:'rgba(255,255,255,0.5)',fontSize:10,padding:'3px 12px',
-            borderRadius:10,pointerEvents:'none',zIndex:5011}}>{Math.round(zoom*100)}% · drag to pan</div>}
+            borderRadius:10,pointerEvents:'none',zIndex:5011}}>{Math.round(sliderVal)}% · drag to pan</div>}
         </div>,
         document.body
       )}
