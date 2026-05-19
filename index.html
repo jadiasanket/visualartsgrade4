@@ -14311,7 +14311,6 @@ function GalleryView({isVisitor}){
         const updatedSecName=updatedSec?updatedSec.name:photo.sectionName;
         setLightbox(prev=>prev?{...prev,studentName:updatedName,studentIdx:updatedIdx,sectionId:updatedSid,sectionName:updatedSecName,photoIdx:prev.photoIdx}:prev);
       }
-      // Update lightbox snapshot so info panel reflects new student immediately
       if(newStudentIdx!==undefined||newSectionId!==undefined){
         const updatedSid=newSectionId||oldSid;
         const updatedIdx=newStudentIdx!==undefined?newStudentIdx:oldStudentIdx;
