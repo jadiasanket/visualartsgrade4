@@ -13445,7 +13445,7 @@ function InfoDropdownList({items,filterEnabled}){
   const sp=React.useRef({y:0,h:0,ty:0,th:0,vy:0,vh:0,opacity:0,to:0});
   const rafRef=React.useRef(null);
   const [query,setQuery]=React.useState('');
-  const S=1400H,D=58;
+  const S=1400,D=58;
 
   const filteredItems=React.useMemo(()=>{
     if(!filterEnabled||!query.trim()) return items;
