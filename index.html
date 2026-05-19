@@ -13866,7 +13866,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
                 {/* Student pill — only in edit mode, all sections */}
                 {infoEditMode&&teacherMode&&onPhotoReassign&&(
                   <InfoPill
-                    label={photo.studentName||'— assign student —'}
+                    label={photo.studentName||'(no student)'}
                     open={reassignField==='student'}
                     onToggle={()=>setReassignField(reassignField==='student'?null:'student')}>
                     <InfoDropdownList
