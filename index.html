@@ -12309,7 +12309,7 @@ function CropOverlay({imgSrc,onCommit}){
   }
   function onWrapMove(e){
     if(dragRef.current)return;
-    if(ksCorners){setCursor('default');return;}
+    if(ksCorners){if(wrapRef.current)wrapRef.current.style.cursor='default';return;}
     if(isPanRef.current&&panStartRef.current){
       panXRef.current=panStartRef.current.px+(e.clientX-panStartRef.current.mx);
       panYRef.current=panStartRef.current.py+(e.clientY-panStartRef.current.my);
@@ -12377,6 +12377,7 @@ function CropOverlay({imgSrc,onCommit}){
 
   const keystoneUrlRef=React.useRef(null);
   const [ksCorners,setKsCorners]=React.useState(null);
+  React.useEffect(()=>{if(wrapRef.current)wrapRef.current.style.cursor=ksCorners?'default':'default';},[ksCorners]);
   // ksCorners: [{x,y},{x,y},{x,y},{x,y}] in screen px — TL,TR,BR,BL
 
   // Live preview: apply CSS matrix3d projective warp as corners are dragged
@@ -13443,6 +13444,7 @@ function InfoDropdownList({items,filterEnabled}){
   const containerRef=React.useRef(null);
   const bubbleRef=React.useRef(null);
   const rowRefs=React.useRef([]);
+  const rowIdRefs=React.useRef({});
   const sp=React.useRef({y:0,h:0,ty:0,th:0,vy:0,vh:0,opacity:0,to:0});
   const rafRef=React.useRef(null);
   const [query,setQuery]=React.useState('');
@@ -13493,10 +13495,10 @@ function InfoDropdownList({items,filterEnabled}){
 
   // Scroll to current item on mount
   React.useEffect(()=>{
-    const currentIdx=filteredItems.findIndex(it=>it.isCurrent);
-    if(currentIdx<0||!containerRef.current) return;
+    const currentItem=filteredItems.find(it=>it.isCurrent);
+    if(!currentItem||!containerRef.current) return;
     setTimeout(()=>{
-      const row=rowRefs.current[currentIdx];
+      const row=rowIdRefs.current[currentItem.id];
       if(row) row.scrollIntoView({block:'center'});
     },30);
   },[]);
@@ -13539,7 +13541,7 @@ function InfoDropdownList({items,filterEnabled}){
           );
           return(
             <div key={item.id}
-              ref={el=>rowRefs.current[i]=el}
+              ref={el=>{rowRefs.current[i]=el;if(item.id)rowIdRefs.current[item.id]=el;}}
               onMouseEnter={e=>{onEnter(i);e.currentTarget.style.color='#fff';const dot=e.currentTarget.querySelector('.idl-dot');if(dot)dot.style.background='#fff';if(dot)dot.style.border='none';}}
               onMouseLeave={e=>{e.currentTarget.style.color=item.isCurrent?'rgb(0,116,240)':'rgba(255,255,255,0.72)';const dot=e.currentTarget.querySelector('.idl-dot');if(dot){dot.style.background=item.isCurrent?'rgb(0,116,240)':'transparent';dot.style.border=item.isCurrent?'none':'1.5px solid rgba(255,255,255,0.15)';}}}
               onMouseDown={e=>{e.stopPropagation();}}
@@ -13616,12 +13618,12 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
     if(!infoVisible||infoEditMode) return;
     function handle(e){
       if(!infoPanelRef.current||infoPanelRef.current.contains(e.target)) return;
-      if(e.target.closest('.tb-pill-wrap')) return;
+      if(e.target.closest('.tb-pill-wrap,[data-dropdown],[data-scrollable]')) return;
       setActiveControl(null);
       setInfoVisible(false);
     }
-    document.addEventListener('mousedown',handle);
-    return()=>document.removeEventListener('mousedown',handle);
+    document.addEventListener('pointerdown',handle,true);
+    return()=>document.removeEventListener('pointerdown',handle,true);
   },[infoVisible,infoEditMode]);
 
   // Exit edit mode resets everything
@@ -14788,7 +14790,7 @@ function GalleryView({isVisitor}){
 
       {/* Lightbox */}
       {lightbox&&<PhotoLightbox
-        photo={filtered.find(p=>p.url===lightbox.url&&p.sectionId===lightbox.sectionId)||lightbox}
+        photo={filtered.find(p=>p.url===lightbox.url&&p.sectionId===lightbox.sectionId&&(lightbox.studentIdx===undefined||p.studentIdx===lightbox.studentIdx))||lightbox}
         allPhotos={filtered}
         onClose={()=>{if(lightbox._returnTo){setLightbox(lightbox._returnTo);}else{setLightbox(null);}}}
         onNavigate={handleLightboxNavigate}
