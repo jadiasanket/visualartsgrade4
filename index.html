@@ -5007,7 +5007,7 @@ function RefsPanel({refs,sessionKey}){
           onMouseUp={()=>{setDragging(false);
             setTimeout(()=>{if(dragStart.current)dragStart.current.moved=false;},50);}}
           onWheel={e=>{if(curItem.type!=='video'){e.preventDefault();
-            const delta=e.deltaY>0?-0.08:0.08;
+            const delta=-e.deltaY*0.003;
             setLbZoom(zoomRef.current+delta);}}}>
 
           {/* Hidden preload for prev/next images so navigation feels instant */}
@@ -12756,12 +12756,12 @@ function CropOverlay({imgSrc,onCommit}){
         <div style={{position:'fixed',inset:0,zIndex:25,pointerEvents:'none'}}>
           <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',overflow:'visible',pointerEvents:'none'}}>
             <polygon points={ksCorners.map(c=>c.x+','+c.y).join(' ')}
-              fill="rgba(0,116,240,0.06)" stroke="rgb(0,116,240)" strokeWidth="1.5" strokeDasharray="5 3"/>
+              fill="rgba(0,116,240,0.06)" stroke="rgb(0,116,240)" strokeWidth="1.5"/>
           </svg>
           {ksCorners.map((c,i)=>(
             <div key={i}
               style={{position:'fixed',left:c.x-5,top:c.y-5,width:10,height:10,borderRadius:2,
-                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'grab',zIndex:26,
+                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'nwse-resize',zIndex:26,
                 boxShadow:'0 1px 6px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
               onMouseDown={e=>{
                 e.stopPropagation();e.preventDefault();
@@ -13445,7 +13445,7 @@ function InfoDropdownList({items,filterEnabled}){
   const sp=React.useRef({y:0,h:0,ty:0,th:0,vy:0,vh:0,opacity:0,to:0});
   const rafRef=React.useRef(null);
   const [query,setQuery]=React.useState('');
-  const S=520,D=26;
+  const S=900,D=42;
 
   const filteredItems=React.useMemo(()=>{
     if(!filterEnabled||!query.trim()) return items;
@@ -13648,9 +13648,18 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
     const r=Math.max(0,12*(1-(zoomRef.current-1)/0.5));
     imgRef.current.style.borderRadius=r+'px';
   }
-  function applyZoom(val){
+  function applyZoom(val,cursorX,cursorY){
+    const prev=zoomRef.current;
     const clamped=Math.min(4,Math.max(1,val));
     if(clamped===1){panXRef.current=0;panYRef.current=0;}
+    else if(cursorX!==undefined&&cursorY!==undefined&&containerRef.current){
+      const r=containerRef.current.getBoundingClientRect();
+      const cx=cursorX-r.left-r.width/2;
+      const cy=cursorY-r.top-r.height/2;
+      const scale=clamped/prev;
+      panXRef.current=(panXRef.current-cx)*scale+cx;
+      panYRef.current=(panYRef.current-cy)*scale+cy;
+    }
     zoomRef.current=clamped;
     setIsZoomed(clamped>1.005);
     setSliderVal(Math.round(clamped*100));
@@ -13706,7 +13715,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
         hSwipeRef.current+=e.deltaX;
         if(hSwipeRef.current>45){hSwipeRef.current=0;onNavigateRef.current(1);}
         else if(hSwipeRef.current<-45){hSwipeRef.current=0;onNavigateRef.current(-1);}
-      } else if(absDY>1){applyZoom(zoomRef.current-e.deltaY*0.004);}
+      } else if(absDY>1){applyZoom(zoomRef.current-e.deltaY*0.003,e.clientX,e.clientY);}
     }
     el.addEventListener('wheel',onWheel,{passive:false});
     return ()=>el.removeEventListener('wheel',onWheel);
@@ -14116,7 +14125,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
       <button onClick={e=>{e.stopPropagation();onClose();}}
         style={{background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.55)',fontSize:16,fontWeight:300,lineHeight:1,flexShrink:0,boxShadow:'0 4px 20px rgba(0,0,0,0.35)',transition:'background .18s,border-color .18s,color .18s'}}
         onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,40,0.85)';e.currentTarget.style.borderColor='rgba(220,50,40,0.6)';e.currentTarget.style.color='#fff';}}
-        onMouseLeave={e=>{e.currentTarget.style.background='rgba(15,15,20,0.45)';e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';e.currentTarget.style.color='rgba(255,255,255,0.55)';}}>✕</button>
+        onMouseLeave={e=>{e.currentTarget.style.background='rgba(15,15,20,0.45)';e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';e.currentTarget.style.color='rgba(255,255,255,0.55)';}}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
+      </button>
     </div>,
     document.body
   )
@@ -14283,8 +14294,7 @@ function GalleryView({isVisitor}){
           await window._db.collection('sections').doc('shared-'+targetSid).set(newData);
         }
       }
-      // Close lightbox only if student/section changed (photo has moved)
-      if(newLesson===undefined&&newType===undefined) setLightbox(null);
+      // Lightbox stays open — only green tick (exitEditMode) closes it
     }catch(e){console.error('Reassign failed',e);}
   }
   const artworkTags=getArtworkTags();
