@@ -13483,7 +13483,7 @@ function InfoDropdownList({items,filterEnabled}){
   function onLeave(){sp.current.to=0;startTick();}
 
   return(
-    <div style={{marginTop:4,background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.12)',
+    <div data-dropdown="1" style={{marginTop:4,background:'rgba(7,7,8,0.97)',border:'1px solid rgba(255,255,255,0.12)',
       borderRadius:10,boxShadow:'0 8px 32px rgba(0,0,0,0.7)'}}>
       {filterEnabled&&(
         <div style={{padding:'8px 10px 6px',borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
@@ -13585,6 +13585,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   React.useEffect(()=>{
     if(!reassignField) return;
     function handle(e){
+      if(e.target.closest('[data-scrollable],[data-dropdown]')) return;
       if(!infoPanelRef.current||!infoPanelRef.current.contains(e.target)) setReassignField(null);
     }
     document.addEventListener('mousedown',handle);
