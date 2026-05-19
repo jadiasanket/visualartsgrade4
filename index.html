@@ -13445,7 +13445,7 @@ function InfoDropdownList({items,filterEnabled}){
   const sp=React.useRef({y:0,h:0,ty:0,th:0,vy:0,vh:0,opacity:0,to:0});
   const rafRef=React.useRef(null);
   const [query,setQuery]=React.useState('');
-  const S=1400,D=58;
+  const S=1400H,D=58;
 
   const filteredItems=React.useMemo(()=>{
     if(!filterEnabled||!query.trim()) return items;
@@ -14301,6 +14301,24 @@ function GalleryView({isVisitor}){
           newData.students[targetStudentIdx].portfolio.push(photoEntry);
           await window._db.collection('sections').doc('shared-'+targetSid).set(newData);
         }
+      }
+      // Update lightbox snapshot so info panel reflects new student immediately
+      if(newStudentIdx!==undefined||newSectionId!==undefined){
+        const updatedSid=newSectionId||oldSid;
+        const updatedIdx=newStudentIdx!==undefined?newStudentIdx:oldStudentIdx;
+        const updatedSec=G4_SECTIONS.find(s=>s.id===updatedSid);
+        const updatedName=(updatedSec&&updatedSec.students[updatedIdx])||photo.studentName;
+        const updatedSecName=updatedSec?updatedSec.name:photo.sectionName;
+        setLightbox(prev=>prev?{...prev,studentName:updatedName,studentIdx:updatedIdx,sectionId:updatedSid,sectionName:updatedSecName,photoIdx:prev.photoIdx}:prev);
+      }
+      // Update lightbox snapshot so info panel reflects new student immediately
+      if(newStudentIdx!==undefined||newSectionId!==undefined){
+        const updatedSid=newSectionId||oldSid;
+        const updatedIdx=newStudentIdx!==undefined?newStudentIdx:oldStudentIdx;
+        const updatedSec=G4_SECTIONS.find(s=>s.id===updatedSid);
+        const updatedName=(updatedSec&&updatedSec.students[updatedIdx])||photo.studentName;
+        const updatedSecName=updatedSec?updatedSec.name:photo.sectionName;
+        setLightbox(prev=>prev?{...prev,studentName:updatedName,studentIdx:updatedIdx,sectionId:updatedSid,sectionName:updatedSecName}:prev);
       }
       // Lightbox stays open — only green tick (exitEditMode) closes it
     }catch(e){console.error('Reassign failed',e);}
