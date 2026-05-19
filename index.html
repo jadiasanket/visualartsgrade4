@@ -12747,15 +12747,15 @@ function CropOverlay({imgSrc,onCommit}){
       {ksCorners&&(
         <div style={{position:'fixed',inset:0,zIndex:25,pointerEvents:'none'}}>
           <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',overflow:'visible',pointerEvents:'none'}}>
-            <polygon points={ksCorners.map(c=>`${c.x},${c.y}`).join(' ')}
-              fill="rgba(59,191,160,0.08)" stroke="rgba(59,191,160,0.85)" strokeWidth="1.5" strokeDasharray="5 3"/>
+            <polygon points={ksCorners.map(c=>c.x+','+c.y).join(' ')}
+              fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.9)" strokeWidth="1.5" strokeDasharray="5 3"/>
           </svg>
           {ksCorners.map((c,i)=>(
             <div key={i}
-              style={{position:'fixed',left:c.x-16,top:c.y-16,width:32,height:32,borderRadius:'50%',
-                background:'rgba(59,191,160,0.92)',border:'2.5px solid #fff',cursor:'grab',zIndex:26,
+              style={{position:'fixed',left:c.x-10,top:c.y-10,width:20,height:20,borderRadius:3,
+                background:'rgba(34,197,94,0.92)',border:'2px solid #fff',cursor:'grab',zIndex:26,
                 display:'flex',alignItems:'center',justifyContent:'center',
-                boxShadow:'0 2px 10px rgba(0,0,0,0.6)',pointerEvents:'all',touchAction:'none'}}
+                boxShadow:'0 2px 8px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
               onMouseDown={e=>{
                 e.stopPropagation();e.preventDefault();
                 const startX=e.clientX,startY=e.clientY,ox=c.x,oy=c.y;
