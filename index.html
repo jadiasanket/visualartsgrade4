@@ -12686,15 +12686,15 @@ function CropOverlay({imgSrc,onCommit}){
         <div style={{position:'fixed',left:0,bottom:0,right:0,height:`calc(100% - ${b.y+b.h}px)`,background:'rgba(0,0,0,0.55)',pointerEvents:'none'}}/>
         <div style={{position:'fixed',left:0,top:b.y,width:b.x,height:b.h,background:'rgba(0,0,0,0.55)',pointerEvents:'none'}}/>
         <div style={{position:'fixed',right:0,top:b.y,width:`calc(100% - ${b.x+b.w}px)`,height:b.h,background:'rgba(0,0,0,0.55)',pointerEvents:'none'}}/>
-        <div style={{position:'fixed',left:b.x,top:b.y,width:b.w,height:b.h,border:'1.5px solid rgba(255,255,255,0.80)',cursor:'default',overflow:'visible',pointerEvents:'none'}}>
+        <div style={{position:'fixed',left:b.x,top:b.y,width:b.w,height:b.h,border:ksCorners?'1.5px solid rgba(0,0,0,0.80)':'1.5px solid rgba(255,255,255,0.80)',cursor:'default',overflow:'visible',pointerEvents:'none'}}>
           {[33,66].map(p=>(
             <React.Fragment key={p}>
               <div style={{position:'absolute',left:b.w*p/100,top:0,width:1,bottom:0,background:'rgba(255,255,255,0.35)',pointerEvents:'none'}}/>
               <div style={{position:'absolute',top:b.h*p/100,left:0,height:1,right:0,background:'rgba(255,255,255,0.35)',pointerEvents:'none'}}/>
             </React.Fragment>
           ))}
-          {[{top:0,left:0,borderTop:'2.5px solid #fff',borderLeft:'2.5px solid #fff'},{top:0,right:0,borderTop:'2.5px solid #fff',borderRight:'2.5px solid #fff'},{bottom:0,left:0,borderBottom:'2.5px solid #fff',borderLeft:'2.5px solid #fff'},{bottom:0,right:0,borderBottom:'2.5px solid #fff',borderRight:'2.5px solid #fff'}].map((s,i)=><div key={i} style={{position:'absolute',width:22,height:22,pointerEvents:'none',...s}}/>)}
-          {[{left:'50%',top:-5,transform:'translateX(-50%)',width:10,height:9},{left:'50%',bottom:-5,transform:'translateX(-50%)',width:10,height:9},{top:'50%',left:-5,transform:'translateY(-50%)',width:9,height:10},{top:'50%',right:-5,transform:'translateY(-50%)',width:9,height:10}].map((s,i)=><div key={i} style={{position:'absolute',background:'rgba(255,255,255,0.80)',borderRadius:2,pointerEvents:'none',...s}}/>)}
+          {!ksCorners&&[{top:0,left:0,borderTop:'2.5px solid #fff',borderLeft:'2.5px solid #fff'},{top:0,right:0,borderTop:'2.5px solid #fff',borderRight:'2.5px solid #fff'},{bottom:0,left:0,borderBottom:'2.5px solid #fff',borderLeft:'2.5px solid #fff'},{bottom:0,right:0,borderBottom:'2.5px solid #fff',borderRight:'2.5px solid #fff'}].map((s,i)=><div key={i} style={{position:'absolute',width:22,height:22,pointerEvents:'none',...s}}/>)}
+          {!ksCorners&&[{left:'50%',top:-5,transform:'translateX(-50%)',width:10,height:9},{left:'50%',bottom:-5,transform:'translateX(-50%)',width:10,height:9},{top:'50%',left:-5,transform:'translateY(-50%)',width:9,height:10},{top:'50%',right:-5,transform:'translateY(-50%)',width:9,height:10}].map((s,i)=><div key={i} style={{position:'absolute',background:'rgba(255,255,255,0.80)',borderRadius:2,pointerEvents:'none',...s}}/>)}
         </div>
       </>}
       <div style={{position:'fixed',right:44,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',alignItems:'center',gap:10,zIndex:20,userSelect:'none'}}
@@ -12748,14 +12748,13 @@ function CropOverlay({imgSrc,onCommit}){
         <div style={{position:'fixed',inset:0,zIndex:25,pointerEvents:'none'}}>
           <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',overflow:'visible',pointerEvents:'none'}}>
             <polygon points={ksCorners.map(c=>c.x+','+c.y).join(' ')}
-              fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.9)" strokeWidth="1.5" strokeDasharray="5 3"/>
+              fill="rgba(0,116,240,0.06)" stroke="rgb(0,116,240)" strokeWidth="1.5" strokeDasharray="5 3"/>
           </svg>
           {ksCorners.map((c,i)=>(
             <div key={i}
-              style={{position:'fixed',left:c.x-10,top:c.y-10,width:20,height:20,borderRadius:3,
-                background:'rgba(34,197,94,0.92)',border:'2px solid #fff',cursor:'grab',zIndex:26,
-                display:'flex',alignItems:'center',justifyContent:'center',
-                boxShadow:'0 2px 8px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
+              style={{position:'fixed',left:c.x-5,top:c.y-5,width:10,height:10,borderRadius:2,
+                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'grab',zIndex:26,
+                boxShadow:'0 1px 6px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
               onMouseDown={e=>{
                 e.stopPropagation();e.preventDefault();
                 const startX=e.clientX,startY=e.clientY,ox=c.x,oy=c.y;
@@ -12766,7 +12765,6 @@ function CropOverlay({imgSrc,onCommit}){
                 function up(){document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);}
                 document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);
               }}>
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>
             </div>
           ))}
         </div>
