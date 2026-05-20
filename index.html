@@ -3383,6 +3383,20 @@ function useFirestore(sectionId, userId, init) {
         let fsData = snap.data();
         try { fsData = await resolvePhotos(fsData); } catch(e) { console.warn('Could not resolve photos:', e); }
         if (cancelled) return;
+        // Auto-sync student names from G4_SECTIONS (fixes stale first-name-only entries)
+        const canonicalSec = G4_SECTIONS.find(s => s.id === sectionId);
+        if (canonicalSec && fsData.students) {
+          let nameChanged = false;
+          const syncedStudents = fsData.students.map((st, i) => {
+            const canonical = canonicalSec.students[i];
+            if (canonical && st.name !== canonical) { nameChanged = true; return {...st, name: canonical}; }
+            return st;
+          });
+          if (nameChanged) {
+            fsData = {...fsData, students: syncedStudents};
+            sharedRef.update({students: syncedStudents}).catch(() => {});
+          }
+        }
         setVal(fsData);
         try { localStorage.setItem(lsKey, JSON.stringify(fsData)); } catch {}
         setLoading(false);
