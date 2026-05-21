@@ -12776,7 +12776,7 @@ function CropOverlay({imgSrc,onCommit}){
           </svg>
           {ksCorners.map((c,i)=>(
             <div key={i}
-              style={{position:'fixed',left:c.x-4,top:c.y-4,width:7,height:7,borderRadius:2,
+              style={{position:'fixed',left:c.x-4,top:c.y-4,width:8,height:8,borderRadius:2,
                 background:'#fff',border:'1.5px solid rgb(0,116,240)',cursor:['nwse-resize','nesw-resize','nwse-resize','nesw-resize'][i],zIndex:26,
                 boxShadow:'0 1px 6px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
               onMouseDown={e=>{
@@ -12796,7 +12796,7 @@ function CropOverlay({imgSrc,onCommit}){
             const my=(ksCorners[s.i1].y+ksCorners[s.i2].y)/2;
             return(
               <div key={'s'+si}
-                style={{position:'fixed',left:mx-4,top:my-4,width:7,height:7,borderRadius:'50%',
+                style={{position:'fixed',left:mx-4,top:my-4,width:8,height:8,borderRadius:2,
                   background:'#fff',border:'1.5px solid rgb(0,116,240)',cursor:s.axis==='y'?'ns-resize':'ew-resize',zIndex:26,
                   boxShadow:'0 1px 6px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
                 onMouseDown={e=>{
