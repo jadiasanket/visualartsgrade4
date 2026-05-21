@@ -8305,7 +8305,6 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
     </svg>
   );
 
-  /* OLD PANEL DEACTIVATED — see new panel below */
   return ReactDOM.createPortal(
     <div style={{position:'fixed',inset:0,zIndex:9000,background:'rgba(0,0,0,0.82)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'DM Sans',sans-serif"}}
       onClick={e=>e.stopPropagation()}>
@@ -8387,127 +8386,139 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
         })()}
       </div>
 
-      {!imgReady&&<div style={{position:'absolute',color:'rgba(245,158,11,0.7)',fontSize:13,fontWeight:700,letterSpacing:'.06em'}}>Loading…</div>}
+      {!imgReady&&<div style={{position:'absolute',color:'rgba(255,255,255,0.4)',fontSize:12,fontWeight:600,letterSpacing:'.04em',fontFamily:"'DM Sans',sans-serif"}}>Loading…</div>}
 
-      {/* Floating draggable panel */}
-      <div style={{position:'absolute',left:panelPos.x,top:panelPos.y,zIndex:10,width:288,
-        background:'rgba(10,10,10,0.97)',border:'1px solid rgba(245,158,11,0.22)',
-        borderRadius:14,boxShadow:'0 12px 48px rgba(0,0,0,0.9)',overflow:'hidden',userSelect:'none'}}>
+      {/* NEW PANEL — glass/blue design */}
+      <div style={{position:'absolute',left:panelPos.x,top:panelPos.y,zIndex:10,width:272,
+        background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
+        border:'1px solid rgba(255,255,255,0.13)',borderRadius:15,
+        boxShadow:'0 12px 40px rgba(0,0,0,0.65)',overflow:'visible',userSelect:'none',
+        fontFamily:"'DM Sans',sans-serif"}}>
 
-        {/* Drag handle / header */}
+        {/* Header — drag handle */}
         <div onMouseDown={onPanelDragStart}
           style={{display:'flex',alignItems:'center',justifyContent:'space-between',
-            padding:'9px 12px',borderBottom:'1px solid rgba(245,158,11,0.12)',
-            background:'rgba(245,158,11,0.06)',cursor:'grab'}}>
-          <span style={{fontSize:10,fontWeight:800,letterSpacing:'.1em',color:AMBER}}>✦ PHOTO EDITOR{batchLabel?' · '+batchLabel:''}</span>
-          <div style={{display:'flex',gap:5}}>
-            {onPrev&&<button onClick={onPrev} style={{fontSize:9,padding:'2px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,0.12)',background:'transparent',color:'rgba(255,255,255,0.5)',cursor:'pointer'}}>← Prev</button>}
-            {onNext&&<button onClick={onNext} style={{fontSize:9,padding:'2px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,0.12)',background:'transparent',color:'rgba(255,255,255,0.5)',cursor:'pointer'}}>Next →</button>}
+            padding:'11px 14px 10px',borderBottom:'1px solid rgba(255,255,255,0.08)',cursor:'grab'}}>
+          <span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.55)',letterSpacing:'0.02em'}}>Adjust</span>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            {onPrev&&<button onClick={onPrev} style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.4)',cursor:'pointer',fontSize:11,display:'flex',alignItems:'center',justifyContent:'center'}} onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'} onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.4)'}>‹</button>}
+            {onNext&&<button onClick={onNext} style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.4)',cursor:'pointer',fontSize:11,display:'flex',alignItems:'center',justifyContent:'center'}} onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'} onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.4)'}>›</button>}
             <button onClick={undo} disabled={!history.length}
-              style={{fontSize:9,padding:'2px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,0.12)',background:'transparent',color:history.length?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.15)',cursor:history.length?'pointer':'default'}}>
-              ↩ Undo
-            </button>
-            <button onClick={onClose} disabled={uploading}
-              style={{fontSize:9,padding:'2px 7px',borderRadius:6,border:'1px solid rgba(255,255,255,0.12)',background:'transparent',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}>✕</button>
+              style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:history.length?'rgba(255,255,255,0.4)':'rgba(255,255,255,0.12)',cursor:history.length?'pointer':'default',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center'}}
+              onMouseEnter={e=>{if(history.length)e.currentTarget.style.color='rgba(255,255,255,0.85)';}} onMouseLeave={e=>e.currentTarget.style.color=history.length?'rgba(255,255,255,0.4)':'rgba(255,255,255,0.12)'}>↩</button>
+            <button onClick={onClose}
+              style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.4)',cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center'}}
+              onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'} onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.4)'}>✕</button>
             <button onClick={handleSave} disabled={uploading}
-              style={{fontSize:9,fontWeight:800,padding:'2px 10px',borderRadius:6,border:'none',background:uploading?'rgba(245,158,11,0.35)':AMBER,color:'#060606',cursor:uploading?'wait':'pointer'}}>
-              {uploading?'…':'Save'}
-            </button>
+              style={{height:24,padding:'0 12px',borderRadius:6,border:'none',background:uploading?'rgba(0,116,240,0.4)':'rgb(0,116,240)',color:'#fff',cursor:uploading?'wait':'pointer',fontSize:11,fontWeight:700,display:'flex',alignItems:'center'}}>
+              {uploading?'…':'Save'}</button>
           </div>
         </div>
 
-        <div style={{padding:'11px 13px',display:'flex',flexDirection:'column',gap:11}}>
+        <div style={{padding:'14px',display:'flex',flexDirection:'column',gap:16,maxHeight:'calc(100vh - 120px)',overflowY:'auto',scrollbarWidth:'none'}}>
 
           {/* Transform */}
           <div>
-            <div style={{fontSize:8,fontWeight:700,color:'rgba(255,255,255,0.25)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:6}}>Transform</div>
-            <div style={{display:'flex',gap:5}}>
-              {[{label:'↺ 90°',fn:()=>rotate90(-1)},{label:'↻ 90°',fn:()=>rotate90(1)},{label:'⇄ Flip',fn:doFlip}].map(b=>(
-                <button key={b.label} onClick={b.fn}
-                  style={{flex:1,fontSize:10,fontWeight:700,padding:'7px 0',borderRadius:8,border:'1px solid rgba(255,255,255,0.09)',background:'rgba(255,255,255,0.03)',color:'rgba(255,255,255,0.6)',cursor:'pointer',transition:'all .12s'}}
-                  onMouseEnter={e=>{e.currentTarget.style.borderColor=AMBER;e.currentTarget.style.color=AMBER;}}
-                  onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,0.09)';e.currentTarget.style.color='rgba(255,255,255,0.6)';}}>
+            <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:10}}>Transform</div>
+            <div style={{display:'flex',gap:6}}>
+              {[{label:'↺',title:'Rotate CCW',fn:()=>rotate90(-1)},{label:'↻',title:'Rotate CW',fn:()=>rotate90(1)},{label:'⇄',title:'Flip Horizontal',fn:doFlip}].map(b=>(
+                <button key={b.label} onClick={b.fn} title={b.title}
+                  style={{flex:1,fontSize:16,padding:'8px 0',borderRadius:8,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.55)',cursor:'pointer',transition:'all .12s',display:'flex',alignItems:'center',justifyContent:'center'}}
+                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(0,116,240,0.15)';e.currentTarget.style.borderColor='rgba(0,116,240,0.4)';e.currentTarget.style.color='rgb(0,116,240)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.05)';e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';e.currentTarget.style.color='rgba(255,255,255,0.55)';}}>
                   {b.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Sliders */}
+          <div style={{height:1,background:'rgba(255,255,255,0.07)'}}/>
+
+          {/* Adjust sliders */}
           <div>
-            <div style={{fontSize:8,fontWeight:700,color:'rgba(255,255,255,0.25)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:8}}>Adjust</div>
-            <div style={{display:'flex',flexDirection:'column',gap:10}}>
-              {sliders.map(s=>(
+            <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:12}}>Adjust</div>
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              {[
+                {label:'Brightness',icon:'☀',val:brightness,set:(v)=>{snapshot();setBrightness(v);}},
+                {label:'Contrast',icon:'◑',val:contrast,set:(v)=>{snapshot();setContrast(v);}},
+                {label:'Saturation',icon:'❋',val:saturation,set:(v)=>{snapshot();setSaturation(v);}},
+                {label:'Warmth',icon:'🌡',val:0,set:()=>{}},
+                {label:'Sharpness',icon:'◈',val:0,set:()=>{}},
+              ].map(s=>(
                 <div key={s.label}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
-                    <span style={{fontSize:10,color:'rgba(255,255,255,0.5)'}}>{s.icon} {s.label}</span>
-                    <span style={{fontSize:10,fontWeight:700,color:s.val!==0?AMBER:'rgba(255,255,255,0.2)',minWidth:28,textAlign:'right'}}>{s.val>0?'+':''}{s.val}</span>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                    <span style={{fontSize:11,color:'rgba(255,255,255,0.5)'}}>{s.icon} {s.label}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:s.val!==0?'rgb(0,116,240)':'rgba(255,255,255,0.2)',minWidth:28,textAlign:'right'}}>{s.val>0?'+':''}{s.val}</span>
                   </div>
-                  {/* Custom slider track */}
-                  <div style={{position:'relative',height:6,borderRadius:6,background:'rgba(255,255,255,0.08)',marginBottom:2}}>
-                    <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.15)'}}/>
-                    <div style={{position:'absolute',borderRadius:6,background:AMBER,
+                  <div style={{position:'relative',height:4,borderRadius:4,background:'rgba(255,255,255,0.1)'}}>
+                    <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.2)'}}/>
+                    <div style={{position:'absolute',borderRadius:4,background:'rgb(0,116,240)',
                       left:s.val<0?(50+s.val)+'%':'50%',
-                      width:Math.abs(s.val)+'%',top:0,bottom:0,opacity:0.85}}/>
-                    {/* Thumb */}
+                      width:Math.abs(s.val)+'%',top:0,bottom:0,opacity:0.9}}/>
                     <div style={{position:'absolute',top:'50%',
-                      left:'calc('+((s.val+50)/100*100)+'% - 8px)',
-                      width:16,height:16,borderRadius:'50%',
-                      background:AMBER,border:'2px solid #060606',
-                      transform:'translateY(-50%)',
-                      boxShadow:'0 1px 6px rgba(0,0,0,0.6)',
-                      pointerEvents:'none'}}/>
+                      left:'calc('+((s.val+50)/100*100)+'% - 7px)',
+                      width:14,height:14,borderRadius:'50%',
+                      background:'rgba(220,220,230,0.92)',border:'1px solid rgba(255,255,255,0.45)',
+                      boxShadow:'0 2px 8px rgba(0,0,0,0.55)',
+                      transform:'translateY(-50%)',pointerEvents:'none'}}/>
                   </div>
                   <input type="range" min={-50} max={50} value={s.val}
                     onChange={e=>s.set(Number(e.target.value))}
-                    style={{width:'100%',opacity:0,height:20,cursor:'pointer',position:'relative',zIndex:1,marginTop:-18,display:'block'}}/>
+                    style={{width:'100%',opacity:0,height:20,cursor:'pointer',position:'relative',zIndex:1,marginTop:-14,display:'block'}}/>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Crop toggle */}
-          <div style={{borderTop:'1px solid rgba(255,255,255,0.05)',paddingTop:10,display:'flex',gap:5}}>
-            <button onClick={()=>{if(!cropMode){snapshot();setCropAndNotify({x:0,y:0,w:1,h:1});}setCropMode(v=>!v);}}
-              style={{flex:1,fontSize:10,fontWeight:700,padding:'7px 0',borderRadius:8,cursor:'pointer',transition:'all .15s',
-                display:'flex',alignItems:'center',justifyContent:'center',gap:5,
-                border:'1px solid',
-                borderColor:cropMode?AMBER:'rgba(255,255,255,0.09)',
-                background:cropMode?'rgba(245,158,11,0.1)':'rgba(255,255,255,0.03)',
-                color:cropMode?AMBER:'rgba(255,255,255,0.5)'}}>
-              <CropIcon/>{cropMode?'Crop active':'Crop'}
-            </button>
-            {cropMode&&<button onClick={()=>{setCropAndNotify({x:0,y:0,w:1,h:1});}}  
-              style={{fontSize:9,padding:'6px 10px',borderRadius:8,border:'1px solid rgba(245,158,11,0.25)',background:'transparent',color:'rgba(245,158,11,0.7)',cursor:'pointer'}}>
-              Reset
-            </button>}
+          <div style={{height:1,background:'rgba(255,255,255,0.07)'}}/>
+
+          {/* Crop */}
+          <div>
+            <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:10}}>Crop</div>
+            <div style={{display:'flex',gap:6}}>
+              <button onClick={()=>{if(!cropMode){snapshot();setCropAndNotify({x:0,y:0,w:1,h:1});}setCropMode(v=>!v);}}
+                style={{flex:1,fontSize:11,fontWeight:600,padding:'8px 0',borderRadius:8,cursor:'pointer',transition:'all .15s',
+                  display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+                  border:'1px solid',
+                  borderColor:cropMode?'rgb(0,116,240)':'rgba(255,255,255,0.1)',
+                  background:cropMode?'rgba(0,116,240,0.15)':'rgba(255,255,255,0.05)',
+                  color:cropMode?'rgb(0,116,240)':'rgba(255,255,255,0.55)'}}>
+                <CropIcon/>{cropMode?'Active':'Crop'}
+              </button>
+              {cropMode&&<button onClick={()=>setCropAndNotify({x:0,y:0,w:1,h:1})}
+                style={{fontSize:11,padding:'8px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.4)',cursor:'pointer',transition:'all .12s'}}
+                onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.8)'} onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.4)'}>Reset</button>}
+            </div>
+            {cropMode&&<div style={{marginTop:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                <span style={{fontSize:11,color:'rgba(255,255,255,0.5)'}}>↻ Straighten</span>
+                <span style={{fontSize:10,fontWeight:700,color:fineRotation!==0?'rgb(0,116,240)':'rgba(255,255,255,0.2)'}}>{fineRotation>0?'+':''}{fineRotation}°</span>
+              </div>
+              <div style={{position:'relative',height:4,borderRadius:4,background:'rgba(255,255,255,0.1)'}}>
+                <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.2)'}}/>
+                <div style={{position:'absolute',borderRadius:4,background:'rgb(0,116,240)',
+                  left:fineRotation<0?(50+fineRotation/45*50)+'%':'50%',
+                  width:Math.abs(fineRotation)/45*50+'%',top:0,bottom:0,opacity:0.9}}/>
+                <div style={{position:'absolute',top:'50%',
+                  left:'calc('+((fineRotation+45)/90*100)+'% - 7px)',
+                  width:14,height:14,borderRadius:'50%',
+                  background:'rgba(220,220,230,0.92)',border:'1px solid rgba(255,255,255,0.45)',
+                  boxShadow:'0 2px 8px rgba(0,0,0,0.55)',
+                  transform:'translateY(-50%)',pointerEvents:'none'}}/>
+              </div>
+              <input type="range" min={-45} max={45} value={fineRotation}
+                onChange={e=>{snapshot();setFineRotation(Number(e.target.value));}}
+                style={{width:'100%',opacity:0,height:20,cursor:'pointer',position:'relative',zIndex:1,marginTop:-14,display:'block'}}/>
+            </div>}
           </div>
-          {/* Fine rotation slider — shown when crop is active */}
-          {cropMode&&<div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.04)'}}>
-            <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
-              <span style={{fontSize:9,color:'rgba(255,255,255,0.45)'}}>↻ Straighten</span>
-              <span style={{fontSize:9,fontWeight:700,color:fineRotation!==0?AMBER:'rgba(255,255,255,0.2)'}}>{fineRotation>0?'+':''}{fineRotation}°</span>
-            </div>
-            <div style={{position:'relative',height:6,borderRadius:6,background:'rgba(255,255,255,0.08)',marginBottom:2}}>
-              <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:1,background:'rgba(255,255,255,0.15)'}}/>
-              <div style={{position:'absolute',borderRadius:6,background:AMBER,
-                left:fineRotation<0?(50+fineRotation/45*50)+'%':'50%',
-                width:Math.abs(fineRotation)/45*50+'%',top:0,bottom:0,opacity:0.85}}/>
-              <div style={{position:'absolute',top:'50%',
-                left:'calc('+((fineRotation+45)/90*100)+'% - 8px)',
-                width:16,height:16,borderRadius:'50%',
-                background:AMBER,border:'2px solid #060606',
-                transform:'translateY(-50%)',boxShadow:'0 1px 6px rgba(0,0,0,0.6)',
-                pointerEvents:'none'}}/>
-            </div>
-            <input type="range" min={-45} max={45} value={fineRotation}
-              onChange={e=>{snapshot();setFineRotation(Number(e.target.value));}}
-              style={{width:'100%',opacity:0,height:20,cursor:'pointer',position:'relative',zIndex:1,marginTop:-18,display:'block'}}/>
-          </div>}
+
+          <div style={{height:1,background:'rgba(255,255,255,0.07)'}}/>
 
           {/* Reset all */}
           <button onClick={reset}
-            style={{fontSize:9,fontWeight:700,padding:'5px 0',borderRadius:8,border:'1px solid rgba(255,255,255,0.07)',background:'transparent',color:'rgba(255,255,255,0.2)',cursor:'pointer',letterSpacing:'.05em',textTransform:'uppercase'}}>
+            style={{fontSize:11,fontWeight:600,padding:'8px 0',borderRadius:8,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.35)',cursor:'pointer',letterSpacing:'0.02em',transition:'all .12s'}}
+            onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.7)';e.currentTarget.style.borderColor='rgba(255,255,255,0.2)';}}
+            onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.35)';e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';}}>
             ↺ Reset all
           </button>
 
