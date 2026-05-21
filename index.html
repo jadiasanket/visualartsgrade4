@@ -12777,7 +12777,7 @@ function CropOverlay({imgSrc,onCommit}){
           {ksCorners.map((c,i)=>(
             <div key={i}
               style={{position:'fixed',left:c.x-5,top:c.y-5,width:10,height:10,borderRadius:2,
-                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'default',zIndex:26,
+                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:[`nwse-resize`,`nesw-resize`,`nwse-resize`,`nesw-resize`][i],zIndex:26,
                 boxShadow:'0 1px 6px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
               onMouseDown={e=>{
                 e.stopPropagation();e.preventDefault();
