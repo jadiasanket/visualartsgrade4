@@ -14212,13 +14212,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
       {activeControl==='crop'&&<CropOverlay imgSrc={croppedSrcRef.current||originalUrl.current} onCommit={(canvas,url)=>{croppedSrcRef.current=url;setCurrentUrl(url);if(onPhotoEdit)onPhotoEdit(url,photo);setActiveControl(null);}}/>}
 
       {/* EDIT PANEL BOTTOM PILL */}
-      {activeControl==='edit'&&(()=>{
-        const pillSp=React.useRef({x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0});
-        const pillRafRef=React.useRef(null);
-        const pillBubbleRef=React.useRef(null);
-        const pillRef2=React.useRef(null);
-        return null;
-      })()}
+      fix: remove invalid hook calls in JSX conditional causing white screen on edit panel open
       {activeControl==='edit'&&<div id="ep-bot-outer" onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
         style={{position:'absolute',bottom:'2.5vh',left:'50%',transform:'translateX(-50%)',display:'flex',alignItems:'center',gap:8,zIndex:21}}>
         <div id="ep-pill" style={{display:'flex',alignItems:'center',height:38,position:'relative',background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',overflow:'hidden'}}>
