@@ -12777,7 +12777,7 @@ function CropOverlay({imgSrc,onCommit}){
           {ksCorners.map((c,i)=>(
             <div key={i}
               style={{position:'fixed',left:c.x-5,top:c.y-5,width:10,height:10,borderRadius:2,
-                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'move',zIndex:26,
+                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'nwse-resize',zIndex:26,
                 boxShadow:'0 1px 6px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
               onMouseDown={e=>{
                 e.stopPropagation();e.preventDefault();
@@ -13703,6 +13703,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
     zoomRef.current=clamped;
     setIsZoomed(clamped>1.005);
     setSliderVal(Math.round(clamped*100));
+    if(clamped>1.005){setActiveControl(null);setInfoVisible(false);}
     if(rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current=requestAnimationFrame(applyTransform);
   }
@@ -13834,7 +13835,8 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
 
       <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
         <img ref={imgRef} src={currentUrl} alt="" draggable={false}
-          style={{maxWidth:`${(1-_CROP_MARGIN_H*2)*100}vw`,maxHeight:`${(1-_CROP_MARGIN_V*2)*100}vh`,objectFit:'contain',display:'block',imageRendering:'high-quality',WebkitImageRendering:'crisp-edges',transformOrigin:'center center',willChange:'transform',borderRadius:12,transition:'border-radius 0.4s ease',filter:filterStyle||undefined}}/>
+          onClick={()=>{if(!isZoomed){const next=activeControl==='info'?null:'info';setActiveControl(next);setInfoVisible(next==='info');}}}
+          style={{maxWidth:`${(1-_CROP_MARGIN_H*2)*100}vw`,maxHeight:`${(1-_CROP_MARGIN_V*2)*100}vh`,objectFit:'contain',display:'block',imageRendering:'high-quality',WebkitImageRendering:'crisp-edges',transformOrigin:'center center',willChange:'transform',borderRadius:12,transition:'border-radius 0.4s ease',filter:filterStyle||undefined,cursor:isZoomed?'grab':'pointer'}}/>
       </div>
 
       {/* ZOOM SLIDER */}
