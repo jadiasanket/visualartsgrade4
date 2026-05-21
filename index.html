@@ -12777,7 +12777,7 @@ function CropOverlay({imgSrc,onCommit}){
           {ksCorners.map((c,i)=>(
             <div key={i}
               style={{position:'fixed',left:c.x-5,top:c.y-5,width:10,height:10,borderRadius:2,
-                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'grab',zIndex:26,
+                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'default',zIndex:26,
                 boxShadow:'0 1px 6px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
               onMouseDown={e=>{
                 e.stopPropagation();e.preventDefault();
@@ -12809,7 +12809,7 @@ function CropOverlay({imgSrc,onCommit}){
 
           {/* Apply / Crop */}
           <button onClick={handleCommit}
-            style={{width:40,height:40,borderRadius:'50%',border:'none',padding:0,
+            style={{width:40,height:40,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.15)',padding:0,
               background:cropActive?'rgb(34,197,94)':'rgb(0,116,240)',
               cursor:'pointer',
               color:'#fff',boxShadow:cropActive?'0 4px 16px rgba(34,197,94,0.4)':'0 4px 16px rgba(0,116,240,0.4)',
@@ -13592,6 +13592,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const hSwipeRef=React.useRef(0);
   const panMovedRef=React.useRef(false);
   const clickSuppressRef=React.useRef(false);
+  const lastClickTimeRef=React.useRef(0);
   const onNavigateRef=React.useRef(onNavigate);
   React.useEffect(()=>{onNavigateRef.current=onNavigate;},[onNavigate]);
   const onCloseRef=React.useRef(onClose);
@@ -13871,6 +13872,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           onClick={()=>{
             if(panMovedRef.current){panMovedRef.current=false;return;}
             if(clickSuppressRef.current){clickSuppressRef.current=false;return;}
+            const now=Date.now();
+            if(now-lastClickTimeRef.current<350){lastClickTimeRef.current=0;return;}
+            lastClickTimeRef.current=now;
             const next=activeControl==='info'?null:'info';
             setActiveControl(next);
             setInfoVisible(next==='info');
