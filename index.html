@@ -12710,7 +12710,7 @@ function CropOverlay({imgSrc,onCommit}){
         <div style={{position:'fixed',left:0,bottom:0,right:0,height:`calc(100% - ${b.y+b.h}px)`,background:'rgba(0,0,0,0.55)',pointerEvents:'none'}}/>
         <div style={{position:'fixed',left:0,top:b.y,width:b.x,height:b.h,background:'rgba(0,0,0,0.55)',pointerEvents:'none'}}/>
         <div style={{position:'fixed',right:0,top:b.y,width:`calc(100% - ${b.x+b.w}px)`,height:b.h,background:'rgba(0,0,0,0.55)',pointerEvents:'none'}}/>
-        <div style={{position:'fixed',left:b.x,top:b.y,width:b.w,height:b.h,border:ksCorners?'1.5px solid rgba(0,0,0,0.80)':'1.5px solid rgba(255,255,255,0.80)',cursor:'default',overflow:'visible',pointerEvents:'none'}}>
+        <div style={{position:'fixed',left:b.x,top:b.y,width:b.w,height:b.h,border:ksCorners?'1px solid rgba(255,255,255,0.30)':'1.5px solid rgba(255,255,255,0.80)',cursor:'default',overflow:'visible',pointerEvents:'none'}}>
           {[33,66].map(p=>(
             <React.Fragment key={p}>
               <div style={{position:'absolute',left:b.w*p/100,top:0,width:1,bottom:0,background:'rgba(255,255,255,0.35)',pointerEvents:'none'}}/>
@@ -12777,7 +12777,7 @@ function CropOverlay({imgSrc,onCommit}){
           {ksCorners.map((c,i)=>(
             <div key={i}
               style={{position:'fixed',left:c.x-5,top:c.y-5,width:10,height:10,borderRadius:2,
-                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'nwse-resize',zIndex:26,
+                background:'rgb(0,116,240)',border:'1.5px solid #fff',cursor:'move',zIndex:26,
                 boxShadow:'0 1px 6px rgba(0,0,0,0.5)',pointerEvents:'all',touchAction:'none'}}
               onMouseDown={e=>{
                 e.stopPropagation();e.preventDefault();
@@ -13590,6 +13590,8 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const isPanningRef=React.useRef(false);
   const panStartRef=React.useRef(null);
   const hSwipeRef=React.useRef(0);
+  const panMovedRef=React.useRef(false);
+  const clickSuppressRef=React.useRef(false);
   const onNavigateRef=React.useRef(onNavigate);
   React.useEffect(()=>{onNavigateRef.current=onNavigate;},[onNavigate]);
   const onCloseRef=React.useRef(onClose);
@@ -13633,6 +13635,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
     function handle(e){
       if(!infoPanelRef.current||infoPanelRef.current.contains(e.target)) return;
       if(e.target.closest('.tb-pill-wrap,[data-dropdown],[data-scrollable]')) return;
+      clickSuppressRef.current=true;
       setActiveControl(null);
       setInfoVisible(false);
     }
@@ -13763,6 +13766,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   },[]);
 
   function onMouseDown(e){
+    panMovedRef.current=false;
     if(!isZoomed) return;
     e.preventDefault();
     isPanningRef.current=true;
@@ -13770,6 +13774,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   }
   function onMouseMove(e){
     if(!isPanningRef.current||!panStartRef.current) return;
+    const dx=e.clientX-(panStartRef.current.x+panXRef.current);
+    const dy=e.clientY-(panStartRef.current.y+panYRef.current);
+    if(Math.abs(dx)>4||Math.abs(dy)>4) panMovedRef.current=true;
     panXRef.current=e.clientX-panStartRef.current.x;
     panYRef.current=e.clientY-panStartRef.current.y;
     if(rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -13835,7 +13842,13 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
 
       <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
         <img ref={imgRef} src={currentUrl} alt="" draggable={false}
-          onClick={()=>{if(!isZoomed){const next=activeControl==='info'?null:'info';setActiveControl(next);setInfoVisible(next==='info');}}}
+          onClick={()=>{
+            if(panMovedRef.current){panMovedRef.current=false;return;}
+            if(clickSuppressRef.current){clickSuppressRef.current=false;return;}
+            const next=activeControl==='info'?null:'info';
+            setActiveControl(next);
+            setInfoVisible(next==='info');
+          }}
           style={{maxWidth:`${(1-_CROP_MARGIN_H*2)*100}vw`,maxHeight:`${(1-_CROP_MARGIN_V*2)*100}vh`,objectFit:'contain',display:'block',imageRendering:'high-quality',WebkitImageRendering:'crisp-edges',transformOrigin:'center center',willChange:'transform',borderRadius:12,transition:'border-radius 0.4s ease',filter:filterStyle||undefined,cursor:isZoomed?'grab':'pointer'}}/>
       </div>
 
@@ -14028,11 +14041,11 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
                       />
                     </InfoPill>
                   )}
-                  {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic',marginTop:6}}>{lessonOverview}</div>}
+                  {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.48)',fontFamily:F,lineHeight:1.6,fontStyle:'italic',marginTop:6}}>{lessonOverview}</div>}
                   {photo.lessonDate&&!infoEditMode&&<div style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.28)',fontFamily:F,marginTop:4,letterSpacing:'0.02em'}}>{photo.lessonDate}</div>}
                 </>
               )}
-              {isDoc&&lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.38)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
+              {isDoc&&lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.48)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
             </div>
           )}
 
