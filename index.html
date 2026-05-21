@@ -8278,7 +8278,7 @@ function PhotoEditor({srcUrl, onSave, onClose, uploading, initialCrop, onCropCha
     const filterStr=getCSSFilter();
     if(filterStr!=='none') ctx2.filter=filterStr;
     ctx2.drawImage(fc,cx,cy,cw,ch,0,0,cw,ch);
-    fc2.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.88);
+    fc2.toBlob(blob=>{if(blob) onSave(blob);},'image/jpeg',0.95);
   }
 
   const sliders=[
@@ -11063,7 +11063,7 @@ function GalleryUpload({onClose,onDone,initialType,initialLesson,initialSection}
       if(!blob) return;
       const newFile=new File([blob],queue[idx].file.name,{type:'image/jpeg'});
       update(idx,{file:newFile,localUrl:URL.createObjectURL(newFile)});
-    },'image/jpeg',0.88);
+    },'image/jpeg',0.95);
   }
 
   function enterEdit(){setEditMode(true);}
