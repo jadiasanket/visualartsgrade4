@@ -13296,49 +13296,38 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
         row.addEventListener('mouseleave',()=>{rsp.to=0;rstartTick();});
       });
     }
-    // Strip bubble — same balloon spring as CropToolPill
-    const stripBubble=p.querySelector('#ep-strip-bubble');
-    const strip=p.querySelector('#ep-strip');
-    if(stripBubble&&strip){
-      const ssp={x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0,idx:-1};
-      const SS2=520,SD2=26,SSS=280,SSD=18;
-      let sraf=null, smouseVel=0, slastX=null;
-      function stick(){
+    // Pill bubble — balloon spring physics
+    const pillBubble=p.querySelector('#ep-pill-bubble');
+    const pill=p.querySelector('#ep-pill');
+    if(pillBubble&&pill){
+      const psp={x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0};
+      const PS=520,PD=26,PSS=280,PSD=18;
+      let praf=null,pmouseVel=0,plastX=null;
+      function ptick(){
         const dt=0.016,ST=4,ddt=dt/ST;
         for(let i=0;i<ST;i++){
-          ssp.vx+=(-SS2*(ssp.x-ssp.tx)-SD2*ssp.vx)*ddt;
-          ssp.vw+=(-SS2*(ssp.w-ssp.tw)-SD2*ssp.vw)*ddt;
-          ssp.x+=ssp.vx*ddt; ssp.w+=ssp.vw*ddt;
-          const tsx=Math.max(-18,Math.min(18,smouseVel*1.4));
-          ssp.vsx+=(-SSS*(ssp.sx-tsx)-SSD*ssp.vsx)*ddt;
-          ssp.sx+=ssp.vsx*ddt;
+          psp.vx+=(-PS*(psp.x-psp.tx)-PD*psp.vx)*ddt;psp.vw+=(-PS*(psp.w-psp.tw)-PD*psp.vw)*ddt;
+          psp.x+=psp.vx*ddt;psp.w+=psp.vw*ddt;
+          const tsx=Math.max(-18,Math.min(18,pmouseVel*1.4));
+          psp.vsx+=(-PSS*(psp.sx-tsx)-PSD*psp.vsx)*ddt;psp.sx+=psp.vsx*ddt;
         }
-        smouseVel*=0.82;
-        ssp.opacity+=(ssp.to-ssp.opacity)*0.18;
-        const stretchW=Math.abs(ssp.sx)*0.5;
-        const offX=ssp.sx>0?-ssp.sx*0.15:-ssp.sx*0.15;
-        stripBubble.style.left=(ssp.x+offX)+'px';
-        stripBubble.style.width=Math.max(4,ssp.w+stretchW)+'px';
-        stripBubble.style.opacity=ssp.opacity;
-        const sc=0.85+0.15*ssp.opacity;
-        stripBubble.style.transform='scaleY('+sc+')';
-        const done=Math.abs(ssp.vx)<0.3&&Math.abs(ssp.vw)<0.3&&Math.abs(ssp.vsx)<0.3&&Math.abs(ssp.x-ssp.tx)<0.3&&Math.abs(ssp.w-ssp.tw)<0.3&&Math.abs(ssp.sx)<0.3&&Math.abs(ssp.opacity-ssp.to)<0.002;
-        if(!done) sraf=requestAnimationFrame(stick); else sraf=null;
+        pmouseVel*=0.82;psp.opacity+=(psp.to-psp.opacity)*0.18;
+        const sw=Math.abs(psp.sx)*0.5,ox=psp.sx>0?-psp.sx*0.15:-psp.sx*0.15;
+        pillBubble.style.left=(psp.x+ox)+'px';pillBubble.style.width=Math.max(4,psp.w+sw)+'px';
+        pillBubble.style.opacity=psp.opacity;
+        pillBubble.style.transform='scaleY('+(0.85+0.15*psp.opacity)+')';
+        const done=Math.abs(psp.vx)<0.3&&Math.abs(psp.vw)<0.3&&Math.abs(psp.vsx)<0.3&&Math.abs(psp.x-psp.tx)<0.3&&Math.abs(psp.w-psp.tw)<0.3&&Math.abs(psp.sx)<0.3&&Math.abs(psp.opacity-psp.to)<0.002;
+        if(!done)praf=requestAnimationFrame(ptick);else praf=null;
       }
-      function sstartTick(){if(!sraf)sraf=requestAnimationFrame(stick);}
-      strip.addEventListener('mousemove',e=>{
-        if(slastX!==null) smouseVel=e.clientX-slastX;
-        slastX=e.clientX;
-      });
-      strip.addEventListener('mouseleave',()=>{slastX=null;smouseVel=0;ssp.to=0;ssp.idx=-1;sstartTick();});
-      strip.querySelectorAll('.ep-strip-btn').forEach((btn,i)=>{
+      pill.addEventListener('mousemove',e=>{if(plastX!==null)pmouseVel=e.clientX-plastX;plastX=e.clientX;});
+      pill.addEventListener('mouseleave',()=>{plastX=null;pmouseVel=0;psp.to=0;if(!praf)praf=requestAnimationFrame(ptick);});
+      pill.querySelectorAll('.ep-pill-btn').forEach((btn,i)=>{
         btn.addEventListener('mouseenter',()=>{
-          const sr=strip.getBoundingClientRect();
-          const br=btn.getBoundingClientRect();
-          const nx=br.left-sr.left, nw=br.width;
-          if(ssp.to===0){ssp.x=nx;ssp.w=nw;}
-          ssp.tx=nx; ssp.tw=nw; ssp.to=1; ssp.idx=i;
-          sstartTick();
+          const pr=pill.getBoundingClientRect(),br=btn.getBoundingClientRect();
+          const nx=br.left-pr.left,nw=br.width;
+          if(psp.to===0){psp.x=nx;psp.w=nw;}
+          psp.tx=nx;psp.tw=nw;psp.to=1;
+          if(!praf)praf=requestAnimationFrame(ptick);
         });
       });
     }
@@ -13353,7 +13342,6 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
       Object.assign(filtersRef.current,{brightness:50,contrast:50,saturation:50,sharpness:50,warmth:50,vertical:50,horizontal:50});
       rotRef.current=0;flipXRef.current=1;flipYRef.current=1;
       ['brightness','contrast','saturation','sharpness','warmth'].forEach(k=>{
-        const track=p.querySelector('#ep-track-'+k);
         const thumb=p.querySelector('#ep-thumb-'+k);
         const fill=p.querySelector('#ep-fill-'+k);
         const val=p.querySelector('#ep-val-'+k);
@@ -13389,33 +13377,34 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
       onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
 
       <style>{
-        ".ep-rows-panel{position:relative;overflow:hidden;padding:8px 0;}"+
-        ".ep-row-bubble{position:absolute;left:0;right:0;border-radius:0;pointer-events:none;z-index:1;opacity:0;background:rgba(0,116,240,0.13);will-change:top,height,opacity;}"+
-        ".ep-row{display:flex;align-items:center;gap:14px;padding:0 16px;height:52px;position:relative;z-index:2;cursor:default;}"+
-        ".ep-icon{width:22px;height:22px;flex-shrink:0;color:rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;transition:color .15s;}"+
+        ".ep-rows-panel{position:relative;overflow:hidden;padding:6px 0;}"+
+        ".ep-row-bubble{position:absolute;left:0;right:0;pointer-events:none;z-index:1;opacity:0;background:rgba(0,116,240,0.13);will-change:top,height,opacity;}"+
+        ".ep-row{display:flex;align-items:center;gap:12px;padding:0 14px;height:46px;position:relative;z-index:2;cursor:default;}"+
+        ".ep-icon{width:20px;height:20px;flex-shrink:0;color:rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;transition:color .15s;}"+
         ".ep-icon.ep-active{color:#fff;}"+
         ".ep-mid{flex:1;position:relative;}"+
-        ".ep-track{height:20px;background:rgba(255,255,255,0.08);border-radius:100px;position:relative;cursor:ew-resize;overflow:hidden;}"+
-        ".ep-track-fill{position:absolute;top:0;bottom:0;background:rgb(0,116,240);border-radius:100px;transition:background .15s;}"+
-        ".ep-track-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);width:2px;height:14px;background:rgba(255,255,255,0.9);border-radius:2px;pointer-events:none;}"+
-        ".ep-track-val{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:600;color:rgba(255,255,255,0.55);font-family:'DM Sans',sans-serif;pointer-events:none;letter-spacing:0.02em;}"+
-        ".ep-div{height:1px;background:rgba(255,255,255,0.08);margin:0;}"+
-        ".ep-strip{display:flex;align-items:center;height:44px;position:relative;}"+
-        ".ep-strip-bubble{position:absolute;top:0;bottom:0;border-radius:0;pointer-events:none;z-index:1;opacity:0;background:rgb(0,116,240);will-change:left,width,opacity,transform;transform-origin:center;}"+
-        ".ep-strip-btn{flex:1;height:44px;background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.45);display:flex;align-items:center;justify-content:center;position:relative;z-index:2;transition:color .15s;}"+
-        ".ep-strip-btn:hover{color:#fff;}"+
-        ".ep-strip-div{width:1px;height:16px;background:rgba(255,255,255,0.08);flex-shrink:0;z-index:2;}"
+        ".ep-track{height:22px;background:rgba(255,255,255,0.09);border-radius:100px;position:relative;cursor:ew-resize;overflow:hidden;}"+
+        ".ep-track-fill{position:absolute;top:0;bottom:0;background:rgb(0,116,240);border-radius:0;}"+
+        ".ep-track-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);width:2px;height:13px;background:rgba(255,255,255,0.95);border-radius:1px;pointer-events:none;}"+
+        ".ep-track-val{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:600;color:#fff;font-family:'DM Sans',sans-serif;pointer-events:none;letter-spacing:0.01em;}"+
+        ".ep-bot{display:flex;align-items:center;gap:8px;padding:8px 14px 12px;}"+
+        ".ep-pill{display:flex;align-items:center;flex:1;height:38px;position:relative;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden;}"+
+        ".ep-pill-bubble{position:absolute;top:0;bottom:0;border-radius:100px;pointer-events:none;z-index:1;opacity:0;background:rgb(0,116,240);will-change:left,width,opacity,transform;transform-origin:center;}"+
+        ".ep-pill-btn{flex:1;height:38px;background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.45);display:flex;align-items:center;justify-content:center;position:relative;z-index:2;transition:color .15s;}"+
+        ".ep-pill-btn:hover{color:#fff;}"+
+        ".ep-pill-div{width:1px;height:14px;background:rgba(255,255,255,0.10);flex-shrink:0;z-index:2;}"+
+        ".ep-apply-btn{width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;background:rgb(34,197,94);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 12px rgba(34,197,94,0.35);transition:background .15s;}"
       }</style>
 
       <div className="ep-rows-panel" id="ep-rows-panel">
         <div className="ep-row-bubble" id="ep-row-bubble"/>
         {[
-          {key:'brightness',icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>},
-          {key:'contrast',icon:<svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM40,128a88.1,88.1,0,0,1,88-88V216A88.1,88.1,0,0,1,40,128Z"/></svg>},
-          {key:'saturation',icon:<svg width="18" height="18" viewBox="0 0 24 24"><defs><linearGradient id="satG2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="rgba(255,255,255,0.1)"/><stop offset="100%" stopColor="rgba(255,255,255,0.9)"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="3" fill="url(#satG2)"/><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>},
-          {key:'sharpness',icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 3 22 21 2 21"/></svg>},
-          {key:'warmth',icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>},
-        ].map(({key,icon},i,arr)=>(
+          {key:'brightness',icon:<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>},
+          {key:'contrast',icon:<svg width="17" height="17" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM40,128a88.1,88.1,0,0,1,88-88V216A88.1,88.1,0,0,1,40,128Z"/></svg>},
+          {key:'saturation',icon:<svg width="17" height="17" viewBox="0 0 24 24"><defs><linearGradient id="satG2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="rgba(255,255,255,0.1)"/><stop offset="100%" stopColor="rgba(255,255,255,0.9)"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="3" fill="url(#satG2)"/><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>},
+          {key:'sharpness',icon:<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 3 22 21 2 21"/></svg>},
+          {key:'warmth',icon:<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>},
+        ].map(({key,icon},i)=>(
           <div key={key} className="ep-row" id={'ep-row-'+key}>
             <div className="ep-icon" id={'ep-icon-'+key}>{icon}</div>
             <div className="ep-mid">
@@ -13429,18 +13418,23 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
         ))}
       </div>
 
-      <div className="ep-div"/>
-      <div className="ep-strip" id="ep-strip">
-        <div className="ep-strip-bubble" id="ep-strip-bubble"/>
-        <button id="ep-undo" className="ep-strip-btn" title="Undo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
-        <div className="ep-strip-div"/>
-        <button id="ep-redo" className="ep-strip-btn" title="Redo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg></button>
-        <div className="ep-strip-div"/>
-        <button id="ep-auto" className="ep-strip-btn" title="Auto Enhance"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg></button>
-        <div className="ep-strip-div"/>
-        <button id="ep-resetAll" className="ep-strip-btn" title="Reset all"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg></button>
-        <div className="ep-strip-div"/>
-        <button id="ep-apply" className="ep-strip-btn ep-apply" title="Apply"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+      <div style={{height:1,background:'rgba(255,255,255,0.08)',margin:'0'}}/>
+      <div className="ep-bot">
+        <div className="ep-pill" id="ep-pill">
+          <div className="ep-pill-bubble" id="ep-pill-bubble"/>
+          <button id="ep-undo" className="ep-pill-btn" title="Undo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
+          <div className="ep-pill-div"/>
+          <button id="ep-redo" className="ep-pill-btn" title="Redo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg></button>
+          <div className="ep-pill-div"/>
+          <button id="ep-auto" className="ep-pill-btn" title="Auto Enhance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg></button>
+          <div className="ep-pill-div"/>
+          <button id="ep-resetAll" className="ep-pill-btn" title="Reset all"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg></button>
+        </div>
+        <button id="ep-apply" className="ep-apply-btn"
+          onMouseEnter={e=>{e.currentTarget.style.background='rgb(22,163,74)';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='rgb(34,197,94)';}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
       </div>
     </div>
   );
@@ -13807,12 +13801,30 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
     return ()=>el.removeEventListener('wheel',onWheel);
   },[]);
 
+  const dragTooltipRef=React.useRef(null);
+  const dragTooltipRafRef=React.useRef(null);
+  function showDragTooltip(label){
+    let el=dragTooltipRef.current;
+    if(!el){
+      el=document.createElement('div');
+      el.style.cssText='position:fixed;top:3vh;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.55);color:rgba(255,255,255,0.75);font-size:11px;font-weight:600;font-family:\'DM Sans\',sans-serif;padding:5px 12px;border-radius:100px;pointer-events:none;z-index:9999;opacity:0;transition:opacity .18s;white-space:nowrap;letter-spacing:0.04em;';
+      document.body.appendChild(el);
+      dragTooltipRef.current=el;
+    }
+    el.textContent=label;
+    el.style.opacity='1';
+  }
+  function hideDragTooltip(){
+    const el=dragTooltipRef.current;
+    if(el) el.style.opacity='0';
+  }
   function onMouseDown(e){
     panMovedRef.current=false;
     if(!isZoomed) return;
     e.preventDefault();
     isPanningRef.current=true;
     panStartRef.current={x:e.clientX-panXRef.current,y:e.clientY-panYRef.current};
+    showDragTooltip('Pan');
   }
   function onMouseMove(e){
     if(!isPanningRef.current||!panStartRef.current) return;
@@ -13824,7 +13836,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
     if(rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current=requestAnimationFrame(applyTransform);
   }
-  function onMouseUp(){isPanningRef.current=false;}
+  function onMouseUp(){isPanningRef.current=false;hideDragTooltip();}
 
   React.useEffect(()=>{
     function onKey(e){
