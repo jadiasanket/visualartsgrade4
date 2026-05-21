@@ -13294,41 +13294,10 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
     });
     updateUndoBtns();
     // Row hover bubble — spring physics matching CropToolPill
-    const rowBubble=p.querySelector('#ep-row-bubble');
-    const rowsPanel=p.querySelector('#ep-rows-panel');
-    if(rowBubble&&rowsPanel){
-      const rsp={y:0,h:0,ty:0,th:0,vy:0,vh:0,opacity:0,to:0};
-      const RS=520,RD=26; let rraf=null;
-      function rtick(){
-        const dt=0.016,ST=4,ddt=dt/ST;
-        for(let i=0;i<ST;i++){
-          rsp.vy+=(-RS*(rsp.y-rsp.ty)-RD*rsp.vy)*ddt;
-          rsp.vh+=(-RS*(rsp.h-rsp.th)-RD*rsp.vh)*ddt;
-          rsp.y+=rsp.vy*ddt; rsp.h+=rsp.vh*ddt;
-        }
-        rsp.opacity+=(rsp.to-rsp.opacity)*0.18;
-        rowBubble.style.top=rsp.y+'px';
-        rowBubble.style.height=rsp.h+'px';
-        rowBubble.style.opacity=rsp.opacity;
-        const done=Math.abs(rsp.vy)<0.3&&Math.abs(rsp.vh)<0.3&&Math.abs(rsp.y-rsp.ty)<0.3&&Math.abs(rsp.h-rsp.th)<0.3&&Math.abs(rsp.opacity-rsp.to)<0.002;
-        if(!done) rraf=requestAnimationFrame(rtick); else rraf=null;
-      }
-      function rstartTick(){if(!rraf)rraf=requestAnimationFrame(rtick);}
-      rowsPanel.querySelectorAll('.ep-row').forEach(row=>{
-        row.addEventListener('mouseenter',()=>{
-          const pr=rowsPanel.getBoundingClientRect();
-          const rr=row.getBoundingClientRect();
-          const ny=rr.top-pr.top, nh=rr.height;
-          if(rsp.to===0){rsp.y=ny;rsp.h=nh;}
-          rsp.ty=ny; rsp.th=nh; rsp.to=1;
-          rstartTick();
-        });
-        row.addEventListener('mouseleave',()=>{rsp.to=0;rstartTick();});
-      });
-    }
-    // Pill bubble — balloon spring physics
-    const pillBubble=p.querySelector('#ep-pill-bubble');
-    const pill=p.querySelector('#ep-pill');
+    
+    // Pill bubble — balloon spring physics (pill lives outside panel DOM)
+    const pillBubble=document.querySelector('#ep-pill-bubble');
+    const pill=document.querySelector('#ep-pill');
     if(pillBubble&&pill){
       const psp={x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0};
       const PS=520,PD=26,PSS=280,PSD=18;
@@ -13349,17 +13318,74 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
         const done=Math.abs(psp.vx)<0.3&&Math.abs(psp.vw)<0.3&&Math.abs(psp.vsx)<0.3&&Math.abs(psp.x-psp.tx)<0.3&&Math.abs(psp.w-psp.tw)<0.3&&Math.abs(psp.sx)<0.3&&Math.abs(psp.opacity-psp.to)<0.002;
         if(!done)praf=requestAnimationFrame(ptick);else praf=null;
       }
+      // Cell-division: track cursor between reset (last pill btn) and apply (green tick)
+      const applyBtn=document.querySelector('#ep-apply');
+      let cellState='none'; // 'pill'|'apply'|'bridge'
+      let bridgeT=0; // 0=pill side, 1=apply side
+      const BLUE='rgb(0,116,240)', GREEN='rgb(34,197,94)';
+
+      function lerpColor(t){
+        // t=0 → blue, t=1 → green
+        const r=Math.round(0+t*34),g=Math.round(116+t*81),b=Math.round(240+t*(-146));
+        return 'rgb('+r+','+g+','+b+')';
+      }
+
+      function getPillResetRect(){
+        const btns=[...pill.querySelectorAll('button')];
+        const last=btns[btns.length-1]; if(!last) return null;
+        const pr=pill.getBoundingClientRect(),br=last.getBoundingClientRect();
+        return {x:br.left-pr.left,w:br.width,right:br.right,left:br.left};
+      }
+
+      function getApplyRect(){
+        if(!applyBtn) return null;
+        const ar=applyBtn.getBoundingClientRect();
+        return {left:ar.left,right:ar.right,top:ar.top,w:ar.width};
+      }
+
       pill.addEventListener('mousemove',e=>{if(plastX!==null)pmouseVel=e.clientX-plastX;plastX=e.clientX;});
-      pill.addEventListener('mouseleave',()=>{plastX=null;pmouseVel=0;psp.to=0;if(!praf)praf=requestAnimationFrame(ptick);});
-      pill.querySelectorAll('.ep-pill-btn').forEach((btn,i)=>{
+
+      pill.addEventListener('mouseleave',e=>{
+        // Check if moving toward apply button
+        const ar=getApplyRect();
+        if(ar&&e.clientX>=ar.left-20&&Math.abs(e.clientY-(ar.top+ar.w/2))<30){
+          cellState='bridge';
+        } else {
+          plastX=null;pmouseVel=0;psp.to=0;cellState='none';
+          if(!praf)praf=requestAnimationFrame(ptick);
+        }
+      });
+
+      pill.querySelectorAll('button').forEach((btn,i,arr)=>{
         btn.addEventListener('mouseenter',()=>{
           const pr=pill.getBoundingClientRect(),br=btn.getBoundingClientRect();
           const nx=br.left-pr.left,nw=br.width;
           if(psp.to===0){psp.x=nx;psp.w=nw;}
-          psp.tx=nx;psp.tw=nw;psp.to=1;
+          psp.tx=nx;psp.tw=nw;psp.to=1;cellState='pill';
+          pillBubble.style.background=BLUE;
           if(!praf)praf=requestAnimationFrame(ptick);
         });
       });
+
+      if(applyBtn){
+        applyBtn.addEventListener('mouseenter',()=>{
+          cellState='apply';
+          // Stretch bridge from reset btn right edge to apply btn centre
+          const rr=getPillResetRect();
+          const ar=applyBtn.getBoundingClientRect();
+          const pr=pill.getBoundingClientRect();
+          if(rr){
+            psp.tx=rr.x; psp.tw=rr.w;
+            if(psp.to===0){psp.x=rr.x;psp.w=rr.w;}
+            psp.to=1;
+          }
+          pillBubble.style.background=GREEN;
+          if(!praf)praf=requestAnimationFrame(ptick);
+        });
+        applyBtn.addEventListener('mouseleave',()=>{
+          if(cellState==='apply'){psp.to=0;cellState='none';if(!praf)praf=requestAnimationFrame(ptick);}
+        });
+      }
     }
     // Transform buttons (inside panel)
     const btn=(id,fn)=>{const el=p.querySelector(id);if(el)el.addEventListener('click',fn);};
@@ -13402,7 +13428,7 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
   },[]);
 
   return (
-    <div ref={panelRef} className="lb-glass-panel" style={{position:'absolute',top:'8vh',right:'2.5vw',width:'clamp(260px,22vw,320px)',
+    <div ref={panelRef} className="lb-glass-panel" style={{position:'absolute',top:'8vh',right:'2.5vw',width:'clamp(234px,20vw,288px)',
       background:bg,backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
       borderRadius:18,border:'1px solid rgba(255,255,255,0.12)',boxShadow:'0 12px 40px rgba(0,0,0,0.65)',
       userSelect:'none',zIndex:20,animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards',overflow:'hidden'}}
@@ -13415,7 +13441,7 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
         ".ep-icon{width:20px;height:20px;flex-shrink:0;color:rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;transition:color .15s;}"+
         ".ep-icon.ep-active{color:#fff;}"+
         ".ep-mid{flex:1;position:relative;}"+
-        ".ep-track{height:22px;background:rgba(255,255,255,0.13);border-radius:100px;position:relative;cursor:ew-resize;overflow:hidden;}"+
+        ".ep-track{height:20px;background:rgba(255,255,255,0.13);border-radius:100px;position:relative;cursor:ew-resize;overflow:hidden;}"+
         ".ep-track-fill{position:absolute;top:0;bottom:0;background:rgb(0,116,240);border-radius:0;}"+
         ".ep-track-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);width:2px;height:13px;background:rgba(255,255,255,0.95);border-radius:1px;pointer-events:none;}"+
         ".ep-track-val{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:600;color:#fff;font-family:'DM Sans',sans-serif;pointer-events:none;letter-spacing:0.01em;}"+
@@ -13756,7 +13782,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
     zoomRef.current=clamped;
     setIsZoomed(clamped>1.005);
     setSliderVal(Math.round(clamped*100));
-    if(clamped>1.005){setActiveControl(null);setInfoVisible(false);}
+    if(clamped>1.005){setInfoVisible(false);}
     if(rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current=requestAnimationFrame(applyTransform);
   }
