@@ -2446,43 +2446,27 @@ function _useRaf(cb){
   },[]);
 }
 
-// LiquidBridge — cursor fed externally via containerRef pointermove
-// containerRef: a ref to the outer div that wraps both buttons.
-// The SVG itself has pointerEvents:none — buttons keep their own events.
-// Cursor position is read from pointermove on the containerRef element.
-function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,blobDamping,maxBulge,attractionRange,filterId,containerRef,children,style,className,onTick}){
+function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,blobDamping,maxBulge,attractionRange,filterId,children,style,className,onTick}){
   blur=blur||5; contrast=contrast||85; blobStiffness=blobStiffness||180; blobDamping=blobDamping||12;
   maxBulge=maxBulge||22; attractionRange=attractionRange||28;
   const svgRef=React.useRef(null);
-  const gRef=React.useRef(null);
   const elA=React.useRef(null);
   const elB=React.useRef(null);
   const cursorXRef=React.useRef(null);
   const activeRef=React.useRef(0);
   const activeTargetRef=React.useRef(0);
-  const svgOpacityRef=React.useRef(0);
   const sp=React.useRef({aBulge:{x:0,v:0},bBulge:{x:0,v:0}});
   const fidRef=React.useRef(filterId||(()=>{const s=Math.random().toString(36).slice(2,8);return 'goo-'+s;})());
   const fid=fidRef.current;
 
-  // Track cursor via pointermove on the container (not the SVG, so buttons keep events)
   React.useEffect(()=>{
-    const el=containerRef?containerRef.current:null;
-    if(!el) return;
-    const onMove=(e)=>{
-      const svg=svgRef.current; if(!svg) return;
-      const r=svg.getBoundingClientRect();
-      // Map global clientX into SVG coordinate space
-      cursorXRef.current=((e.clientX-r.left)/r.width)*width;
-      // Only "active" when cursor is over the SVG bounding box
-      const inBounds=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
-      activeTargetRef.current=inBounds?1:0;
-    };
+    const svg=svgRef.current; if(!svg) return;
+    const onMove=(e)=>{const r=svg.getBoundingClientRect();cursorXRef.current=((e.clientX-r.left)/r.width)*width;activeTargetRef.current=1;};
     const onLeave=()=>{activeTargetRef.current=0;cursorXRef.current=null;};
-    el.addEventListener('pointermove',onMove);
-    el.addEventListener('pointerleave',onLeave);
-    return ()=>{el.removeEventListener('pointermove',onMove);el.removeEventListener('pointerleave',onLeave);};
-  },[width,containerRef]);
+    svg.addEventListener('mousemove',onMove);
+    svg.addEventListener('mouseleave',onLeave);
+    return ()=>{svg.removeEventListener('mousemove',onMove);svg.removeEventListener('mouseleave',onLeave);};
+  },[width]);
 
   _useRaf((_t,dt)=>{
     activeRef.current+=(activeTargetRef.current-activeRef.current)*Math.min(1,dt*14);
@@ -2512,11 +2496,6 @@ function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,b
     const bBulgeOut=Math.max(0,sp.current.bBulge.x);
     if(elA.current) elA.current.setAttribute('d',_bubblePath(a,aBulgeOut,aBulgeOut));
     if(elB.current) elB.current.setAttribute('d',_bubblePath(b,bBulgeOut,bBulgeOut));
-    // Invisible at rest — only shows when bulge is actually happening
-    const totalBulge=aBulgeOut+bBulgeOut;
-    const targetOpacity=totalBulge>0.5?1:0;
-    svgOpacityRef.current+=(targetOpacity-svgOpacityRef.current)*Math.min(1,dt*10);
-    if(gRef.current) gRef.current.style.opacity=svgOpacityRef.current;
     if(onTick) onTick({cursorX:cx,attraction,aBulge:aBulgeOut,bBulge:bBulgeOut});
   });
 
@@ -2527,14 +2506,14 @@ function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,b
 
   return (
     <svg ref={svgRef} viewBox={vb} width={width} height={height}
-      style={Object.assign({overflow:'visible',pointerEvents:'none'},style)} className={className}>
+      style={Object.assign({overflow:'visible'},style)} className={className}>
       <defs>
         <filter id={fid} x="-20%" y="-50%" width="140%" height="200%" colorInterpolationFilters="sRGB">
           <feGaussianBlur in="SourceGraphic" stdDeviation={blur}/>
           <feColorMatrix mode="matrix" values={fm}/>
         </filter>
       </defs>
-      <g ref={gRef} filter={furl} style={{opacity:0}}>
+      <g filter={furl}>
         {background&&<path d={_bubblePath(Object.assign({},background,{extend:'right'}),0,0)} fill={background.color}/>}
         <path ref={elA} d={_bubblePath(a,0,0)} fill={a.color}/>
         <path ref={elB} d={_bubblePath(b,0,0)} fill={b.color}/>
@@ -13037,20 +13016,7 @@ function CropOverlay({imgSrc,onCommit}){
       )}
       <div style={{position:'fixed',bottom:0,height:`${_CROP_MARGIN_V*100}vh`,left:0,right:0,display:'flex',alignItems:'center',justifyContent:'center',gap:8,zIndex:20,pointerEvents:'none'}}
         onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-        <div ref={cropBridgeRef} style={{position:'relative',display:'flex',alignItems:'center',gap:8,pointerEvents:'all'}}>
-          {/* Liquid bridge — Reset button (right edge of pill) ↔ green tick circle */}
-          {(()=>{
-            const cW=370, cH=54, cCy=27;
-            return <div style={{position:'absolute',top:'50%',left:0,transform:'translateY(-50%)',pointerEvents:'none',zIndex:0}}>
-              <LiquidBridge width={cW} height={cH}
-                a={{shape:'pill',cx:156,cy:cCy,w:312,h:38,anchorX:290,baseHalfW:22,color:'rgb(0,116,240)',extend:'right'}}
-                b={{shape:'circle',cx:350,cy:cCy,r:19,color:'rgb(34,197,94)',extend:'left'}}
-                maxBulge={30} blur={5} contrast={85} blobStiffness={180} blobDamping={10} attractionRange={22}
-                filterId="goo-crop"
-                containerRef={cropBridgeRef}
-              />
-            </div>;
-          })()}
+        <div style={{display:'flex',alignItems:'center',gap:8,pointerEvents:'all'}}>
 
           {/* Main pill — CCW, CW, Straighten, Keystone, Reset */}
           <CropToolPill
@@ -13835,9 +13801,6 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const photoFiltersRef=React.useRef({});
   const photoFilterStrRef=React.useRef({});
   const infoPanelRef=React.useRef(null);
-  const adjustBridgeRef=React.useRef(null);
-  const cropBridgeRef=React.useRef(null);
-  const toolbarBridgeRef=React.useRef(null);
   const [panelBg,setPanelBg]=React.useState('rgba(7,7,8,0.87)');
   // E: inline reassign state
   const [infoEditMode,setInfoEditMode]=React.useState(false); // pencil toggle
@@ -14407,19 +14370,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
       {activeControl==='crop'&&<CropOverlay imgSrc={croppedSrcRef.current||originalUrl.current} onCommit={(canvas,url)=>{croppedSrcRef.current=url;setCurrentUrl(url);if(onPhotoEdit)onPhotoEdit(url,photo);setActiveControl(null);}}/>}
 
       {/* EDIT PANEL BOTTOM PILL */}
-      {activeControl==='edit'&&<div id="ep-bot-outer" ref={adjustBridgeRef} onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
+      {activeControl==='edit'&&<div id="ep-bot-outer" onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
         style={{position:'fixed',top:'calc(8vh + 196px + 6px)',right:'2.5vw',display:'flex',alignItems:'center',gap:8,zIndex:21}}>
-        {/* Liquid bridge — Reset (right of pill) ↔ green tick circle */}
-        <div style={{position:'absolute',top:'50%',left:0,transform:'translateY(-50%)',pointerEvents:'none',zIndex:0}}>
-          <LiquidBridge width={270} height={54}
-            a={{shape:'pill',cx:108,cy:27,w:216,h:34,anchorX:189,baseHalfW:27,color:'rgb(0,116,240)',extend:'right'}}
-            b={{shape:'circle',cx:251,cy:27,r:19,color:'rgb(34,197,94)',extend:'left'}}
-            maxBulge={28} blur={5} contrast={85} blobStiffness={180} blobDamping={10} attractionRange={20}
-            filterId="goo-adjust"
-            containerRef={adjustBridgeRef}
-          />
-        </div>
-        <div id="ep-pill" style={{display:'flex',alignItems:'center',height:34,position:'relative',background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',overflow:'hidden',zIndex:1}}>
+        <div id="ep-pill" style={{display:'flex',alignItems:'center',height:34,position:'relative',background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',overflow:'hidden'}}>
           <div id="ep-pill-bubble" style={{position:'absolute',top:0,bottom:0,borderRadius:100,pointerEvents:'none',zIndex:1,opacity:0,background:'rgb(0,116,240)',willChange:'left,width,opacity,transform',transformOrigin:'center'}}/>
           <button id="ep-undo" style={{flex:1,minWidth:46,height:34,background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center',justifyContent:'center',position:'relative',zIndex:2,padding:'0 14px'}} title="Undo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
           <div style={{width:1,height:14,background:'rgba(255,255,255,0.10)',flexShrink:0,zIndex:2}}/>
@@ -14483,23 +14436,10 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   ReactDOM.createPortal(
     <div style={{position:'fixed',top:'2.5vh',right:'2.5vw',display:'flex',alignItems:'center',gap:10,zIndex:(zIndex||4000)+2,pointerEvents:'auto'}}
       onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-      <div ref={toolbarBridgeRef} style={{position:'relative',display:'flex',alignItems:'center',gap:10}}>
-        {/* Liquid bridge SVG — sits behind, covers pill-right + gap + X-circle */}
-        {teacherMode&&activeControl==='edit'&&(()=>{
-          const tbW=220, tbH=54, tbCy=27;
-          return <div style={{position:'absolute',top:'50%',left:0,transform:'translateY(-50%)',pointerEvents:'none',zIndex:0}}>
-            <LiquidBridge width={tbW} height={tbH}
-              a={{shape:'pill',cx:74,cy:tbCy,w:148,h:34,anchorX:131,baseHalfW:17,color:'rgb(0,116,240)',extend:'right'}}
-              b={{shape:'circle',cx:197,cy:tbCy,r:17,color:'rgba(220,50,40,0.85)',extend:'left'}}
-              maxBulge={28} blur={5} contrast={85} blobStiffness={180} blobDamping={10} attractionRange={20}
-              filterId="goo-toolbar"
-              containerRef={toolbarBridgeRef}
-            />
-          </div>;
-        })()}
+      <div style={{display:'flex',alignItems:'center',gap:10}}>
         <ToolbarPill activeControl={activeControl} teacherMode={teacherMode} onSetControl={setControl}/>
         <button onClick={e=>{e.stopPropagation();onClose();}}
-          style={{background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.55)',fontSize:16,fontWeight:300,lineHeight:1,flexShrink:0,boxShadow:'0 4px 20px rgba(0,0,0,0.35)',transition:'background .18s,border-color .18s,color .18s',position:'relative',zIndex:1}}
+          style={{background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.55)',fontSize:16,fontWeight:300,lineHeight:1,flexShrink:0,boxShadow:'0 4px 20px rgba(0,0,0,0.35)',transition:'background .18s,border-color .18s,color .18s'}}
           onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,40,0.85)';e.currentTarget.style.borderColor='rgba(220,50,40,0.6)';e.currentTarget.style.color='#fff';}}
           onMouseLeave={e=>{e.currentTarget.style.background='rgba(15,15,20,0.45)';e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';e.currentTarget.style.color='rgba(255,255,255,0.55)';}}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
