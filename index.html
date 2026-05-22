@@ -2356,180 +2356,6 @@ body, [data-theme="dark"] body, [data-theme="light"] body {
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
 <script type="text/babel">
-/* ── liquid-bridge — inlined, backtick-safe ── */
-(function(){
-const _clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const _smoothstep=(e0,e1,x)=>{const t=_clamp((x-e0)/(e1-e0),0,1);return t*t*(3-2*t);};
-const _K_CIRC=0.5523;
-
-function pillShape(leftX,rightX,midY,h,rightNarrow,leftNarrow){
-  rightNarrow=rightNarrow||0;leftNarrow=leftNarrow||0;
-  const leftR=h/2*(1-leftNarrow*0.6);
-  const rightR=h/2*(1-rightNarrow*0.6);
-  const leftCx=leftX+leftR;
-  const rightCx=rightX-rightR;
-  if(rightCx<=leftCx+0.5){
-    const cx=(leftX+rightX)/2;
-    const r=Math.max(0.1,(rightX-leftX)/2);
-    return 'M '+(cx-r)+' '+midY+' A '+r+' '+r+' 0 1 0 '+(cx+r)+' '+midY+' A '+r+' '+r+' 0 1 0 '+(cx-r)+' '+midY+' Z';
-  }
-  const leftTop=midY-leftR,leftBot=midY+leftR;
-  const rightTop=midY-rightR,rightBot=midY+rightR;
-  const span=rightCx-leftCx;
-  if(rightNarrow<0.01&&leftNarrow<0.01){
-    return 'M '+leftCx+' '+leftTop+' L '+rightCx+' '+leftTop+' A '+rightR+' '+rightR+' 0 0 1 '+rightCx+' '+rightBot+' L '+leftCx+' '+leftBot+' A '+leftR+' '+leftR+' 0 0 1 '+leftCx+' '+leftTop+' Z';
-  }
-  return 'M '+leftCx+' '+leftTop+' C '+(leftCx+span*0.45)+' '+leftTop+', '+(rightCx-span*0.25)+' '+rightTop+', '+rightCx+' '+rightTop+' A '+rightR+' '+rightR+' 0 0 1 '+rightCx+' '+rightBot+' C '+(rightCx-span*0.25)+' '+rightBot+', '+(leftCx+span*0.45)+' '+leftBot+', '+leftCx+' '+leftBot+' A '+leftR+' '+leftR+' 0 0 1 '+leftCx+' '+leftTop+' Z';
-}
-
-function leftBulgeCircle(cx,cy,r,bulge){
-  const tipX=cx-r-bulge;
-  const k=r*_K_CIRC;
-  const tipKx=k+bulge*0.35;
-  const tipKy=k+bulge*0.22;
-  return 'M '+cx+' '+(cy-r)+' C '+(cx+k)+' '+(cy-r)+', '+(cx+r)+' '+(cy-k)+', '+(cx+r)+' '+cy+' C '+(cx+r)+' '+(cy+k)+', '+(cx+k)+' '+(cy+r)+', '+cx+' '+(cy+r)+' C '+(cx-tipKx)+' '+(cy+r)+', '+tipX+' '+(cy+tipKy)+', '+tipX+' '+cy+' C '+tipX+' '+(cy-tipKy)+', '+(cx-tipKx)+' '+(cy-r)+', '+cx+' '+(cy-r)+' Z';
-}
-
-function rightBulgeCircle(cx,cy,r,bulge){
-  const tipX=cx+r+bulge;
-  const k=r*_K_CIRC;
-  const tipKx=k+bulge*0.35;
-  const tipKy=k+bulge*0.22;
-  return 'M '+cx+' '+(cy-r)+' C '+(cx+tipKx)+' '+(cy-r)+', '+tipX+' '+(cy-tipKy)+', '+tipX+' '+cy+' C '+tipX+' '+(cy+tipKy)+', '+(cx+tipKx)+' '+(cy+r)+', '+cx+' '+(cy+r)+' C '+(cx-k)+' '+(cy+r)+', '+(cx-r)+' '+(cy+k)+', '+(cx-r)+' '+cy+' C '+(cx-r)+' '+(cy-k)+', '+(cx-k)+' '+(cy-r)+', '+cx+' '+(cy-r)+' Z';
-}
-
-function _stepSpring(s,target,k,d,dt){
-  s.v+=(k*(target-s.x)-d*s.v)*dt;
-  s.x+=s.v*dt;
-}
-
-function _bubbleEdgeToward(bubble,otherCx){
-  const goingRight=otherCx>bubble.cx;
-  if(bubble.shape==='circle') return bubble.cx+(goingRight?bubble.r:-bubble.r);
-  const halfW=bubble.w/2;
-  return bubble.cx+(goingRight?halfW:-halfW);
-}
-
-function _bubblePath(bubble,bulge,headOffset){
-  headOffset=headOffset||0;
-  const extendRight=bubble.extend==='right';
-  if(bubble.shape==='circle'){
-    return extendRight?rightBulgeCircle(bubble.cx,bubble.cy,bubble.r,bulge):leftBulgeCircle(bubble.cx,bubble.cy,bubble.r,bulge);
-  }
-  const h=bubble.h;
-  const anchorX=bubble.anchorX!=null?bubble.anchorX:bubble.cx;
-  const halfBaseW=bubble.baseHalfW!=null?bubble.baseHalfW:bubble.w/2;
-  if(extendRight){
-    const leftX=anchorX-halfBaseW;
-    const taper=_clamp(headOffset/30,0,0.55);
-    const tipR=halfBaseW*(1-taper*0.4);
-    const head=anchorX+headOffset;
-    const right=head+tipR;
-    return pillShape(leftX,right,bubble.cy,h,taper,0);
-  } else {
-    const rightX=anchorX+halfBaseW;
-    const taper=_clamp(headOffset/30,0,0.55);
-    const tipR=halfBaseW*(1-taper*0.4);
-    const head=anchorX-headOffset;
-    const left=head-tipR;
-    return pillShape(left,rightX,bubble.cy,h,0,taper);
-  }
-}
-
-function _useRaf(cb){
-  const r=React.useRef(cb); r.current=cb;
-  React.useEffect(()=>{
-    let id,last=performance.now();
-    const tick=(t)=>{const dt=Math.min(64,t-last)/1000;last=t;r.current(t,dt);id=requestAnimationFrame(tick);};
-    id=requestAnimationFrame(tick);
-    return ()=>cancelAnimationFrame(id);
-  },[]);
-}
-
-function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,blobDamping,maxBulge,attractionRange,filterId,children,style,className,onTick}){
-  blur=blur||5; contrast=contrast||85; blobStiffness=blobStiffness||180; blobDamping=blobDamping||12;
-  maxBulge=maxBulge||22; attractionRange=attractionRange||28;
-  const svgRef=React.useRef(null);
-  const elA=React.useRef(null);
-  const elB=React.useRef(null);
-  const cursorXRef=React.useRef(null);
-  const activeRef=React.useRef(0);
-  const activeTargetRef=React.useRef(0);
-  const sp=React.useRef({aBulge:{x:0,v:0},bBulge:{x:0,v:0}});
-  const fidRef=React.useRef(filterId||(()=>{const s=Math.random().toString(36).slice(2,8);return 'goo-'+s;})());
-  const fid=fidRef.current;
-
-  React.useEffect(()=>{
-    const svg=svgRef.current; if(!svg) return;
-    const onMove=(e)=>{const r=svg.getBoundingClientRect();cursorXRef.current=((e.clientX-r.left)/r.width)*width;activeTargetRef.current=1;};
-    const onLeave=()=>{activeTargetRef.current=0;cursorXRef.current=null;};
-    svg.addEventListener('mousemove',onMove);
-    svg.addEventListener('mouseleave',onLeave);
-    return ()=>{svg.removeEventListener('mousemove',onMove);svg.removeEventListener('mouseleave',onLeave);};
-  },[width]);
-
-  _useRaf((_t,dt)=>{
-    activeRef.current+=(activeTargetRef.current-activeRef.current)*Math.min(1,dt*14);
-    const active=activeRef.current;
-    const cx=cursorXRef.current;
-    const aEdge=_bubbleEdgeToward(a,b.cx);
-    const bEdge=_bubbleEdgeToward(b,a.cx);
-    const gapStart=Math.min(aEdge,bEdge);
-    const gapEnd=Math.max(aEdge,bEdge);
-    const gapW=Math.max(1,gapEnd-gapStart);
-    let cursorInGap=0;
-    if(cx!=null&&cx>=gapStart&&cx<=gapEnd+6){cursorInGap=_clamp((cx-gapStart)/gapW,0,1.4);}
-    else if(cx!=null&&cx>gapEnd){cursorInGap=1.2;}
-    const curABulge=sp.current.aBulge.x;
-    const curBBulge=sp.current.bBulge.x;
-    const liveAEdge=aEdge+(a.extend==='right'?curABulge:-curABulge);
-    const liveBEdge=bEdge+(b.extend==='right'?curBBulge:-curBBulge);
-    const liveDist=Math.max(0,Math.abs(liveBEdge-liveAEdge));
-    const closeness=_clamp(1-liveDist/attractionRange,0,1);
-    const attraction=closeness*closeness*active;
-    const aBulgeBase=active*maxBulge*_smoothstep(0.0,0.5,cursorInGap)*(1-_smoothstep(0.85,1.15,cursorInGap));
-    const aBulgeTarget=aBulgeBase+attraction*7;
-    const bBulgeTarget=aBulgeBase+attraction*7;
-    _stepSpring(sp.current.aBulge,aBulgeTarget,blobStiffness,blobDamping,dt);
-    _stepSpring(sp.current.bBulge,bBulgeTarget,blobStiffness,blobDamping,dt);
-    const aBulgeOut=Math.max(0,sp.current.aBulge.x);
-    const bBulgeOut=Math.max(0,sp.current.bBulge.x);
-    if(elA.current) elA.current.setAttribute('d',_bubblePath(a,aBulgeOut,aBulgeOut));
-    if(elB.current) elB.current.setAttribute('d',_bubblePath(b,bBulgeOut,bBulgeOut));
-    if(onTick) onTick({cursorX:cx,attraction,aBulge:aBulgeOut,bBulge:bBulgeOut});
-  });
-
-  const bias=-(contrast/2.2);
-  const fm='1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 '+contrast+' '+bias.toFixed(2);
-  const vb='0 0 '+width+' '+height;
-  const furl='url(#'+fid+')';
-
-  return (
-    <svg ref={svgRef} viewBox={vb} width={width} height={height}
-      style={Object.assign({overflow:'visible'},style)} className={className}>
-      <defs>
-        <filter id={fid} x="-20%" y="-50%" width="140%" height="200%" colorInterpolationFilters="sRGB">
-          <feGaussianBlur in="SourceGraphic" stdDeviation={blur}/>
-          <feColorMatrix mode="matrix" values={fm}/>
-        </filter>
-      </defs>
-      <g filter={furl}>
-        {background&&<path d={_bubblePath(Object.assign({},background,{extend:'right'}),0,0)} fill={background.color}/>}
-        <path ref={elA} d={_bubblePath(a,0,0)} fill={a.color}/>
-        <path ref={elB} d={_bubblePath(b,0,0)} fill={b.color}/>
-      </g>
-      {children}
-    </svg>
-  );
-}
-
-window.LiquidBridge=LiquidBridge;
-window.pillShape=pillShape;
-window.leftBulgeCircle=leftBulgeCircle;
-window.rightBulgeCircle=rightBulgeCircle;
-})();
-</script>
-<script type="text/babel">
 
 /* ─────────────────────────────── DATA ─────────────────────────────── */
 
@@ -13050,11 +12876,19 @@ function CropOverlay({imgSrc,onCommit}){
 }
 
 // ── ToolbarPill ──────────────────────────────────────────────────────────────
-function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
-  const hostRef    = React.useRef(null);
-  const elBlue     = React.useRef(null);
-  const elXCircle  = React.useRef(null);
+function ToolbarPill({activeControl,teacherMode,onSetControl}){
+  const pillRef    = React.useRef(null);
   const btnRefs    = React.useRef([]);
+  const divRefs    = React.useRef([]);
+  // Fluid spring state — same as CropToolPill
+  const sp         = React.useRef({x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0});
+  const rafId      = React.useRef(null);
+  const hoverIdx   = React.useRef(-1);
+  const mouseVelRef= React.useRef(0);
+  const lastMouseX = React.useRef(null);
+
+  // Same spring constants as CropToolPill for identical feel
+  const S=520, D=26, SS=280, SD=18;
 
   const buttons = [
     { key:'info', title:'Info (I)',
@@ -13065,253 +12899,148 @@ function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
       icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg> }]:[]),
   ];
 
-  // SVG geometry — all coordinates at 3× scale so the goo filter has room to work.
-  // The SVG renders at DOM pixel size but viewBox is 3× larger.
-  // blur=5 in SVG units = ~1.7px effective blur — crisp shapes, clean bridge gap.
-  const S     = 3; // scale factor
-  const BTN_W = 44 * S;
-  const PILL_H = 34 * S;
-  const PILL_RX = 17 * S;
-  const N = buttons.length;
-  const PILL_W = BTN_W * N;
-  const PILL_X = 0;
-  const PILL_Y = 0;
-  const MID_Y  = PILL_H / 2;
-  const GAP    = 60; // 60 SVG units = 20px rendered — enough for goo bridge
-  const X_CX   = PILL_X + PILL_W + GAP + 17 * S;
-  const X_R    = 17 * S;
-  // viewBox is S× the DOM pixel dimensions; SVG width/height are DOM pixels
-  const DOM_W  = (X_CX + X_R + 2) / S;
-  const DOM_H  = 34; // pill height in DOM pixels
-  const VB_W   = X_CX + X_R + 2;
-  const VB_H   = PILL_H;
-
-  // Button centres inside pill (in SVG units)
-  const btnCX = buttons.map((_,i) => PILL_X + BTN_W * i + BTN_W / 2);
-  const HALF_W = 18 * S; // blue blob half-width in SVG units
-
-  // Springs
-  const sp = React.useRef({
-    head: {x: btnCX[btnCX.length-1]||BTN_W/2, v:0},
-    tail: {x: btnCX[btnCX.length-1]||BTN_W/2, v:0},
-    blueOp: {x:0, v:0},
-    xBulge: {x:0, v:0},
-  });
-  const cursorXRef      = React.useRef(null);
-  const activeRef       = React.useRef(0);
-  const activeTargetRef = React.useRef(0);
-  const rafId           = React.useRef(null);
-
-  // Path builders (inline, no backticks in JSX)
-  function _pillPath(leftX, rightX, midY, h, rightNarrow) {
-    rightNarrow = rightNarrow || 0;
-    const leftR  = h / 2;
-    const rightR = leftR * (1 - rightNarrow * 0.6);
-    const leftCx  = leftX  + leftR;
-    const rightCx = rightX - rightR;
-    if (rightCx <= leftCx + 0.5) {
-      const cx = (leftX + rightX) / 2;
-      const r  = Math.max(0.1, (rightX - leftX) / 2);
-      return 'M '+(cx-r)+' '+midY+' A '+r+' '+r+' 0 1 0 '+(cx+r)+' '+midY+' A '+r+' '+r+' 0 1 0 '+(cx-r)+' '+midY+' Z';
-    }
-    const top      = midY - leftR;
-    const bot      = midY + leftR;
-    const rightTop = midY - rightR;
-    const rightBot = midY + rightR;
-    const span     = rightCx - leftCx;
-    if (rightNarrow < 0.01) {
-      return 'M '+leftCx+' '+top+' L '+rightCx+' '+top+' A '+rightR+' '+rightR+' 0 0 1 '+rightCx+' '+bot+' L '+leftCx+' '+bot+' A '+leftR+' '+leftR+' 0 0 1 '+leftCx+' '+top+' Z';
-    }
-    return 'M '+leftCx+' '+top+' C '+(leftCx+span*0.45)+' '+top+', '+(rightCx-span*0.25)+' '+rightTop+', '+rightCx+' '+rightTop+' A '+rightR+' '+rightR+' 0 0 1 '+rightCx+' '+rightBot+' C '+(rightCx-span*0.25)+' '+rightBot+', '+(leftCx+span*0.45)+' '+bot+', '+leftCx+' '+bot+' A '+leftR+' '+leftR+' 0 0 1 '+leftCx+' '+top+' Z';
+  function getBtnRect(idx){
+    const el=btnRefs.current[idx], wrap=el&&el.parentElement;
+    if(!el||!wrap) return null;
+    const pr=wrap.getBoundingClientRect(), br=el.getBoundingClientRect();
+    return {x:br.left-pr.left, w:br.width};
   }
 
-  function _leftBulgeCircle(cx, cy, r, bulge) {
-    const K = 0.5523;
-    const tipX  = cx - r - bulge;
-    const k     = r * K;
-    const tipKx = k + bulge * 0.35;
-    const tipKy = k + bulge * 0.22;
-    return 'M '+cx+' '+(cy-r)+' C '+(cx+k)+' '+(cy-r)+', '+(cx+r)+' '+(cy-k)+', '+(cx+r)+' '+cy+' C '+(cx+r)+' '+(cy+k)+', '+(cx+k)+' '+(cy+r)+', '+cx+' '+(cy+r)+' C '+(cx-tipKx)+' '+(cy+r)+', '+tipX+' '+(cy+tipKy)+', '+tipX+' '+cy+' C '+tipX+' '+(cy-tipKy)+', '+(cx-tipKx)+' '+(cy-r)+', '+cx+' '+(cy-r)+' Z';
+  function updateDividers(idx){
+    divRefs.current.forEach((d,i)=>{
+      if(!d) return;
+      const hide = i===idx || i===idx-1
+                || i===activeControlIdx()-1 || i===activeControlIdx();
+      d.style.opacity = hide ? '0' : '1';
+    });
   }
 
-  function _stepSpring(s, target, k, d, dt) {
-    s.v += (k*(target-s.x) - d*s.v) * dt;
-    s.x += s.v * dt;
+  function activeControlIdx(){
+    return buttons.findIndex(b=>b.key===activeControl);
   }
 
-  function _clampV(v,a,b){return Math.max(a,Math.min(b,v));}
-  function _smoothstep(e0,e1,x){const t=_clampV((x-e0)/(e1-e0),0,1);return t*t*(3-2*t);}
+  function tick(){
+    const s=sp.current;
+    const dt=0.016, STEPS=4, ddt=dt/STEPS;
 
-  // Animation loop
-  const lastTimeRef = React.useRef(null);
-  function loop(now) {
-    const dt = lastTimeRef.current ? Math.min((now - lastTimeRef.current) / 1000, 0.064) : 0.016;
-    lastTimeRef.current = now;
-    activeRef.current += (activeTargetRef.current - activeRef.current) * Math.min(1, dt * 14);
-    const a  = activeRef.current;
-    const cx = cursorXRef.current;
-    // activeIdx may change between renders — read from closure-captured buttons array
-    const curActiveIdx = buttons.findIndex(b=>b.key===activeControl);
-    const idleX = curActiveIdx >= 0 ? btnCX[curActiveIdx] : btnCX[N-1];
+    for(let i=0;i<STEPS;i++){
+      s.vx+=(-S*(s.x-s.tx)-D*s.vx)*ddt;
+      s.vw+=(-S*(s.w-s.tw)-D*s.vw)*ddt;
+      s.x+=s.vx*ddt; s.w+=s.vw*ddt;
+      // Balloon stretch
+      const targetSx=Math.max(-18,Math.min(18,mouseVelRef.current*1.4));
+      s.vsx+=(-SS*(s.sx-targetSx)-SD*s.vsx)*ddt;
+      s.sx+=s.vsx*ddt;
+    }
+    mouseVelRef.current*=0.82;
+    s.opacity+=(s.to-s.opacity)*0.18;
 
-    const PILL_RIGHT_X = PILL_X + PILL_W;
-    const X_LEFT_EDGE  = X_CX - X_R;
-
-    let headTarget, tailTarget;
-    const inPill = cx !== null && cx >= PILL_X && cx <= PILL_RIGHT_X;
-    const inGap  = cx !== null && cx > PILL_RIGHT_X && cx < X_CX + X_R;
-
-    if (cx === null) {
-      // Idle: rest on active button, stay visible
-      headTarget = idleX;
-      tailTarget = idleX;
-    } else if (inPill) {
-      // Inside pill: snap to nearest button
-      const raw = (cx - PILL_X) / BTN_W;
-      const snapIdx = _clampV(Math.round(raw), 0, N-1);
-      headTarget = btnCX[snapIdx];
-      tailTarget = btnCX[snapIdx];
-    } else {
-      // In gap or past X: tail anchors at last button, head extends toward X
-      const lastBtnX = btnCX[N-1];
-      tailTarget = lastBtnX;
-      const reach = _clampV(cx - lastBtnX, 0, 44 * S);
-      const gapProgress = _clampV((cx - PILL_RIGHT_X) / Math.max(1, X_LEFT_EDGE - PILL_RIGHT_X), 0, 1.5);
-      const retract = 1 - _smoothstep(0.88, 1.15, gapProgress);
-      headTarget = lastBtnX + reach * retract;
+    const pill=pillRef.current;
+    if(pill&&s.to>0){
+      const stretchW=Math.abs(s.sx)*0.5;
+      const offsetX=s.sx>0?-s.sx*0.15:-s.sx*0.15;
+      pill.style.transform='translateX('+(s.x+offsetX)+'px)';
+      pill.style.width=Math.max(4,s.w+stretchW)+'px';
+      pill.style.opacity=s.opacity;
+      const sc=0.85+0.15*s.opacity;
+      pill.style.transform='translateX('+(s.x+offsetX)+'px) scaleY('+sc+')';
+    } else if(pill){
+      const sc=0.85+0.15*s.opacity;
+      pill.style.opacity=s.opacity;
+      pill.style.transform='translateX('+s.x+'px) scaleY('+sc+')';
     }
 
-    _stepSpring(sp.current.head, headTarget, 360, 22, dt);
-    _stepSpring(sp.current.tail, tailTarget, 140, 14, dt);
-
-    // Blue opacity: visible on hover inside pill; fades near X in gap
-    let blueOpTarget;
-    if (cx === null) {
-      blueOpTarget = curActiveIdx >= 0 ? 1 : 0;
-    } else if (inPill) {
-      blueOpTarget = 1;
-    } else {
-      blueOpTarget = 1 - _smoothstep(X_LEFT_EDGE - 54, X_LEFT_EDGE - 6, cx);
-    }
-    _stepSpring(sp.current.blueOp, blueOpTarget, 500, 30, dt);
-
-    // X circle bulge — in SVG units, max bulge = 22 SVG units (~7px rendered)
-    const gapU = cx !== null ? _clampV((cx - PILL_RIGHT_X) / Math.max(1, X_LEFT_EDGE - PILL_RIGHT_X), 0, 1.5) : 0;
-    const xBulgeTarget = (inGap||(cx!==null&&cx>X_LEFT_EDGE)) ? 22 * _smoothstep(0.0, 0.5, gapU) * (1 - _smoothstep(0.80, 1.10, gapU)) : 0;
-    _stepSpring(sp.current.xBulge, xBulgeTarget, 180, 12, dt);
-
-    const head   = sp.current.head.x;
-    const tail   = sp.current.tail.x;
-    const blueOp = _clampV(sp.current.blueOp.x, 0, 1);
-    const xBulge = Math.max(0, sp.current.xBulge.x);
-
-    // Blue pill path — headExt in SVG units
-    const lastBtnCX  = btnCX[N-1];
-    const headExt    = Math.max(0, head - lastBtnCX);
-    const rightTaper = _clampV(headExt / 90, 0, 0.55); // 90 = 30×S
-    const tipR       = HALF_W * (1 - rightTaper * 0.4);
-    const blueLeft   = Math.max(Math.min(head,tail) - HALF_W, PILL_X + 4);
-    const blueRight  = Math.max(head, tail) + tipR;
-
-    if (elBlue.current) {
-      elBlue.current.setAttribute('d', _pillPath(blueLeft, blueRight, MID_Y, PILL_H, rightTaper));
-      elBlue.current.setAttribute('opacity', blueOp.toFixed(3));
-    }
-
-    if (elXCircle.current) {
-      elXCircle.current.setAttribute('d', _leftBulgeCircle(X_CX, MID_Y, X_R, xBulge));
-    }
-
-    const settled =
-      Math.abs(sp.current.head.v)<0.3 && Math.abs(sp.current.tail.v)<0.3 &&
-      Math.abs(sp.current.blueOp.v)<0.01 && Math.abs(sp.current.xBulge.v)<0.3;
-    if (!settled) rafId.current = requestAnimationFrame(loop);
-    else { rafId.current = null; lastTimeRef.current = null; }
+    const settled=
+      Math.abs(s.vx)<0.3&&Math.abs(s.vw)<0.3&&Math.abs(s.vsx)<0.3&&
+      Math.abs(s.x-s.tx)<0.3&&Math.abs(s.w-s.tw)<0.3&&
+      Math.abs(s.sx)<0.3&&Math.abs(s.opacity-s.to)<0.002;
+    if(!settled) rafId.current=requestAnimationFrame(tick);
+    else rafId.current=null;
   }
 
-  function startLoop() { if (!rafId.current) rafId.current = requestAnimationFrame(loop); }
+  function startTick(){
+    if(!rafId.current) rafId.current=requestAnimationFrame(tick);
+  }
 
-  // Start loop on mount so active-button blue blob renders immediately
-  React.useEffect(()=>{ startLoop(); }, []);
+  function onMouseMove(e){
+    if(lastMouseX.current!==null) mouseVelRef.current=e.clientX-lastMouseX.current;
+    lastMouseX.current=e.clientX;
+  }
 
-  // Mouse tracking — maps DOM clientX to SVG coordinate space
-  React.useEffect(()=>{
-    const el = hostRef.current; if (!el) return;
-    const onMove = (e) => {
-      const r = el.getBoundingClientRect();
-      // DOM pixel position → SVG units (VB_W spans the rendered DOM_W)
-      cursorXRef.current = ((e.clientX - r.left) / DOM_W) * VB_W;
-      activeTargetRef.current = 1;
-      startLoop();
-    };
-    const onLeave = () => {
-      activeTargetRef.current = 0;
-      cursorXRef.current = null;
-      startLoop();
-    };
-    el.addEventListener('mousemove', onMove);
-    el.addEventListener('mouseleave', onLeave);
-    return () => { el.removeEventListener('mousemove', onMove); el.removeEventListener('mouseleave', onLeave); };
-  }, [N, VB_W, DOM_W]);
+  function onEnter(idx){
+    hoverIdx.current=idx;
+    const r=getBtnRect(idx); if(!r) return;
+    const s=sp.current;
+    if(s.to===0){ s.x=r.x; s.w=r.w; } // snap on first entry
+    s.tx=r.x; s.tw=r.w; s.to=1;
+    updateDividers(idx);
+    startTick();
+  }
 
-  const activeIdx = buttons.findIndex(b=>b.key===activeControl);
-  const FM = '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 85 -38.6';
+  function onLeave(){
+    hoverIdx.current=-1;
+    lastMouseX.current=null;
+    mouseVelRef.current=0;
+    sp.current.to=0;
+    divRefs.current.forEach(d=>{if(d) d.style.opacity='1';});
+    startTick();
+  }
+
+  const btnBase={
+    background:'transparent',border:'none',cursor:'pointer',
+    paddingLeft:12,paddingRight:12,height:34,borderRadius:100,lineHeight:1,
+    display:'flex',alignItems:'center',justifyContent:'center',
+    flexShrink:0,position:'relative',zIndex:2,
+  };
 
   return (
-    <div ref={hostRef} style={{position:'relative',display:'inline-block',cursor:'default'}}>
-      {/* SVG renders at DOM pixel size but uses 3× viewBox — filter works on large shapes */}
-      <svg width={DOM_W} height={DOM_H} viewBox={'0 0 '+VB_W+' '+VB_H}
-        style={{position:'absolute',top:0,left:0,overflow:'visible',pointerEvents:'none'}}>
-        <defs>
-          <filter id="goo-toolbar" x="-20%" y="-50%" width="140%" height="200%" colorInterpolationFilters="sRGB">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="5"/>
-            <feColorMatrix mode="matrix" values={FM}/>
-          </filter>
-        </defs>
-        <g filter="url(#goo-toolbar)">
-          <rect x={PILL_X} y={PILL_Y} width={PILL_W} height={PILL_H} rx={PILL_RX} fill="rgba(7,7,8,0.92)"/>
-          <path ref={elBlue} d={_pillPath(btnCX[N-1]-HALF_W, btnCX[N-1]+HALF_W, MID_Y, PILL_H)} fill="rgb(0,116,240)" opacity="0"/>
-          <path ref={elXCircle} d={_leftBulgeCircle(X_CX, MID_Y, X_R, 0)} fill="rgba(7,7,8,0.92)"/>
-        </g>
-      </svg>
+    <div className="tb-pill-wrap lb-glass-panel"
+      style={{position:'relative',display:'flex',alignItems:'center',gap:0,
+        background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',
+        WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:100,
+        border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)'}}
+      onMouseLeave={onLeave}
+      onMouseMove={onMouseMove}>
 
-      {/* DOM button layer — transparent, icons crisp on top of SVG */}
-      <div style={{position:'relative',display:'flex',alignItems:'center',height:DOM_H}}>
-        <div style={{display:'flex',alignItems:'center',height:PILL_H,width:PILL_W}}>
-          {buttons.map((b,i)=>{
-            const isActive = activeControl===b.key;
-            return (
-              <React.Fragment key={b.key}>
-                {i>0&&<div style={{width:1,height:18,background:'rgba(255,255,255,0.12)',flexShrink:0,
-                  opacity:(activeIdx===i||activeIdx===i-1)?0:1,transition:'opacity .18s'}}/>}
-                <button
-                  ref={el=>btnRefs.current[i]=el}
-                  onClick={()=>onSetControl(b.key)}
-                  title={b.title}
-                  style={{width:BTN_W,height:PILL_H,background:'transparent',border:'none',
-                    cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
-                    flexShrink:0,position:'relative',
-                    color:isActive?'#fff':'rgba(255,255,255,0.55)'}}>
-                  <span style={{display:'flex',alignItems:'center',justifyContent:'center',width:20,height:20}}>
-                    {b.icon}
-                  </span>
-                </button>
-              </React.Fragment>
-            );
-          })}
-        </div>
-        {/* X button — transparent overlay on the SVG X circle, real close handler */}
-          <div style={{width:GAP,flexShrink:0}}/>
-        <button
-          onClick={e=>{e.stopPropagation();if(onClose)onClose();}}
-          style={{width:X_R*2,height:X_R*2,background:'transparent',border:'none',cursor:'pointer',
-            display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,
-            color:'rgba(255,255,255,0.55)',borderRadius:'50%'}}
-          onMouseEnter={e=>e.currentTarget.style.color='#fff'}
-          onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.55)'}>
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
-        </button>
-      </div>
+      {/* Travelling blue bubble */}
+      <div ref={pillRef} style={{
+        position:'absolute',top:0,left:0,height:'100%',
+        background:'rgb(0,116,240)',borderRadius:100,
+        pointerEvents:'none',zIndex:1,opacity:0,
+        willChange:'transform,width,opacity',
+      }}/>
+
+      {buttons.map((b,i)=>{
+        const isActive=activeControl===b.key;
+        const leftNeighbourActive=i>0&&activeControl===buttons[i-1].key;
+        return (
+          <React.Fragment key={b.key}>
+            {i>0&&<div
+              ref={el=>divRefs.current[i-1]=el}
+              style={{
+                width:(leftNeighbourActive||isActive)?0:1,
+                height:(leftNeighbourActive||isActive)?34:18,
+                background:(leftNeighbourActive||isActive)?'rgb(0,116,240)':'rgba(255,255,255,0.12)',
+                borderRadius:100,flexShrink:0,
+                transition:'width .22s cubic-bezier(0.34,1.56,0.64,1),height .22s cubic-bezier(0.34,1.56,0.64,1),background .18s,opacity .12s',
+              }}/>}
+            <button
+              ref={el=>btnRefs.current[i]=el}
+              onClick={()=>onSetControl(b.key)}
+              title={b.title}
+              onMouseEnter={()=>onEnter(i)}
+              style={{...btnBase,
+                color:isActive?'#fff':'rgba(255,255,255,0.55)',
+                background:isActive?'rgb(0,116,240)':'transparent',
+                animation:isActive?'pill-pop .22s cubic-bezier(0.34,1.56,0.64,1) forwards':undefined,
+              }}>
+              <span style={{display:'flex',alignItems:'center',justifyContent:'center',width:20,height:20}}>
+                {b.icon}
+              </span>
+            </button>
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -13569,11 +13298,24 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
     });
     updateUndoBtns();
     // Row hover bubble — spring physics matching CropToolPill
+    
+    // Pill bubble + cell-division physics — cursor-tracked approach (no DOM gap issues)
     const pillBubble=document.querySelector('#ep-pill-bubble');
     const pill=document.querySelector('#ep-pill');
     const applyBtn=document.querySelector('#ep-apply');
 
+    // Visual bridge element
+    const bridgeVis=document.createElement('div');
+    bridgeVis.style.cssText='position:fixed;pointer-events:none;z-index:19;border-radius:100px;opacity:0;';
+    document.body.appendChild(bridgeVis);
+
     if(pillBubble&&pill){
+      const psp={x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0};
+      const PS=520,PD=26,PSS=280,PSD=18;
+      let praf=null,pmouseVel=0,plastX=null,hoveredBtn=null;
+      // Bridge opacity spring
+      let bridgeOpacity=0,bridgeOpacityTarget=0,braf=null;
+
       function isUndoActive(){return histIdxRef.current>0;}
       function isRedoActive(){return histIdxRef.current<histRef.current.length-1;}
       function btnColor(btn){
@@ -13583,47 +13325,104 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
         return 'rgb(0,116,240)';
       }
 
-      const psp={x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0};
-      const PS=520,PD=26,PSS=280,PSD=18;
-      let praf=null,pmouseVel=0,lastMX=null,hoveredBtn=null;
-      // Bridge extension: how far the balloon stretches past the pill right edge toward the tick
-      const bsp={x:0,v:0}; // spring for bridge extension width
-      let bridgeTarget=0;
-
       function ptick(){
         const dt=0.016,ST=4,ddt=dt/ST;
         for(let i=0;i<ST;i++){
-          psp.vx+=(-PS*(psp.x-psp.tx)-PD*psp.vx)*ddt;
-          psp.vw+=(-PS*(psp.w-psp.tw)-PD*psp.vw)*ddt;
-          psp.x+=psp.vx*ddt; psp.w+=psp.vw*ddt;
+          psp.vx+=(-PS*(psp.x-psp.tx)-PD*psp.vx)*ddt;psp.vw+=(-PS*(psp.w-psp.tw)-PD*psp.vw)*ddt;
+          psp.x+=psp.vx*ddt;psp.w+=psp.vw*ddt;
           const tsx=Math.max(-18,Math.min(18,pmouseVel*1.4));
-          psp.vsx+=(-PSS*(psp.sx-tsx)-PSD*psp.vsx)*ddt;
-          psp.sx+=psp.vsx*ddt;
-          // Bridge spring
-          bsp.v+=(-PS*(bsp.x-bridgeTarget)-PD*bsp.v)*ddt;
-          bsp.x+=bsp.v*ddt;
+          psp.vsx+=(-PSS*(psp.sx-tsx)-PSD*psp.vsx)*ddt;psp.sx+=psp.vsx*ddt;
         }
-        pmouseVel*=0.82;
-        psp.opacity+=(psp.to-psp.opacity)*0.18;
-        const sw=Math.abs(psp.sx)*0.5;
-        const ox=psp.sx>0?-psp.sx*0.15:-psp.sx*0.15;
-        // Total bubble width = pill portion + bridge extension clamped >=0
-        const bridgeExt=Math.max(0,bsp.x);
+        pmouseVel*=0.82;psp.opacity+=(psp.to-psp.opacity)*0.18;
+        const sw=Math.abs(psp.sx)*0.5,ox=psp.sx>0?-psp.sx*0.15:-psp.sx*0.15;
         pillBubble.style.left=(psp.x+ox)+'px';
-        pillBubble.style.width=Math.max(4,psp.w+sw+bridgeExt)+'px';
+        pillBubble.style.width=Math.max(4,psp.w+sw)+'px';
         pillBubble.style.opacity=psp.opacity;
         pillBubble.style.transform='scaleY('+(0.85+0.15*psp.opacity)+')';
         if(hoveredBtn) pillBubble.style.background=btnColor(hoveredBtn);
-        const done=
-          Math.abs(psp.vx)<0.3&&Math.abs(psp.vw)<0.3&&Math.abs(psp.vsx)<0.3&&
-          Math.abs(psp.x-psp.tx)<0.3&&Math.abs(psp.w-psp.tw)<0.3&&
-          Math.abs(psp.sx)<0.3&&Math.abs(psp.opacity-psp.to)<0.002&&
-          Math.abs(bsp.v)<0.3&&Math.abs(bsp.x-bridgeTarget)<0.3;
-        if(!done) praf=requestAnimationFrame(ptick); else praf=null;
+        const done=Math.abs(psp.vx)<0.3&&Math.abs(psp.vw)<0.3&&Math.abs(psp.vsx)<0.3&&Math.abs(psp.x-psp.tx)<0.3&&Math.abs(psp.w-psp.tw)<0.3&&Math.abs(psp.sx)<0.3&&Math.abs(psp.opacity-psp.to)<0.002;
+        if(!done)praf=requestAnimationFrame(ptick);else praf=null;
       }
-      function startTick(){if(!praf) praf=requestAnimationFrame(ptick);}
+      function startTick(){if(!praf)praf=requestAnimationFrame(ptick);}
 
-      // Hover inside pill buttons
+      function btick(){
+        bridgeOpacity+=(bridgeOpacityTarget-bridgeOpacity)*0.12;
+        const pr=pill?pill.getBoundingClientRect():null;
+        const ar=applyBtn?applyBtn.getBoundingClientRect():null;
+        if(pr&&ar&&bridgeOpacity>0.005){
+          const pillRight=pr.right;
+          const applyLeft=ar.left;
+          const gap=applyLeft-pillRight;
+          // Pinch: sin curve narrows bridge at peak, creating the cell membrane feel
+          const pinch=Math.sin(Math.PI*bridgeOpacity)*9;
+          const h=Math.max(2,pr.height-pinch*2);
+          const topOff=pr.top+(pr.height-h)/2;
+          // Colour: blue at 0, green at 1
+          const t=bridgeOpacity;
+          const rc=Math.round(0+t*34),gc=Math.round(116+t*81),bc=Math.round(240-t*146);
+          bridgeVis.style.left=pillRight+'px';
+          bridgeVis.style.top=topOff+'px';
+          bridgeVis.style.width=Math.max(0,gap)+'px';
+          bridgeVis.style.height=h+'px';
+          bridgeVis.style.background='rgb('+rc+','+gc+','+bc+')';
+          bridgeVis.style.opacity=String(Math.min(1,bridgeOpacity*1.2));
+        } else {
+          bridgeVis.style.opacity='0';
+        }
+        const done=Math.abs(bridgeOpacity-bridgeOpacityTarget)<0.002;
+        if(!done)braf=requestAnimationFrame(btick);else braf=null;
+      }
+      function startBridge(){if(!braf)braf=requestAnimationFrame(btick);}
+
+      // Global pointermove — detect cursor in pill, gap, or applyBtn zones
+      function onGlobalMove(e){
+        if(!pill||!applyBtn) return;
+        const pr=pill.getBoundingClientRect();
+        const ar=applyBtn.getBoundingClientRect();
+        const cx=e.clientX, cy=e.clientY;
+        // Expand hit zones slightly so cursor never skips the gap
+        const inPill=cx>=pr.left-2&&cx<=pr.right+2&&cy>=pr.top-6&&cy<=pr.bottom+6;
+        const inApply=cx>=ar.left-2&&cx<=ar.right+2&&cy>=ar.top-6&&cy<=ar.bottom+6;
+        // Gap zone: between pill right and apply left, vertically overlapping both
+        const inGap=cx>pr.right-4&&cx<ar.right&&cy>=Math.min(pr.top,ar.top)-6&&cy<=Math.max(pr.bottom,ar.bottom)+6;
+
+        if(plastX!==null) pmouseVel=cx-plastX;
+        plastX=cx;
+
+        if(inGap&&!inPill){
+          // Show bridge stretching — opacity based on how far across the gap
+          const totalSpan=ar.right-pr.right;
+          const progress=Math.min(1,Math.max(0,(cx-pr.right)/totalSpan));
+          bridgeOpacityTarget=inApply?0.8:1;
+          startBridge();
+          // Keep pill bubble anchored to reset button
+          const btns=[...pill.querySelectorAll('button')];
+          const lastBtn=btns[btns.length-1];
+          if(lastBtn){
+            const lr=lastBtn.getBoundingClientRect();
+            const nx=lr.left-pr.left, nw=lr.width;
+            psp.tx=nx; psp.tw=nw;
+            if(psp.to===0){psp.x=nx;psp.w=nw;}
+          }
+          psp.to=1;
+          pillBubble.style.background='rgb(0,116,240)';
+          startTick();
+        } else if(inApply){
+          // Cursor on green tick — bridge collapses
+          bridgeOpacityTarget=0;
+          startBridge();
+          psp.to=0;
+          startTick();
+        } else if(!inPill&&!inGap&&!inApply){
+          // Cursor left everything
+          bridgeOpacityTarget=0;
+          startBridge();
+          psp.to=0;
+          startTick();
+        }
+      }
+      document.addEventListener('pointermove',onGlobalMove);
+
       pill.querySelectorAll('button').forEach(btn=>{
         btn.addEventListener('mouseenter',()=>{
           hoveredBtn=btn;
@@ -13632,51 +13431,13 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
           if(psp.to===0){psp.x=nx;psp.w=nw;}
           psp.tx=nx;psp.tw=nw;psp.to=1;
           pillBubble.style.background=btnColor(btn);
-          bridgeTarget=0;
+          bridgeOpacityTarget=0;startBridge();
           startTick();
         });
         btn.addEventListener('mouseleave',()=>{hoveredBtn=null;});
       });
 
-      // Global pointermove — detect gap and drive bridge extension
-      function onGlobalMove(e){
-        if(!pill||!applyBtn) return;
-        const pr=pill.getBoundingClientRect();
-        const ar=applyBtn.getBoundingClientRect();
-        const cx=e.clientX,cy=e.clientY;
-        if(lastMX!==null) pmouseVel=cx-lastMX;
-        lastMX=cx;
-        const inPill=cx>=pr.left&&cx<=pr.right&&cy>=pr.top-6&&cy<=pr.bottom+6;
-        const inApply=cx>=ar.left&&cx<=ar.right&&cy>=ar.top-6&&cy<=ar.bottom+6;
-        const inGap=cx>pr.right&&cx<ar.left&&cy>=Math.min(pr.top,ar.top)-6&&cy<=Math.max(pr.bottom,ar.bottom)+6;
-
-        if(inGap||inApply){
-          // Anchor balloon to reset button (last button in pill)
-          const btns=[...pill.querySelectorAll('button')];
-          const lastBtn=btns[btns.length-1];
-          if(lastBtn){
-            const lr=lastBtn.getBoundingClientRect();
-            const nx=lr.left-pr.left,nw=lr.width;
-            if(psp.to===0){psp.x=nx;psp.w=nw;}
-            psp.tx=nx;psp.tw=nw;psp.to=1;
-          }
-          pillBubble.style.background='rgb(0,116,240)';
-          // Bridge target = distance from pill right edge to apply button right edge
-          const totalGap=ar.right-pr.right;
-          bridgeTarget=inApply?totalGap:Math.min(totalGap,(cx-pr.right)+17);
-          startTick();
-        } else if(!inPill){
-          bridgeTarget=0;
-          if(!hoveredBtn){psp.to=0;}
-          startTick();
-        }
-      }
-      document.addEventListener('pointermove',onGlobalMove);
-
-      pill.addEventListener('mouseleave',()=>{
-        lastMX=null; pmouseVel=0;
-        if(!hoveredBtn){psp.to=0; startTick();}
-      });
+      pill.addEventListener('mouseleave',()=>{plastX=null;pmouseVel=0;});
     }
     // Transform buttons (inside panel)
     const btn=(id,fn)=>{const el=p.querySelector(id);if(el)el.addEventListener('click',fn);};
@@ -14562,7 +14323,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
         <button id="ep-apply"
           onMouseEnter={e=>{e.currentTarget.style.background='rgb(22,163,74)';}}
           onMouseLeave={e=>{e.currentTarget.style.background='rgb(34,197,94)';}}
-          style={{width:34,height:34,borderRadius:'50%',border:'none',cursor:'pointer',background:'rgb(34,197,94)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 12px rgba(34,197,94,0.35)'}}>
+          style={{width:38,height:38,borderRadius:'50%',border:'none',cursor:'pointer',background:'rgb(34,197,94)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 12px rgba(34,197,94,0.35)'}}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </button>
       </div>}
@@ -14613,9 +14374,13 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   ReactDOM.createPortal(
     <div style={{position:'fixed',top:'2.5vh',right:'2.5vw',display:'flex',alignItems:'center',gap:10,zIndex:(zIndex||4000)+2,pointerEvents:'auto'}}
       onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-      <div style={{display:'flex',alignItems:'center'}}>
-        <ToolbarPill activeControl={activeControl} teacherMode={teacherMode} onSetControl={setControl} onClose={onClose}/>
-      </div>
+      <ToolbarPill activeControl={activeControl} teacherMode={teacherMode} onSetControl={setControl}/>
+      <button onClick={e=>{e.stopPropagation();onClose();}}
+        style={{background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.55)',fontSize:16,fontWeight:300,lineHeight:1,flexShrink:0,boxShadow:'0 4px 20px rgba(0,0,0,0.35)',transition:'background .18s,border-color .18s,color .18s'}}
+        onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,40,0.85)';e.currentTarget.style.borderColor='rgba(220,50,40,0.6)';e.currentTarget.style.color='#fff';}}
+        onMouseLeave={e=>{e.currentTarget.style.background='rgba(15,15,20,0.45)';e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';e.currentTarget.style.color='rgba(255,255,255,0.55)';}}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
+      </button>
     </div>,
     document.body
   )
