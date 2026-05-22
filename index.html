@@ -2450,11 +2450,13 @@ function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,b
   blur=blur||5; contrast=contrast||85; blobStiffness=blobStiffness||180; blobDamping=blobDamping||12;
   maxBulge=maxBulge||22; attractionRange=attractionRange||28;
   const svgRef=React.useRef(null);
+  const gRef=React.useRef(null);
   const elA=React.useRef(null);
   const elB=React.useRef(null);
   const cursorXRef=React.useRef(null);
   const activeRef=React.useRef(0);
   const activeTargetRef=React.useRef(0);
+  const svgOpacityRef=React.useRef(0);
   const sp=React.useRef({aBulge:{x:0,v:0},bBulge:{x:0,v:0}});
   const fidRef=React.useRef(filterId||(()=>{const s=Math.random().toString(36).slice(2,8);return 'goo-'+s;})());
   const fid=fidRef.current;
@@ -2496,6 +2498,11 @@ function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,b
     const bBulgeOut=Math.max(0,sp.current.bBulge.x);
     if(elA.current) elA.current.setAttribute('d',_bubblePath(a,aBulgeOut,aBulgeOut));
     if(elB.current) elB.current.setAttribute('d',_bubblePath(b,bBulgeOut,bBulgeOut));
+    // Only show the SVG when there is actual bulge — hides both shapes at rest
+    const totalBulge=aBulgeOut+bBulgeOut;
+    const targetOpacity=totalBulge>0.5?1:0;
+    svgOpacityRef.current+=(targetOpacity-svgOpacityRef.current)*Math.min(1,dt*10);
+    if(gRef.current) gRef.current.style.opacity=svgOpacityRef.current;
     if(onTick) onTick({cursorX:cx,attraction,aBulge:aBulgeOut,bBulge:bBulgeOut});
   });
 
@@ -2506,14 +2513,14 @@ function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,b
 
   return (
     <svg ref={svgRef} viewBox={vb} width={width} height={height}
-      style={Object.assign({overflow:'visible'},style)} className={className}>
+      style={Object.assign({overflow:'visible',pointerEvents:'none'},style)} className={className}>
       <defs>
         <filter id={fid} x="-20%" y="-50%" width="140%" height="200%" colorInterpolationFilters="sRGB">
           <feGaussianBlur in="SourceGraphic" stdDeviation={blur}/>
           <feColorMatrix mode="matrix" values={fm}/>
         </filter>
       </defs>
-      <g filter={furl}>
+      <g ref={gRef} filter={furl} style={{opacity:0}}>
         {background&&<path d={_bubblePath(Object.assign({},background,{extend:'right'}),0,0)} fill={background.color}/>}
         <path ref={elA} d={_bubblePath(a,0,0)} fill={a.color}/>
         <path ref={elB} d={_bubblePath(b,0,0)} fill={b.color}/>
