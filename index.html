@@ -13065,25 +13065,30 @@ function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
       icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg> }]:[]),
   ];
 
-  // SVG geometry — pill dimensions matching DOM layout
-  // Each button is ~44px wide. pill height 34. Gap to X = 10px. X circle r=17.
-  const BTN_W = 44;
-  const PILL_H = 34;
-  const PILL_RX = 17;
+  // SVG geometry — all coordinates at 3× scale so the goo filter has room to work.
+  // The SVG renders at DOM pixel size but viewBox is 3× larger.
+  // blur=5 in SVG units = ~1.7px effective blur — crisp shapes, clean bridge gap.
+  const S     = 3; // scale factor
+  const BTN_W = 44 * S;
+  const PILL_H = 34 * S;
+  const PILL_RX = 17 * S;
   const N = buttons.length;
   const PILL_W = BTN_W * N;
   const PILL_X = 0;
-  const PILL_Y = 0; // no vertical offset — overflow:visible handles filter bleed
+  const PILL_Y = 0;
   const MID_Y  = PILL_H / 2;
-  const GAP    = 10;
-  const X_CX   = PILL_X + PILL_W + GAP + 17; // circle centre
-  const X_R    = 17;
-  const SVG_W  = X_CX + X_R + 2;
-  const SVG_H  = PILL_H; // exact pill height; goo filter bleeds via overflow:visible
+  const GAP    = 60; // 60 SVG units = 20px rendered — enough for goo bridge
+  const X_CX   = PILL_X + PILL_W + GAP + 17 * S;
+  const X_R    = 17 * S;
+  // viewBox is S× the DOM pixel dimensions; SVG width/height are DOM pixels
+  const DOM_W  = (X_CX + X_R + 2) / S;
+  const DOM_H  = 34; // pill height in DOM pixels
+  const VB_W   = X_CX + X_R + 2;
+  const VB_H   = PILL_H;
 
-  // Button centres inside pill
+  // Button centres inside pill (in SVG units)
   const btnCX = buttons.map((_,i) => PILL_X + BTN_W * i + BTN_W / 2);
-  const HALF_W = 18; // blue blob half-width (icon cell ~22px each side)
+  const HALF_W = 18 * S; // blue blob half-width in SVG units
 
   // Springs
   const sp = React.useRef({
@@ -13138,8 +13143,11 @@ function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
   function _smoothstep(e0,e1,x){const t=_clampV((x-e0)/(e1-e0),0,1);return t*t*(3-2*t);}
 
   // Animation loop
-  function loop() {
-    activeRef.current += (activeTargetRef.current - activeRef.current) * 0.12;
+  const lastTimeRef = React.useRef(null);
+  function loop(now) {
+    const dt = lastTimeRef.current ? Math.min((now - lastTimeRef.current) / 1000, 0.064) : 0.016;
+    lastTimeRef.current = now;
+    activeRef.current += (activeTargetRef.current - activeRef.current) * Math.min(1, dt * 14);
     const a  = activeRef.current;
     const cx = cursorXRef.current;
     // activeIdx may change between renders — read from closure-captured buttons array
@@ -13167,50 +13175,49 @@ function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
       // In gap or past X: tail anchors at last button, head extends toward X
       const lastBtnX = btnCX[N-1];
       tailTarget = lastBtnX;
-      const reach = _clampV(cx - lastBtnX, 0, 44);
+      const reach = _clampV(cx - lastBtnX, 0, 44 * S);
       const gapProgress = _clampV((cx - PILL_RIGHT_X) / Math.max(1, X_LEFT_EDGE - PILL_RIGHT_X), 0, 1.5);
       const retract = 1 - _smoothstep(0.88, 1.15, gapProgress);
       headTarget = lastBtnX + reach * retract;
     }
 
-    _stepSpring(sp.current.head, headTarget, 360, 22, 0.016);
-    _stepSpring(sp.current.tail, tailTarget, 140, 14, 0.016);
+    _stepSpring(sp.current.head, headTarget, 360, 22, dt);
+    _stepSpring(sp.current.tail, tailTarget, 140, 14, dt);
 
-    // Blue opacity: always visible when idle on active button; fades near X when crossing gap
+    // Blue opacity: visible on hover inside pill; fades near X in gap
     let blueOpTarget;
     if (cx === null) {
-      blueOpTarget = curActiveIdx >= 0 ? 1 : 0; // visible only when a control is active
+      blueOpTarget = curActiveIdx >= 0 ? 1 : 0;
     } else if (inPill) {
       blueOpTarget = 1;
     } else {
-      blueOpTarget = 1 - _smoothstep(X_LEFT_EDGE - 18, X_LEFT_EDGE - 2, cx);
+      blueOpTarget = 1 - _smoothstep(X_LEFT_EDGE - 54, X_LEFT_EDGE - 6, cx);
     }
-    _stepSpring(sp.current.blueOp, blueOpTarget, 500, 30, 0.016);
+    _stepSpring(sp.current.blueOp, blueOpTarget, 500, 30, dt);
 
-    // X circle bulge toward blue when cursor crosses gap
+    // X circle bulge — in SVG units, max bulge = 22 SVG units (~7px rendered)
     const gapU = cx !== null ? _clampV((cx - PILL_RIGHT_X) / Math.max(1, X_LEFT_EDGE - PILL_RIGHT_X), 0, 1.5) : 0;
-    const xBulgeTarget = (inGap||(cx!==null&&cx>X_LEFT_EDGE)) ? 14 * _smoothstep(0.0, 0.5, gapU) * (1 - _smoothstep(0.80, 1.10, gapU)) : 0;
-    _stepSpring(sp.current.xBulge, xBulgeTarget, 180, 12, 0.016);
+    const xBulgeTarget = (inGap||(cx!==null&&cx>X_LEFT_EDGE)) ? 22 * _smoothstep(0.0, 0.5, gapU) * (1 - _smoothstep(0.80, 1.10, gapU)) : 0;
+    _stepSpring(sp.current.xBulge, xBulgeTarget, 180, 12, dt);
 
     const head   = sp.current.head.x;
     const tail   = sp.current.tail.x;
     const blueOp = _clampV(sp.current.blueOp.x, 0, 1);
     const xBulge = Math.max(0, sp.current.xBulge.x);
 
-    // Blue pill path
+    // Blue pill path — headExt in SVG units
     const lastBtnCX  = btnCX[N-1];
     const headExt    = Math.max(0, head - lastBtnCX);
-    const rightTaper = _clampV(headExt / 30, 0, 0.55);
-    const tipR      = HALF_W * (1 - rightTaper * 0.4);
-    const blueLeft  = Math.max(Math.min(head,tail) - HALF_W, PILL_X + 4);
-    const blueRight = Math.max(head, tail) + tipR;
+    const rightTaper = _clampV(headExt / 90, 0, 0.55); // 90 = 30×S
+    const tipR       = HALF_W * (1 - rightTaper * 0.4);
+    const blueLeft   = Math.max(Math.min(head,tail) - HALF_W, PILL_X + 4);
+    const blueRight  = Math.max(head, tail) + tipR;
 
     if (elBlue.current) {
       elBlue.current.setAttribute('d', _pillPath(blueLeft, blueRight, MID_Y, PILL_H, rightTaper));
       elBlue.current.setAttribute('opacity', blueOp.toFixed(3));
     }
 
-    // X circle path with left bulge
     if (elXCircle.current) {
       elXCircle.current.setAttribute('d', _leftBulgeCircle(X_CX, MID_Y, X_R, xBulge));
     }
@@ -13219,7 +13226,7 @@ function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
       Math.abs(sp.current.head.v)<0.3 && Math.abs(sp.current.tail.v)<0.3 &&
       Math.abs(sp.current.blueOp.v)<0.01 && Math.abs(sp.current.xBulge.v)<0.3;
     if (!settled) rafId.current = requestAnimationFrame(loop);
-    else rafId.current = null;
+    else { rafId.current = null; lastTimeRef.current = null; }
   }
 
   function startLoop() { if (!rafId.current) rafId.current = requestAnimationFrame(loop); }
@@ -13227,13 +13234,13 @@ function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
   // Start loop on mount so active-button blue blob renders immediately
   React.useEffect(()=>{ startLoop(); }, []);
 
-  // Mouse tracking on the SVG host
+  // Mouse tracking — maps DOM clientX to SVG coordinate space
   React.useEffect(()=>{
     const el = hostRef.current; if (!el) return;
     const onMove = (e) => {
       const r = el.getBoundingClientRect();
-      // Map clientX to SVG coordinate space (SVG_W maps to element width)
-      cursorXRef.current = ((e.clientX - r.left) / r.width) * SVG_W;
+      // DOM pixel position → SVG units (VB_W spans the rendered DOM_W)
+      cursorXRef.current = ((e.clientX - r.left) / DOM_W) * VB_W;
       activeTargetRef.current = 1;
       startLoop();
     };
@@ -13245,34 +13252,31 @@ function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
     el.addEventListener('mousemove', onMove);
     el.addEventListener('mouseleave', onLeave);
     return () => { el.removeEventListener('mousemove', onMove); el.removeEventListener('mouseleave', onLeave); };
-  }, [N, SVG_W]);
+  }, [N, VB_W, DOM_W]);
 
   const activeIdx = buttons.findIndex(b=>b.key===activeControl);
   const FM = '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 85 -38.6';
 
   return (
     <div ref={hostRef} style={{position:'relative',display:'inline-block',cursor:'default'}}>
-      {/* SVG layer — pill background, blue blob, X circle — all in goo filter */}
-      <svg width={SVG_W} height={SVG_H} viewBox={'0 0 '+SVG_W+' '+SVG_H}
+      {/* SVG renders at DOM pixel size but uses 3× viewBox — filter works on large shapes */}
+      <svg width={DOM_W} height={DOM_H} viewBox={'0 0 '+VB_W+' '+VB_H}
         style={{position:'absolute',top:0,left:0,overflow:'visible',pointerEvents:'none'}}>
         <defs>
-          <filter id="goo-toolbar" x="-30%" y="-80%" width="160%" height="260%" colorInterpolationFilters="sRGB">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="3"/>
+          <filter id="goo-toolbar" x="-20%" y="-50%" width="140%" height="200%" colorInterpolationFilters="sRGB">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="5"/>
             <feColorMatrix mode="matrix" values={FM}/>
           </filter>
         </defs>
         <g filter="url(#goo-toolbar)">
-          {/* Pill background */}
           <rect x={PILL_X} y={PILL_Y} width={PILL_W} height={PILL_H} rx={PILL_RX} fill="rgba(7,7,8,0.92)"/>
-          {/* Blue blob */}
           <path ref={elBlue} d={_pillPath(btnCX[N-1]-HALF_W, btnCX[N-1]+HALF_W, MID_Y, PILL_H)} fill="rgb(0,116,240)" opacity="0"/>
-          {/* X circle — slightly darker for contrast with pill in goo filter */}
-          <path ref={elXCircle} d={_leftBulgeCircle(X_CX, MID_Y, X_R, 0)} fill="rgba(12,12,16,0.95)"/>
+          <path ref={elXCircle} d={_leftBulgeCircle(X_CX, MID_Y, X_R, 0)} fill="rgba(7,7,8,0.92)"/>
         </g>
       </svg>
 
-      {/* DOM button layer — transparent backgrounds, icons crisp on top of SVG */}
-      <div style={{position:'relative',display:'flex',alignItems:'center',height:SVG_H}}>
+      {/* DOM button layer — transparent, icons crisp on top of SVG */}
+      <div style={{position:'relative',display:'flex',alignItems:'center',height:DOM_H}}>
         <div style={{display:'flex',alignItems:'center',height:PILL_H,width:PILL_W}}>
           {buttons.map((b,i)=>{
             const isActive = activeControl===b.key;
