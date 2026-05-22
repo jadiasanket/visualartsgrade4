@@ -2446,7 +2446,11 @@ function _useRaf(cb){
   },[]);
 }
 
-function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,blobDamping,maxBulge,attractionRange,filterId,children,style,className,onTick}){
+// LiquidBridge — cursor fed externally via containerRef pointermove
+// containerRef: a ref to the outer div that wraps both buttons.
+// The SVG itself has pointerEvents:none — buttons keep their own events.
+// Cursor position is read from pointermove on the containerRef element.
+function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,blobDamping,maxBulge,attractionRange,filterId,containerRef,children,style,className,onTick}){
   blur=blur||5; contrast=contrast||85; blobStiffness=blobStiffness||180; blobDamping=blobDamping||12;
   maxBulge=maxBulge||22; attractionRange=attractionRange||28;
   const svgRef=React.useRef(null);
@@ -2461,14 +2465,24 @@ function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,b
   const fidRef=React.useRef(filterId||(()=>{const s=Math.random().toString(36).slice(2,8);return 'goo-'+s;})());
   const fid=fidRef.current;
 
+  // Track cursor via pointermove on the container (not the SVG, so buttons keep events)
   React.useEffect(()=>{
-    const svg=svgRef.current; if(!svg) return;
-    const onMove=(e)=>{const r=svg.getBoundingClientRect();cursorXRef.current=((e.clientX-r.left)/r.width)*width;activeTargetRef.current=1;};
+    const el=containerRef?containerRef.current:null;
+    if(!el) return;
+    const onMove=(e)=>{
+      const svg=svgRef.current; if(!svg) return;
+      const r=svg.getBoundingClientRect();
+      // Map global clientX into SVG coordinate space
+      cursorXRef.current=((e.clientX-r.left)/r.width)*width;
+      // Only "active" when cursor is over the SVG bounding box
+      const inBounds=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
+      activeTargetRef.current=inBounds?1:0;
+    };
     const onLeave=()=>{activeTargetRef.current=0;cursorXRef.current=null;};
-    svg.addEventListener('mousemove',onMove);
-    svg.addEventListener('mouseleave',onLeave);
-    return ()=>{svg.removeEventListener('mousemove',onMove);svg.removeEventListener('mouseleave',onLeave);};
-  },[width]);
+    el.addEventListener('pointermove',onMove);
+    el.addEventListener('pointerleave',onLeave);
+    return ()=>{el.removeEventListener('pointermove',onMove);el.removeEventListener('pointerleave',onLeave);};
+  },[width,containerRef]);
 
   _useRaf((_t,dt)=>{
     activeRef.current+=(activeTargetRef.current-activeRef.current)*Math.min(1,dt*14);
@@ -2498,7 +2512,7 @@ function LiquidBridge({width,height,a,b,background,blur,contrast,blobStiffness,b
     const bBulgeOut=Math.max(0,sp.current.bBulge.x);
     if(elA.current) elA.current.setAttribute('d',_bubblePath(a,aBulgeOut,aBulgeOut));
     if(elB.current) elB.current.setAttribute('d',_bubblePath(b,bBulgeOut,bBulgeOut));
-    // Only show the SVG when there is actual bulge — hides both shapes at rest
+    // Invisible at rest — only shows when bulge is actually happening
     const totalBulge=aBulgeOut+bBulgeOut;
     const targetOpacity=totalBulge>0.5?1:0;
     svgOpacityRef.current+=(targetOpacity-svgOpacityRef.current)*Math.min(1,dt*10);
@@ -13023,12 +13037,9 @@ function CropOverlay({imgSrc,onCommit}){
       )}
       <div style={{position:'fixed',bottom:0,height:`${_CROP_MARGIN_V*100}vh`,left:0,right:0,display:'flex',alignItems:'center',justifyContent:'center',gap:8,zIndex:20,pointerEvents:'none'}}
         onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-        <div style={{position:'relative',display:'flex',alignItems:'center',gap:8,pointerEvents:'all'}}>
+        <div ref={cropBridgeRef} style={{position:'relative',display:'flex',alignItems:'center',gap:8,pointerEvents:'all'}}>
           {/* Liquid bridge — Reset button (right edge of pill) ↔ green tick circle */}
           {(()=>{
-            // CropToolPill: 6 buttons, each ~44px + ~8 dividers ≈ 320px wide, h=38. Green circle: 38px w.
-            // Canvas covers pill + 8px gap + circle. Reset is the last button, ~44px from right of pill.
-            // pill right-anchor at ~298px from left of canvas, circle centre at 298+8+19=325
             const cW=370, cH=54, cCy=27;
             return <div style={{position:'absolute',top:'50%',left:0,transform:'translateY(-50%)',pointerEvents:'none',zIndex:0}}>
               <LiquidBridge width={cW} height={cH}
@@ -13036,6 +13047,7 @@ function CropOverlay({imgSrc,onCommit}){
                 b={{shape:'circle',cx:350,cy:cCy,r:19,color:'rgb(34,197,94)',extend:'left'}}
                 maxBulge={30} blur={5} contrast={85} blobStiffness={180} blobDamping={10} attractionRange={22}
                 filterId="goo-crop"
+                containerRef={cropBridgeRef}
               />
             </div>;
           })()}
@@ -13823,6 +13835,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const photoFiltersRef=React.useRef({});
   const photoFilterStrRef=React.useRef({});
   const infoPanelRef=React.useRef(null);
+  const adjustBridgeRef=React.useRef(null);
+  const cropBridgeRef=React.useRef(null);
+  const toolbarBridgeRef=React.useRef(null);
   const [panelBg,setPanelBg]=React.useState('rgba(7,7,8,0.87)');
   // E: inline reassign state
   const [infoEditMode,setInfoEditMode]=React.useState(false); // pencil toggle
@@ -14392,7 +14407,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
       {activeControl==='crop'&&<CropOverlay imgSrc={croppedSrcRef.current||originalUrl.current} onCommit={(canvas,url)=>{croppedSrcRef.current=url;setCurrentUrl(url);if(onPhotoEdit)onPhotoEdit(url,photo);setActiveControl(null);}}/>}
 
       {/* EDIT PANEL BOTTOM PILL */}
-      {activeControl==='edit'&&<div id="ep-bot-outer" onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
+      {activeControl==='edit'&&<div id="ep-bot-outer" ref={adjustBridgeRef} onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
         style={{position:'fixed',top:'calc(8vh + 196px + 6px)',right:'2.5vw',display:'flex',alignItems:'center',gap:8,zIndex:21}}>
         {/* Liquid bridge — Reset (right of pill) ↔ green tick circle */}
         <div style={{position:'absolute',top:'50%',left:0,transform:'translateY(-50%)',pointerEvents:'none',zIndex:0}}>
@@ -14401,6 +14416,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
             b={{shape:'circle',cx:251,cy:27,r:19,color:'rgb(34,197,94)',extend:'left'}}
             maxBulge={28} blur={5} contrast={85} blobStiffness={180} blobDamping={10} attractionRange={20}
             filterId="goo-adjust"
+            containerRef={adjustBridgeRef}
           />
         </div>
         <div id="ep-pill" style={{display:'flex',alignItems:'center',height:34,position:'relative',background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',overflow:'hidden',zIndex:1}}>
@@ -14467,13 +14483,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   ReactDOM.createPortal(
     <div style={{position:'fixed',top:'2.5vh',right:'2.5vw',display:'flex',alignItems:'center',gap:10,zIndex:(zIndex||4000)+2,pointerEvents:'auto'}}
       onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
-      <div style={{position:'relative',display:'flex',alignItems:'center',gap:10}}>
+      <div ref={toolbarBridgeRef} style={{position:'relative',display:'flex',alignItems:'center',gap:10}}>
         {/* Liquid bridge SVG — sits behind, covers pill-right + gap + X-circle */}
         {teacherMode&&activeControl==='edit'&&(()=>{
-          // pill: ~3 buttons wide at ~44px each + padding ≈ 148px wide, height 34. X circle: 34px wide.
-          // Bridge canvas: wide enough to cover both + 10px gap. cy = 19 (half of 34px height)
-          // pill bubble (adjust cell) right-anchored: anchorX near right of pill
-          // We use a fixed-width canvas: 220px wide. Pill occupies left ~148px, gap 10px, circle right 34px
           const tbW=220, tbH=54, tbCy=27;
           return <div style={{position:'absolute',top:'50%',left:0,transform:'translateY(-50%)',pointerEvents:'none',zIndex:0}}>
             <LiquidBridge width={tbW} height={tbH}
@@ -14481,6 +14493,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
               b={{shape:'circle',cx:197,cy:tbCy,r:17,color:'rgba(220,50,40,0.85)',extend:'left'}}
               maxBulge={28} blur={5} contrast={85} blobStiffness={180} blobDamping={10} attractionRange={20}
               filterId="goo-toolbar"
+              containerRef={toolbarBridgeRef}
             />
           </div>;
         })()}
