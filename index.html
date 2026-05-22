@@ -13189,7 +13189,7 @@ function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
 
     // X circle bulge toward blue when cursor crosses gap
     const gapU = cx !== null ? _clampV((cx - PILL_RIGHT_X) / Math.max(1, X_LEFT_EDGE - PILL_RIGHT_X), 0, 1.5) : 0;
-    const xBulgeTarget = (inGap||cx>X_LEFT_EDGE) ? 14 * _smoothstep(0.0, 0.5, gapU) * (1 - _smoothstep(0.80, 1.10, gapU)) : 0;
+    const xBulgeTarget = (inGap||(cx!==null&&cx>X_LEFT_EDGE)) ? 14 * _smoothstep(0.0, 0.5, gapU) * (1 - _smoothstep(0.80, 1.10, gapU)) : 0;
     _stepSpring(sp.current.xBulge, xBulgeTarget, 180, 12, 0.016);
 
     const head   = sp.current.head.x;
@@ -13198,7 +13198,8 @@ function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
     const xBulge = Math.max(0, sp.current.xBulge.x);
 
     // Blue pill path
-    const headExt   = Math.max(0, head - WAND_CX);
+    const lastBtnCX  = btnCX[N-1];
+    const headExt    = Math.max(0, head - lastBtnCX);
     const rightTaper = _clampV(headExt / 30, 0, 0.55);
     const tipR      = HALF_W * (1 - rightTaper * 0.4);
     const blueLeft  = Math.max(Math.min(head,tail) - HALF_W, PILL_X + 4);
@@ -13222,6 +13223,9 @@ function ToolbarPill({activeControl,teacherMode,onSetControl,onClose}){
   }
 
   function startLoop() { if (!rafId.current) rafId.current = requestAnimationFrame(loop); }
+
+  // Start loop on mount so active-button blue blob renders immediately
+  React.useEffect(()=>{ startLoop(); }, []);
 
   // Mouse tracking on the SVG host
   React.useEffect(()=>{
