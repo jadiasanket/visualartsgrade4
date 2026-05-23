@@ -13299,22 +13299,14 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
     updateUndoBtns();
     // Row hover bubble — spring physics matching CropToolPill
     
-    // Pill bubble + cell-division physics — cursor-tracked approach (no DOM gap issues)
+    // Pill bubble — hover spring physics
     const pillBubble=document.querySelector('#ep-pill-bubble');
     const pill=document.querySelector('#ep-pill');
-    const applyBtn=document.querySelector('#ep-apply');
-
-    // Visual bridge element
-    const bridgeVis=document.createElement('div');
-    bridgeVis.style.cssText='position:fixed;pointer-events:none;z-index:19;border-radius:100px;opacity:0;';
-    document.body.appendChild(bridgeVis);
 
     if(pillBubble&&pill){
       const psp={x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0};
       const PS=520,PD=26,PSS=280,PSD=18;
       let praf=null,pmouseVel=0,plastX=null,hoveredBtn=null;
-      // Bridge opacity spring
-      let bridgeOpacity=0,bridgeOpacityTarget=0,braf=null;
 
       function isUndoActive(){return histIdxRef.current>0;}
       function isRedoActive(){return histIdxRef.current<histRef.current.length-1;}
@@ -13345,84 +13337,6 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
       }
       function startTick(){if(!praf)praf=requestAnimationFrame(ptick);}
 
-      function btick(){
-        bridgeOpacity+=(bridgeOpacityTarget-bridgeOpacity)*0.12;
-        const pr=pill?pill.getBoundingClientRect():null;
-        const ar=applyBtn?applyBtn.getBoundingClientRect():null;
-        if(pr&&ar&&bridgeOpacity>0.005){
-          const pillRight=pr.right;
-          const applyLeft=ar.left;
-          const gap=applyLeft-pillRight;
-          // Pinch: sin curve narrows bridge at peak, creating the cell membrane feel
-          const pinch=Math.sin(Math.PI*bridgeOpacity)*9;
-          const h=Math.max(2,pr.height-pinch*2);
-          const topOff=pr.top+(pr.height-h)/2;
-          // Colour: blue at 0, green at 1
-          const t=bridgeOpacity;
-          const rc=Math.round(0+t*34),gc=Math.round(116+t*81),bc=Math.round(240-t*146);
-          bridgeVis.style.left=pillRight+'px';
-          bridgeVis.style.top=topOff+'px';
-          bridgeVis.style.width=Math.max(0,gap)+'px';
-          bridgeVis.style.height=h+'px';
-          bridgeVis.style.background='rgb('+rc+','+gc+','+bc+')';
-          bridgeVis.style.opacity=String(Math.min(1,bridgeOpacity*1.2));
-        } else {
-          bridgeVis.style.opacity='0';
-        }
-        const done=Math.abs(bridgeOpacity-bridgeOpacityTarget)<0.002;
-        if(!done)braf=requestAnimationFrame(btick);else braf=null;
-      }
-      function startBridge(){if(!braf)braf=requestAnimationFrame(btick);}
-
-      // Global pointermove — detect cursor in pill, gap, or applyBtn zones
-      function onGlobalMove(e){
-        if(!pill||!applyBtn) return;
-        const pr=pill.getBoundingClientRect();
-        const ar=applyBtn.getBoundingClientRect();
-        const cx=e.clientX, cy=e.clientY;
-        // Expand hit zones slightly so cursor never skips the gap
-        const inPill=cx>=pr.left-2&&cx<=pr.right+2&&cy>=pr.top-6&&cy<=pr.bottom+6;
-        const inApply=cx>=ar.left-2&&cx<=ar.right+2&&cy>=ar.top-6&&cy<=ar.bottom+6;
-        // Gap zone: between pill right and apply left, vertically overlapping both
-        const inGap=cx>pr.right-4&&cx<ar.right&&cy>=Math.min(pr.top,ar.top)-6&&cy<=Math.max(pr.bottom,ar.bottom)+6;
-
-        if(plastX!==null) pmouseVel=cx-plastX;
-        plastX=cx;
-
-        if(inGap&&!inPill){
-          // Show bridge stretching — opacity based on how far across the gap
-          const totalSpan=ar.right-pr.right;
-          const progress=Math.min(1,Math.max(0,(cx-pr.right)/totalSpan));
-          bridgeOpacityTarget=inApply?0.8:1;
-          startBridge();
-          // Keep pill bubble anchored to reset button
-          const btns=[...pill.querySelectorAll('button')];
-          const lastBtn=btns[btns.length-1];
-          if(lastBtn){
-            const lr=lastBtn.getBoundingClientRect();
-            const nx=lr.left-pr.left, nw=lr.width;
-            psp.tx=nx; psp.tw=nw;
-            if(psp.to===0){psp.x=nx;psp.w=nw;}
-          }
-          psp.to=1;
-          pillBubble.style.background='rgb(0,116,240)';
-          startTick();
-        } else if(inApply){
-          // Cursor on green tick — bridge collapses
-          bridgeOpacityTarget=0;
-          startBridge();
-          psp.to=0;
-          startTick();
-        } else if(!inPill&&!inGap&&!inApply){
-          // Cursor left everything
-          bridgeOpacityTarget=0;
-          startBridge();
-          psp.to=0;
-          startTick();
-        }
-      }
-      document.addEventListener('pointermove',onGlobalMove);
-
       pill.querySelectorAll('button').forEach(btn=>{
         btn.addEventListener('mouseenter',()=>{
           hoveredBtn=btn;
@@ -13431,13 +13345,12 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
           if(psp.to===0){psp.x=nx;psp.w=nw;}
           psp.tx=nx;psp.tw=nw;psp.to=1;
           pillBubble.style.background=btnColor(btn);
-          bridgeOpacityTarget=0;startBridge();
           startTick();
         });
         btn.addEventListener('mouseleave',()=>{hoveredBtn=null;});
       });
 
-      pill.addEventListener('mouseleave',()=>{plastX=null;pmouseVel=0;});
+      pill.addEventListener('mouseleave',()=>{plastX=null;pmouseVel=0;psp.to=0;startTick();});
     }
     // Transform buttons (inside panel)
     const btn=(id,fn)=>{const el=p.querySelector(id);if(el)el.addEventListener('click',fn);};
