@@ -107,6 +107,12 @@ body{
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(128,128,128,0.2);border-radius:10px}
 
+/* Gallery scroll — blue thumb while scrolling */
+.gallery-scroll::-webkit-scrollbar{width:6px}
+.gallery-scroll::-webkit-scrollbar-track{background:transparent}
+.gallery-scroll::-webkit-scrollbar-thumb{background:rgba(128,128,128,0.2);border-radius:10px;transition:background .5s}
+.gallery-scroll.scroll-active::-webkit-scrollbar-thumb{background:var(--sky)}
+
 /* ── GLASS MIXIN UTILITIES ── */
 .glass{
   background:var(--glass-bg);
@@ -5398,8 +5404,7 @@ function SessionCard({s,color,phaseId,progress,toggle,classView,openSession,setO
   );
 }
 
-function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,totalDone,totalSessions,theme,setTheme,classView,setClassView,subSectionId,user,onSignOut,onSignIn,isVisitor,onExportData,onImportData}){
-  const [collapsed,setCollapsed]=useLocalStorage('sb-collapsed',false);
+function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,totalDone,totalSessions,theme,setTheme,classView,setClassView,subSectionId,user,onSignOut,onSignIn,isVisitor,onExportData,onImportData,collapsed,setCollapsed}){
   const {teacherMode,setTeacherMode}=React.useContext(KWContext);
   const [showProfilePopup,setShowProfilePopup]=React.useState(false);
   const [showSettingsPopup,setShowSettingsPopup]=React.useState(false);
@@ -5474,7 +5479,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
             whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
             {name}
           </div>
-          {hasSub&&<div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>{sub}</div>}
+          {hasSub&&<div style={{fontSize:10,color:isActive?'rgba(91,174,232,0.6)':'rgba(255,255,255,0.3)',marginTop:2}}>{sub}</div>}
         </span>
       </button>
     );
@@ -5501,7 +5506,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
         {/* Hover/active circle bubble */}
         <div ref={bubbleRef} style={{
           position:'absolute',inset:0,borderRadius:'50%',
-          background:'rgb(29,94,250)',zIndex:1,opacity:0,
+          background:'var(--sky)',zIndex:1,opacity:0,
           pointerEvents:'none',transition:'none',
         }}/>
         <button
@@ -5540,7 +5545,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
 
     <div style={{
       position:'fixed',
-      top:10,left:10,bottom:10,
+      top:6,left:6,bottom:6,
       width:collapsed?52:260,
       zIndex:200,
       background:'rgba(22,22,22,0.94)',
@@ -5563,15 +5568,15 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
             <div style={{fontSize:10,color:'var(--sky)',fontWeight:600,letterSpacing:'.04em',marginTop:1}}>GRADE 4 | 2026-27</div>
           </div>
         )}
-        {/* Collapse button — right side */}
+        {/* Collapse button — no background box */}
         <button onClick={()=>setCollapsed(c=>!c)}
           style={{width:32,height:32,borderRadius:8,flexShrink:0,
-            background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.08)',
+            background:'none',border:'none',
             color:'rgba(255,255,255,0.4)',cursor:'pointer',
             display:'flex',alignItems:'center',justifyContent:'center',
-            transition:'all .15s',marginLeft:'auto'}}
-          onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.12)';e.currentTarget.style.color='#fff';}}
-          onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';e.currentTarget.style.color='rgba(255,255,255,0.4)';}}>
+            transition:'color .15s',marginLeft:'auto'}}
+          onMouseEnter={e=>e.currentTarget.style.color='#fff'}
+          onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.4)'}>
           {IC.collapse}
         </button>
       </div>
@@ -5582,7 +5587,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
 
           {/* OVERVIEW */}
           <div ref={overviewCardRef} style={cardStyle}>
-            <div ref={overviewBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:46,background:'rgba(29,94,250,0.18)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
+            <div ref={overviewBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:46,background:'rgba(91,174,232,0.15)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
             <span style={labelStyle}>Overview</span>
             {[
               {id:'annual',icon:IC.home,name:'Unit Overview'},
@@ -5602,7 +5607,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
 
           {/* PHASES */}
           <div ref={phasesCardRef} style={cardStyle}>
-            <div ref={phasesBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:56,background:'rgba(29,94,250,0.18)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
+            <div ref={phasesBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:56,background:'rgba(91,174,232,0.15)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
             <span style={labelStyle}>Phases</span>
             {PHASES.map(p=>{
               const pm=PM[p.color];
@@ -5620,7 +5625,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
 
           {/* SECTIONS */}
           <div ref={sectionsCardRef} style={cardStyle}>
-            <div ref={sectionsBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:56,background:'rgba(29,94,250,0.18)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
+            <div ref={sectionsBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:56,background:'rgba(91,174,232,0.15)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
             <span style={labelStyle}>Sections</span>
             {G4_SECTIONS.map(sec=>{
               const isActive=view==='section'&&section&&section.id===sec.id;
@@ -14603,193 +14608,265 @@ function GalleryView({isVisitor}){
     });
   },[]);
 
-  const [tileSize,setTileSize]=React.useState(2);
-  const tileCols=['repeat(auto-fill,minmax(320px,1fr))','repeat(auto-fill,minmax(240px,1fr))','repeat(auto-fill,minmax(180px,1fr))','repeat(auto-fill,minmax(140px,1fr))','repeat(auto-fill,minmax(110px,1fr))'];
+  const [tileSize,setTileSize]=React.useState(1); // 0=largest..4=smallest; default=1 = 4 cols
+  const tileCols=[
+    'repeat(2,1fr)',
+    'repeat(4,1fr)',
+    'repeat(6,1fr)',
+    'repeat(8,1fr)',
+    'repeat(10,1fr)',
+  ];
+
+  // Gallery-local search/filter state
+  const [localQuery,setLocalQuery]=React.useState('');
+  const localInputRef=React.useRef(null);
+
+  // Scrollbar blue-on-scroll
+  const gridScrollRef=React.useRef(null);
+  const scrollTimerRef=React.useRef(null);
+  React.useEffect(()=>{
+    const el=gridScrollRef.current;
+    if(!el) return;
+    function onScroll(){
+      el.classList.add('scroll-active');
+      clearTimeout(scrollTimerRef.current);
+      scrollTimerRef.current=setTimeout(()=>el.classList.remove('scroll-active'),1000);
+    }
+    el.addEventListener('scroll',onScroll,{passive:true});
+    return()=>{el.removeEventListener('scroll',onScroll);clearTimeout(scrollTimerRef.current);};
+  },[]);
 
   // Click tracking for single=select, double=lightbox
   const lastClickRef=React.useRef({key:null,time:0});
-
   function handleTileClick(p){
     const k=photoKey(p);
     const now=Date.now();
     const last=lastClickRef.current;
     if(last.key===k&&now-last.time<400){
-      // Double click — open lightbox
       lastClickRef.current={key:null,time:0};
       setLightbox(p);
     } else {
-      // Single click — select/deselect
       lastClickRef.current={key:k,time:now};
       toggleSelect(p);
     }
   }
 
-  return(
-    <div style={{width:'100%',height:'100%',overflowY:'auto',background:'#0d0d0d',position:'relative'}}>
+  // Local query filter on top of existing filters
+  const displayPhotos=React.useMemo(()=>{
+    if(!localQuery.trim()) return filtered;
+    const q=localQuery.trim().toLowerCase();
+    return filtered.filter(p=>{
+      const name=(p.studentName||'').toLowerCase();
+      const section=(p.sectionName||'').toLowerCase();
+      const lesson=(p.resolvedLesson||'').toLowerCase();
+      return name.includes(q)||section.includes(q)||lesson.includes(q);
+    });
+  },[filtered,localQuery]);
 
-      {/* Fixed toolbar with proper blur that fades out */}
-      <div style={{position:'sticky',top:0,zIndex:100,pointerEvents:'none'}}>
-        {/* Blur layer — uses mask to fade blur from full at top to none at bottom */}
+  return(
+    <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',background:'#0d0d0d',position:'relative'}}>
+
+      {/* Sticky toolbar — blur only, no tint */}
+      <div style={{position:'sticky',top:0,zIndex:100,flexShrink:0}}>
         <div style={{
           position:'absolute',inset:0,
-          backdropFilter:'blur(16px)',
-          WebkitBackdropFilter:'blur(16px)',
-          maskImage:'linear-gradient(to bottom, black 55%, transparent 100%)',
-          WebkitMaskImage:'linear-gradient(to bottom, black 55%, transparent 100%)',
-          pointerEvents:'none',
-        }}/>
-        {/* Dark tint layer — fades same way */}
-        <div style={{
-          position:'absolute',inset:0,
-          background:'linear-gradient(to bottom, rgba(13,13,13,0.85) 0%, rgba(13,13,13,0.6) 55%, transparent 100%)',
+          backdropFilter:'blur(20px)',
+          WebkitBackdropFilter:'blur(20px)',
+          maskImage:'linear-gradient(to bottom,black 60%,transparent 100%)',
+          WebkitMaskImage:'linear-gradient(to bottom,black 60%,transparent 100%)',
           pointerEvents:'none',
         }}/>
         <div style={{position:'relative',display:'flex',alignItems:'center',
-          justifyContent:'space-between',padding:'16px 24px 16px',pointerEvents:'auto'}}>
+          justifyContent:'space-between',padding:'12px 16px 12px',pointerEvents:'auto'}}>
 
-          {/* Title */}
-          <div>
-            <div style={{fontSize:20,fontWeight:600,fontFamily:"'Bricolage Grotesque',sans-serif",color:'#fff',letterSpacing:'-.01em'}}>Gallery</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginTop:1}}>{filtered.length} photo{filtered.length!==1?'s':''}</div>
+          {/* Title + local search */}
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div>
+              <div style={{fontSize:18,fontWeight:600,fontFamily:"'Bricolage Grotesque',sans-serif",color:'#fff',letterSpacing:'-.01em',lineHeight:1}}>Gallery</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>{displayPhotos.length} photo{displayPhotos.length!==1?'s':''}</div>
+            </div>
+            {/* Local gallery search */}
+            <div style={{display:'flex',alignItems:'center',gap:6,height:30,padding:'0 10px',
+              background:'rgba(255,255,255,0.07)',borderRadius:100,
+              border:'1px solid rgba(255,255,255,0.1)',minWidth:140}}>
+              {React.cloneElement(IC.search,{width:13,height:13,stroke:'rgba(255,255,255,0.35)'})}
+              <input ref={localInputRef}
+                value={localQuery}
+                onChange={e=>setLocalQuery(e.target.value)}
+                placeholder="Search gallery…"
+                style={{background:'none',border:'none',outline:'none',
+                  fontSize:11,color:'#fff',fontFamily:"'DM Sans',sans-serif",
+                  caretColor:'var(--sky)',width:100}}/>
+              {localQuery&&<button onClick={()=>setLocalQuery('')}
+                style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',padding:0,fontSize:12,lineHeight:1}}>&#10005;</button>}
+            </div>
           </div>
 
           {/* Toolbar pills */}
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
 
-            {/* Zoom */}
-            <div style={{display:'flex',alignItems:'center',height:34,
+            {/* Zoom − + */}
+            <div style={{display:'flex',alignItems:'center',height:32,
               background:'rgba(255,255,255,0.07)',borderRadius:100,
               border:'1px solid rgba(255,255,255,0.1)',overflow:'hidden'}}>
               <button onClick={()=>setTileSize(s=>Math.min(4,s+1))}
-                style={{width:36,height:34,background:'none',border:'none',cursor:'pointer',
+                style={{width:32,height:32,background:'none',border:'none',cursor:'pointer',
                   color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:18,fontWeight:300,lineHeight:1,transition:'color .12s'}}
+                  fontSize:16,fontWeight:300,lineHeight:1,transition:'color .12s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='#fff'}
                 onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.55)'}>&#8722;</button>
-              <div style={{width:1,height:14,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
+              <div style={{width:1,height:12,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
               <button onClick={()=>setTileSize(s=>Math.max(0,s-1))}
-                style={{width:36,height:34,background:'none',border:'none',cursor:'pointer',
+                style={{width:32,height:32,background:'none',border:'none',cursor:'pointer',
                   color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:18,fontWeight:300,lineHeight:1,transition:'color .12s'}}
+                  fontSize:16,fontWeight:300,lineHeight:1,transition:'color .12s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='#fff'}
                 onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.55)'}>&#43;</button>
             </div>
 
-            {/* Actions */}
-            <div style={{display:'flex',alignItems:'center',height:34,
+            {/* Actions: rotate, upload, filter */}
+            <div style={{display:'flex',alignItems:'center',height:32,
               background:'rgba(255,255,255,0.07)',borderRadius:100,
               border:'1px solid rgba(255,255,255,0.1)'}}>
               {teacherMode&&!isVisitor&&(
                 <>
                 <button title="Rotate CCW"
-                  style={{width:38,height:34,background:'none',border:'none',cursor:'pointer',
+                  style={{width:36,height:32,background:'none',border:'none',cursor:'pointer',
                     color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center',justifyContent:'center',transition:'color .12s'}}
                   onMouseEnter={e=>e.currentTarget.style.color='#fff'}
                   onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.5)'}>
-                  {IC.rotateCCW}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="4" y="4" width="14" height="14" rx="2"/>
+                    <path d="M4 4 C4 4 1 1 4 1" stroke="none"/>
+                    <path d="M8 1 C5 1 2 3 2 6" fill="none"/>
+                    <path d="M2 2l6 0 0 6" fill="none"/>
+                    <path d="M2 6 C2 3 5 1 8 1 L5 1" fill="none" stroke="none"/>
+                    <path d="M6.5 2.5 Q3 2 3 5.5" fill="none"/>
+                    <path d="M3 2.5 L6.5 2.5 L6.5 6" fill="none"/>
+                  </svg>
                 </button>
-                <div style={{width:1,height:14,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
+                <div style={{width:1,height:12,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
                 <button onClick={()=>setShowUpload(true)} title="Upload"
-                  style={{width:38,height:34,background:'none',border:'none',cursor:'pointer',
+                  style={{width:36,height:32,background:'none',border:'none',cursor:'pointer',
                     color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center',justifyContent:'center',transition:'color .12s'}}
                   onMouseEnter={e=>e.currentTarget.style.color='#fff'}
                   onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.5)'}>
-                  {IC.upload}
+                  <svg width="17" height="11" viewBox="0 0 17 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 10h15"/>
+                    <path d="M1 10 Q1 10 1 8"/>
+                    <path d="M16 10 Q16 10 16 8"/>
+                    <rect x="1" y="6" width="15" height="4" rx="1" fill="none"/>
+                  </svg>
                 </button>
-                <div style={{width:1,height:14,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
+                <div style={{width:1,height:12,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
                 </>
               )}
+              {/* Filter */}
               <div style={{position:'relative'}}>
                 <button onClick={()=>setShowFilter(v=>!v)} title="Filter"
-                  style={{width:38,height:34,background:'none',border:'none',cursor:'pointer',
+                  style={{width:36,height:32,background:'none',border:'none',cursor:'pointer',
                     color:activeFilterCount>0?'var(--sky)':'rgba(255,255,255,0.5)',
                     display:'flex',alignItems:'center',justifyContent:'center',
                     position:'relative',transition:'color .12s'}}
                   onMouseEnter={e=>e.currentTarget.style.color='#fff'}
                   onMouseLeave={e=>e.currentTarget.style.color=activeFilterCount>0?'var(--sky)':'rgba(255,255,255,0.5)'}>
                   {IC.filter}
-                  {activeFilterCount>0&&<span style={{position:'absolute',top:7,right:7,width:5,height:5,borderRadius:'50%',background:'var(--sky)'}}/>}
+                  {activeFilterCount>0&&<span style={{position:'absolute',top:6,right:6,width:5,height:5,borderRadius:'50%',background:'var(--sky)'}}/>}
                 </button>
+                {/* Redesigned filter popup — clean, grouped */}
                 {showFilter&&(
-                  <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'calc(100% + 10px)',right:0,zIndex:600,
-                    width:320,background:'rgba(14,14,18,0.97)',backdropFilter:'blur(24px)',
-                    border:'1px solid rgba(255,255,255,0.1)',borderRadius:14,
-                    boxShadow:'0 16px 48px rgba(0,0,0,0.7)',padding:'14px 16px',
-                    display:'flex',flexDirection:'column',gap:14}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                      <span style={{fontSize:11,fontWeight:700,color:'#fff'}}>Filter</span>
+                  <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'calc(100% + 8px)',right:0,zIndex:600,
+                    width:280,background:'rgba(14,14,18,0.97)',backdropFilter:'blur(24px)',
+                    border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,
+                    boxShadow:'0 16px 48px rgba(0,0,0,0.7)',overflow:'hidden'}}>
+                    {/* Header */}
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px 8px'}}>
+                      <span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.9)',letterSpacing:'.02em'}}>Filter</span>
                       <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                        {activeFilterCount>0&&<button onClick={clearFilters} style={{fontSize:10,fontWeight:700,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Clear ({activeFilterCount})</button>}
-                        <button onClick={()=>setShowFilter(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',fontSize:16,cursor:'pointer',padding:'0 2px'}}>&#10005;</button>
+                        {activeFilterCount>0&&<button onClick={clearFilters} style={{fontSize:10,fontWeight:700,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",padding:0}}>Clear all</button>}
+                        <button onClick={()=>setShowFilter(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:14,cursor:'pointer',padding:'0 2px',lineHeight:1}}>&#10005;</button>
                       </div>
                     </div>
-                    <div>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Type</div>
-                      <div style={{display:'flex',gap:5}}>
+                    <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
+                    {/* Type */}
+                    <div style={{padding:'10px 14px 6px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:8}}>Type</div>
+                      <div style={{display:'flex',gap:4}}>
                         {[['all','All'],['artwork','Artwork'],...(isVisitor?[]:[['documentation','Docs']])].map(([v,l])=>(
                           <button key={v} onClick={()=>setFilterType(v)}
-                            style={{flex:1,fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                              border:filterType===v?'1px solid var(--sky)':'1px solid rgba(255,255,255,0.08)',
-                              background:filterType===v?'rgba(91,174,232,0.15)':'rgba(255,255,255,0.04)',
-                              color:filterType===v?'var(--sky)':'rgba(255,255,255,0.4)'}}>
+                            style={{flex:1,fontSize:11,fontWeight:filterType===v?700:400,height:28,borderRadius:100,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                              border:'none',
+                              background:filterType===v?'var(--sky)':'rgba(255,255,255,0.07)',
+                              color:filterType===v?'#000':'rgba(255,255,255,0.5)',
+                              transition:'all .15s'}}>
                             {l}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Section</div>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                    <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
+                    {/* Section */}
+                    <div style={{padding:'10px 14px 6px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:8}}>Section</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
                         {G4_SECTIONS.map(s=>{
                           const on=filterSections.has(s.id);
                           return(
                             <button key={s.id} onClick={()=>setFilterSections(prev=>{const n=new Set(prev);on?n.delete(s.id):n.add(s.id);return n;})}
-                              style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                                border:on?'1px solid var(--sky)':'1px solid rgba(255,255,255,0.08)',
-                                background:on?'rgba(91,174,232,0.15)':'rgba(255,255,255,0.04)',
-                                color:on?'var(--sky)':'rgba(255,255,255,0.4)'}}>
+                              style={{fontSize:10,fontWeight:on?700:400,padding:'4px 10px',borderRadius:100,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                                border:'none',
+                                background:on?'var(--sky)':'rgba(255,255,255,0.07)',
+                                color:on?'#000':'rgba(255,255,255,0.5)',
+                                transition:'all .15s'}}>
                               {s.name}
                             </button>
                           );
                         })}
                       </div>
                     </div>
-                    <div>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                    <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
+                    {/* Lesson — scrollable */}
+                    <div style={{padding:'10px 14px 6px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:8}}>Lesson</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4,maxHeight:90,overflowY:'auto'}}>
                         {allLessons.map(l=>{
                           const key=l.phaseId+':'+l.n;
                           const on=filterLessons.has(key);
                           return(
                             <button key={key} onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);on?n.delete(key):n.add(key);return n;})}
-                              style={{fontSize:9,padding:'2px 9px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:on?700:400,
-                                border:on?'1px solid var(--sky)':'1px solid rgba(255,255,255,0.08)',
-                                background:on?'rgba(91,174,232,0.15)':'rgba(255,255,255,0.04)',
-                                color:on?'var(--sky)':'rgba(255,255,255,0.4)'}}>
-                              S{l.n}: {l.title}
+                              style={{fontSize:10,fontWeight:on?700:400,padding:'4px 10px',borderRadius:100,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                                border:'none',
+                                background:on?'var(--sky)':'rgba(255,255,255,0.07)',
+                                color:on?'#000':'rgba(255,255,255,0.5)',
+                                transition:'all .15s',flexShrink:0}}>
+                              S{l.n}
                             </button>
                           );
                         })}
                       </div>
                     </div>
                     {filterType!=='documentation'&&!isVisitor&&(
-                      <div>
-                        <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Assessment</div>
+                      <>
+                      <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
+                      <div style={{padding:'10px 14px 12px'}}>
+                        <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:8}}>Assessment</div>
                         <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
                           {artworkTags.map(t=>{
                             const on=filterTags.has(t.label);
                             return(
                               <button key={t.label} onClick={()=>setFilterTags(prev=>{const n=new Set(prev);on?n.delete(t.label):n.add(t.label);return n;})}
-                                style={{fontSize:9,padding:'2px 9px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:on?700:400,
-                                  border:on?'1px solid '+tagColors[t.color]:'1px solid rgba(255,255,255,0.08)',
-                                  background:on?'rgba(255,255,255,0.06)':'rgba(255,255,255,0.04)',
-                                  color:on?tagColors[t.color]:'rgba(255,255,255,0.4)'}}>
+                                style={{fontSize:10,fontWeight:on?700:400,padding:'4px 10px',borderRadius:100,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                                  border:'none',
+                                  background:on?tagColors[t.color]:'rgba(255,255,255,0.07)',
+                                  color:on?'#fff':'rgba(255,255,255,0.5)',
+                                  transition:'all .15s'}}>
                                 {t.label}
                               </button>
                             );
                           })}
                         </div>
                       </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -14799,25 +14876,15 @@ function GalleryView({isVisitor}){
             {/* Select */}
             {teacherMode&&!isVisitor&&(
               <button onClick={()=>galleryEditMode?exitEditMode():setGalleryEditMode(true)}
-                style={{height:34,padding:'0 18px',borderRadius:100,cursor:'pointer',
+                style={{height:32,padding:'0 14px',borderRadius:100,cursor:'pointer',
                   fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,
-                  background:galleryEditMode?'rgba(29,94,250,0.2)':'rgba(255,255,255,0.07)',
+                  background:galleryEditMode?'rgba(91,174,232,0.2)':'rgba(255,255,255,0.07)',
                   color:galleryEditMode?'var(--sky)':'rgba(255,255,255,0.65)',
-                  border:galleryEditMode?'1px solid rgba(29,94,250,0.35)':'1px solid rgba(255,255,255,0.1)',
+                  border:galleryEditMode?'1px solid rgba(91,174,232,0.35)':'1px solid rgba(255,255,255,0.1)',
                   transition:'all .15s'}}>
                 {galleryEditMode?'Done':'Select'}
               </button>
             )}
-
-            {/* Search */}
-            <button onClick={()=>window.dispatchEvent(new CustomEvent('search-toggle'))}
-              style={{display:'flex',alignItems:'center',gap:8,height:34,padding:'0 14px',
-                borderRadius:100,background:'rgba(255,255,255,0.07)',
-                border:'1px solid rgba(255,255,255,0.1)',cursor:'pointer',
-                color:'rgba(255,255,255,0.3)',fontFamily:"'DM Sans',sans-serif",fontSize:12,
-                minWidth:160}}>
-              {IC.search}<span>Search gallery</span>
-            </button>
 
           </div>
         </div>
@@ -14827,91 +14894,107 @@ function GalleryView({isVisitor}){
       {/* Selection bar */}
       {galleryEditMode&&(
         <div style={{display:'flex',alignItems:'center',gap:10,
-          margin:'0 0 2px',padding:'0 24px',
-          background:'rgba(255,255,255,0.04)',border:'none',
-          height:40,flexShrink:0}}>
-          <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',flex:1,fontWeight:500}}>
+          padding:'0 16px',background:'rgba(255,255,255,0.04)',
+          height:38,flexShrink:0}}>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',flex:1,fontWeight:500}}>
             {selectedPhotos.size===0
               ?'Single click to select · Double click to open'
               :''+selectedPhotos.size+' selected · Double click any to open'}
           </div>
-          <div style={{display:'flex',gap:8,alignItems:'center',opacity:selectedPhotos.size>0?1:0,pointerEvents:selectedPhotos.size>0?'auto':'none',transition:'opacity .15s'}}>
+          <div style={{display:'flex',gap:6,alignItems:'center',opacity:selectedPhotos.size>0?1:0,pointerEvents:selectedPhotos.size>0?'auto':'none',transition:'opacity .15s'}}>
             <button onClick={()=>{setBulkEditType('');setBulkEditLesson('');setBulkEditSection('');setBulkEditOpen(true);}}
-              style={{fontSize:11,fontWeight:700,padding:'5px 14px',borderRadius:8,
+              style={{fontSize:11,fontWeight:700,padding:'4px 12px',borderRadius:8,
                 border:'1px solid rgba(212,168,67,0.3)',background:'rgba(212,168,67,0.1)',
                 color:'var(--yellow)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
             <button onClick={()=>setConfirmDelete(true)}
-              style={{fontSize:11,fontWeight:700,padding:'5px 14px',borderRadius:8,
+              style={{fontSize:11,fontWeight:700,padding:'4px 12px',borderRadius:8,
                 border:'1px solid rgba(232,112,90,0.3)',background:'rgba(232,112,90,0.1)',
                 color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Delete</button>
             <button onClick={()=>setSelectedPhotos(new Set())}
-              style={{fontSize:10,color:'rgba(255,255,255,0.3)',background:'none',border:'none',cursor:'pointer',padding:'4px 6px'}}>Clear</button>
+              style={{fontSize:10,color:'rgba(255,255,255,0.3)',background:'none',border:'none',cursor:'pointer',padding:'4px 4px'}}>Clear</button>
           </div>
         </div>
       )}
 
       {showUpload&&<GalleryUpload onClose={()=>setShowUpload(false)} onDone={()=>setShowUpload(false)}/>}
 
-      {/* Grid */}
-      {loading?(
-        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.2)',fontSize:13,padding:80}}>Loading&#8230;</div>
-      ):filtered.length===0?(
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,color:'rgba(255,255,255,0.2)',padding:80}}>
-          <div style={{fontSize:40,opacity:0.3}}>&#128444;</div>
-          <div style={{fontSize:13}}>No photos match these filters.</div>
-        </div>
-      ):(
-        <div style={{display:'grid',gridTemplateColumns:tileCols[tileSize],gap:2}}>
-          {filtered.map((p,i)=>{
-            const k=photoKey(p);
-            const sel=selectedPhotos.has(k);
-            return(
-              <div key={i}
-                onClick={()=>handleTileClick(p)}
-                style={{cursor:'pointer',position:'relative',aspectRatio:'1',overflow:'hidden',
-                  outline:sel?'2px solid rgb(29,94,250)':'2px solid transparent',outlineOffset:'-2px',
-                  transition:'outline-color .12s'}}
-                onMouseEnter={e=>{
-                  const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1.06)';
-                  const meta=e.currentTarget.querySelector('.tile-meta');if(meta)meta.style.opacity='1';
-                  const grad=e.currentTarget.querySelector('.tile-grad');if(grad)grad.style.opacity='1';
-                }}
-                onMouseLeave={e=>{
-                  const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1)';
-                  const meta=e.currentTarget.querySelector('.tile-meta');if(meta)meta.style.opacity='0';
-                  const grad=e.currentTarget.querySelector('.tile-grad');if(grad)grad.style.opacity='0';
-                }}>
-                <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',
-                  transform:'scale(1)',transition:'transform .3s cubic-bezier(0.25,0.1,0.25,1)',
-                  filter:galleryEditMode&&sel?'brightness(0.7)':'none'}}/>
-                <div className="tile-grad" style={{position:'absolute',inset:0,
-                  background:'linear-gradient(to top,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0.1) 35%,transparent 55%)',
-                  pointerEvents:'none',opacity:0,transition:'opacity .2s'}}/>
-                <div className="tile-meta" style={{position:'absolute',bottom:0,left:0,right:0,padding:'7px 9px',pointerEvents:'none',opacity:0,transition:'opacity .2s'}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                    {p.type==='documentation'?(p.resolvedLesson||'Documentation'):(p.displayName||p.studentName)}
+      {/* Scrollable grid — reverse order (newest at bottom, scroll up for more) */}
+      <div ref={gridScrollRef} className="gallery-scroll" style={{flex:1,overflowY:'auto',paddingRight:6}}>
+        {loading?(
+          <div style={{display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.2)',fontSize:13,height:'100%',minHeight:200}}>Loading&#8230;</div>
+        ):displayPhotos.length===0?(
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,color:'rgba(255,255,255,0.2)',minHeight:200}}>
+            <div style={{fontSize:36,opacity:0.3}}>&#128444;</div>
+            <div style={{fontSize:12}}>No photos match.</div>
+          </div>
+        ):(
+          <div style={{display:'grid',gridTemplateColumns:tileCols[tileSize],gap:2}}>
+            {[...displayPhotos].reverse().map((p,i)=>{
+              const k=photoKey(p);
+              const sel=selectedPhotos.has(k);
+              return(
+                <div key={i}
+                  onClick={()=>handleTileClick(p)}
+                  style={{cursor:'pointer',position:'relative',aspectRatio:'1',overflow:'hidden',
+                    outline:sel?'2px solid var(--sky)':'2px solid transparent',outlineOffset:'-2px',
+                    transition:'outline-color .12s'}}
+                  onMouseEnter={e=>{
+                    const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1.06)';
+                    const meta=e.currentTarget.querySelector('.tile-meta');if(meta)meta.style.opacity='1';
+                    const grad=e.currentTarget.querySelector('.tile-grad');if(grad)grad.style.opacity='1';
+                  }}
+                  onMouseLeave={e=>{
+                    const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1)';
+                    const meta=e.currentTarget.querySelector('.tile-meta');if(meta)meta.style.opacity='0';
+                    const grad=e.currentTarget.querySelector('.tile-grad');if(grad)grad.style.opacity='0';
+                  }}>
+                  <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',
+                    transform:'scale(1)',transition:'transform .3s cubic-bezier(0.25,0.1,0.25,1)',
+                    filter:galleryEditMode&&sel?'brightness(0.7)':'none'}}/>
+                  <div className="tile-grad" style={{position:'absolute',inset:0,
+                    background:'linear-gradient(to top,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0.1) 35%,transparent 55%)',
+                    pointerEvents:'none',opacity:0,transition:'opacity .2s'}}/>
+                  <div className="tile-meta" style={{position:'absolute',bottom:0,left:0,right:0,padding:'7px 9px',pointerEvents:'none',opacity:0,transition:'opacity .2s'}}>
+                    <div style={{fontSize:12,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                      {p.type==='documentation'?(p.resolvedLesson||'Documentation'):(p.displayName||p.studentName)}
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
+                      <SectionDot sectionId={p.sectionId} size={5}/>
+                      <span style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>{p.sectionName}</span>
+                    </div>
                   </div>
-                  <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
-                    <SectionDot sectionId={p.sectionId} size={5}/>
-                    <span style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>{p.sectionName}</span>
-                  </div>
+                  {galleryEditMode&&sel&&(
+                    <div style={{position:'absolute',top:6,right:6,width:18,height:18,borderRadius:'50%',
+                      border:'2px solid var(--sky)',background:'var(--sky)',
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                  )}
+                  {galleryEditMode&&!sel&&(
+                    <div style={{position:'absolute',top:6,right:6,width:18,height:18,borderRadius:'50%',
+                      border:'1.5px solid rgba(255,255,255,0.35)',background:'rgba(0,0,0,0.3)'}}/>
+                  )}
                 </div>
-                {galleryEditMode&&sel&&(
-                  <div style={{position:'absolute',top:7,right:7,width:20,height:20,borderRadius:'50%',
-                    border:'2px solid rgb(29,94,250)',background:'rgb(29,94,250)',
-                    display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                )}
-                {galleryEditMode&&!sel&&(
-                  <div style={{position:'absolute',top:7,right:7,width:20,height:20,borderRadius:'50%',
-                    border:'2px solid rgba(255,255,255,0.4)',background:'rgba(0,0,0,0.3)'}}/>
-                )}
+              );
+            })}
+            {/* + Add photo tile */}
+            {teacherMode&&!isVisitor&&(
+              <div onClick={()=>setShowUpload(true)}
+                style={{aspectRatio:'1',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+                  background:'rgba(255,255,255,0.04)',border:'1px dashed rgba(255,255,255,0.15)',
+                  transition:'all .15s'}}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(91,174,232,0.08)';e.currentTarget.style.borderColor='rgba(91,174,232,0.3)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor='rgba(255,255,255,0.15)';}}>
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+                  <div style={{width:28,height:28,borderRadius:'50%',
+                    background:'rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',
+                    fontSize:18,color:'rgba(255,255,255,0.3)',fontWeight:200,lineHeight:1}}>+</div>
+                </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Bulk edit modal — centred */}
       {bulkEditOpen&&ReactDOM.createPortal(
@@ -15310,6 +15393,11 @@ function App(){
     return () => unsub();
   },[]);
 
+  // Sidebar collapsed state lifted to App so main content can respond
+  const [sidebarCollapsed,setSidebarCollapsed]=useLocalStorage('sb-collapsed',false);
+  const SB_W=sidebarCollapsed?52:260; // matches sidebar width
+  const SB_GAP=6; // gap from edges
+
   const [view,setView]=React.useState(()=>{
     try{
       const h=window.location.hash.slice(1);
@@ -15540,8 +15628,13 @@ function App(){
         {!classView&&<Sidebar view={view} phase={phase} section={section} onNav={handleNav} onPhase={handlePhase} onSection={handleSection}
           getPhaseProgress={getPhaseProgress} totalDone={totalDone} totalSessions={totalSessions}
           theme={theme} setTheme={setTheme} classView={classView} setClassView={setClassView} subSectionId={subSectionId}
-          user={user} onSignOut={handleSignOut} onSignIn={()=>setShowSignIn(true)} isVisitor={isVisitor} onExportData={handleExportData} onImportData={handleImportData}/>}
-        <div className="main">
+          user={user} onSignOut={handleSignOut} onSignIn={()=>setShowSignIn(true)} isVisitor={isVisitor} onExportData={handleExportData} onImportData={handleImportData}
+          collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed}/>}
+        <div className="main" style={{
+          marginLeft:classView?0:(SB_W+SB_GAP*2),
+          marginRight:6,
+          transition:'margin-left .22s cubic-bezier(0.4,0,0.2,1)',
+        }}>
           {view==='annual'&&<AnnualPlan onPhase={handlePhase} getPhaseProgress={getPhaseProgress} totalDone={totalDone} totalSessions={totalSessions} isVisitor={isVisitor} onExportData={handleExportData} onImportData={handleImportData}/>}
           {view==='months'&&<MonthsView/>}
           {view==='gallery'&&<GalleryView isVisitor={isVisitor}/>}
