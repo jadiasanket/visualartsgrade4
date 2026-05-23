@@ -2567,87 +2567,91 @@ function KWIcon({word,size=44}){
 
 // ── Clay-style icon set — soft 3D dimensional icons ──
 const IC={
-  // Sidebar nav — Unit Overview: clay stacked layers (coral)
-  home:(<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-    <rect x="3" y="15" width="18" height="5.5" rx="2.5" fill="#C0392B" opacity="0.28"/>
-    <rect x="3" y="13.5" width="18" height="5.5" rx="2.5" fill="#FF5240"/>
-    <rect x="3.5" y="8" width="17" height="5.5" rx="2.5" fill="#FF7A6C"/>
-    <rect x="4" y="2.5" width="16" height="5.5" rx="2.5" fill="#FFA090"/>
-    <ellipse cx="8" cy="15" rx="3.2" ry="1" fill="rgba(255,255,255,0.42)"/>
-    <ellipse cx="7.5" cy="9.5" rx="2.8" ry="0.9" fill="rgba(255,255,255,0.35)"/>
-    <ellipse cx="7" cy="4" rx="2.2" ry="0.75" fill="rgba(255,255,255,0.28)"/>
+  // Unit Overview: 3x3 grid of circles
+  home:(<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <circle cx="5" cy="5" r="1.8"/><circle cx="12" cy="5" r="1.8"/><circle cx="19" cy="5" r="1.8"/>
+    <circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>
+    <circle cx="5" cy="19" r="1.8"/><circle cx="12" cy="19" r="1.8"/><circle cx="19" cy="19" r="1.8"/>
   </svg>),
 
-  // Monthly Summaries: clay calendar (yellow/amber)
-  calendar:(<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-    <rect x="2.5" y="8.5" width="19" height="14" rx="4" fill="#C47800" opacity="0.28"/>
-    <rect x="2.5" y="6.5" width="19" height="14" rx="4" fill="#F5C200"/>
-    <rect x="2.5" y="6.5" width="19" height="6.5" rx="4" fill="#E0A800"/>
-    <rect x="7" y="3" width="2.5" height="5.5" rx="1.25" fill="#B87000"/>
-    <rect x="14.5" y="3" width="2.5" height="5.5" rx="1.25" fill="#B87000"/>
-    <circle cx="8" cy="16.5" r="1.6" fill="rgba(255,255,255,0.88)"/>
-    <circle cx="12" cy="16.5" r="1.6" fill="rgba(255,255,255,0.88)"/>
-    <circle cx="16" cy="16.5" r="1.6" fill="rgba(255,255,255,0.88)"/>
-    <circle cx="8" cy="19.5" r="1.3" fill="rgba(255,255,255,0.5)"/>
-    <ellipse cx="7" cy="8.5" rx="2.8" ry="0.9" fill="rgba(255,255,255,0.38)"/>
+  // Monthly Syllabus: calendar with "1"
+  calendar:(<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="3"/>
+    <path d="M16 2v4M8 2v4M3 10h18"/>
+    <text x="12" y="19" textAnchor="middle" fontSize="7" fontWeight="700" stroke="none" fill="currentColor" fontFamily="DM Sans,sans-serif">1</text>
   </svg>),
 
-  // Unit Notes: clay notepad (sky blue)
-  notes:(<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-    <rect x="4" y="4" width="16" height="19" rx="4" fill="#1A5CAA" opacity="0.28"/>
-    <rect x="4" y="2.5" width="16" height="19" rx="4" fill="#3D8EFF"/>
-    <rect x="7" y="7.5" width="10" height="2.2" rx="1.1" fill="rgba(255,255,255,0.9)"/>
-    <rect x="7" y="11.5" width="7.5" height="2.2" rx="1.1" fill="rgba(255,255,255,0.7)"/>
-    <rect x="7" y="15.5" width="5" height="2.2" rx="1.1" fill="rgba(255,255,255,0.5)"/>
-    <ellipse cx="7.5" cy="4.5" rx="2.8" ry="0.88" fill="rgba(255,255,255,0.35)"/>
+  // Unit Notes: notepad lines
+  notes:(<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <rect x="4" y="3" width="16" height="18" rx="2.5"/>
+    <path d="M8 8h8M8 12h8M8 16h5"/>
   </svg>),
 
-  // Utilities — chunky filled
-  lock:(<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="11" rx="3.5" fill="currentColor" opacity="0.9"/><rect x="5" y="13" width="14" height="8.5" rx="3" fill="currentColor"/><path d="M8 11V7a4 4 0 118 0v4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" fill="none"/><circle cx="12" cy="16.5" r="2" fill="rgba(255,255,255,0.5)"/></svg>),
-  unlock:(<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="11" rx="3.5" fill="currentColor" opacity="0.9"/><rect x="5" y="13" width="14" height="8.5" rx="3" fill="currentColor"/><path d="M8 11V7a4 4 0 017.75-1.4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" fill="none"/><circle cx="12" cy="16.5" r="2" fill="rgba(255,255,255,0.5)"/></svg>),
+  // Gallery: image frame with landscape
+  gallery:(<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="3"/>
+    <circle cx="8.5" cy="8.5" r="1.5"/>
+    <path d="M21 15l-5-5L5 21"/>
+  </svg>),
+
+  // Section nav: circle with chevron right
+  section:(<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M10 8l4 4-4 4"/>
+  </svg>),
+
+  // Search: magnifying glass
+  search:(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>
+  </svg>),
+
+  // Settings gear
+  settings:(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+  </svg>),
+
+  // Utilities
+  lock:(<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="11" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>),
+  unlock:(<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="11" rx="2"/><path d="M8 11V7a4 4 0 017.75-1.4"/></svg>),
   projector:(<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="12" rx="3.5" fill="currentColor" opacity="0.2"/><rect x="2" y="7" width="20" height="12" rx="3.5" stroke="currentColor" strokeWidth="1.8"/><circle cx="17" cy="13" r="2.5" fill="currentColor"/><path d="M7 12h4M7 10h2M7 16h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>),
   moon:(<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>),
   sun:(<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5" fill="currentColor"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>),
   download:(<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 20h14" strokeWidth="2.5"/></svg>),
   close:(<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>),
 
-  // Phase icons — clay 3D dimensional
-  // p1 Hook & Wonder: clay lightbulb (coral)
-  p1:(<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-    <ellipse cx="12" cy="11" rx="7.2" ry="8" fill="#C0392B" opacity="0.25"/>
-    <ellipse cx="12" cy="9.5" rx="7" ry="7.5" fill="#FF5240"/>
-    <path d="M9.5 17h5M9.8 18.8h4.4M10.2 20.4h3.6" stroke="#B83020" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-    <ellipse cx="9.5" cy="6.5" rx="2.2" ry="1.3" fill="rgba(255,255,255,0.46)" transform="rotate(-25 9.5 6.5)"/>
+  // Phase icons — flat outlined
+  // p1 Notice: lightbulb
+  p1:(<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21h6M12 3a7 7 0 00-4 12.65V17a1 1 0 001 1h6a1 1 0 001-1v-1.35A7 7 0 0012 3z"/>
+    <path d="M9.5 18h5"/>
   </svg>),
 
-  // p2 Explore: clay magnifying glass (yellow)
-  p2:(<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-    <circle cx="10.5" cy="10.5" r="7.5" fill="#B87000" opacity="0.25"/>
-    <circle cx="10.5" cy="9.5" r="7.2" fill="#F5C200"/>
-    <circle cx="10.5" cy="9.5" r="4.8" fill="#E0A800"/>
-    <circle cx="10.5" cy="9.5" r="2.8" fill="#F5C200"/>
-    <rect x="16" y="14.5" width="5.5" height="2.6" rx="1.3" fill="#B87000" transform="rotate(45 16 14.5)"/>
-    <ellipse cx="8.2" cy="6.8" rx="2.2" ry="1.2" fill="rgba(255,255,255,0.5)" transform="rotate(-22 8.2 6.8)"/>
+  // p2 Sound & Marks: audio waveform
+  p2:(<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <path d="M2 12h2M6 8v8M10 5v14M14 8v8M18 10v4M22 12h-2"/>
   </svg>),
 
-  // p3 Make & Refine: clay pencil (teal)
-  p3:(<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-    <rect x="9.5" y="3.5" width="7" height="17.5" rx="3" fill="#007A5E" opacity="0.25" transform="rotate(12 13 12)"/>
-    <rect x="9.5" y="2" width="7" height="17" rx="3" fill="#00C48C" transform="rotate(12 13 12)"/>
-    <rect x="9.5" y="2" width="7" height="4.5" rx="3" fill="#00A578" transform="rotate(12 13 12)"/>
-    <rect x="9.5" y="14.5" width="7" height="2.8" rx="1" fill="#FFE566" transform="rotate(12 13 12)"/>
-    <path d="M10.5 18.5 L13 22 L15.5 18.5" fill="#FFCC44" transform="rotate(12 13 12)"/>
-    <ellipse cx="11" cy="4" rx="1.6" ry="0.65" fill="rgba(255,255,255,0.42)" transform="rotate(12 11 4)"/>
+  // p3 Cut & Compose: scissors
+  p3:(<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+    <path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/>
   </svg>),
 
-  // p4 Reflect & Share: clay chat bubble (violet)
-  p4:(<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-    <rect x="2" y="5" width="18.5" height="13.5" rx="5" fill="#4A2E9E" opacity="0.25"/>
-    <rect x="2" y="3.5" width="18.5" height="13" rx="5" fill="#7C5CE8"/>
-    <path d="M4.5 19.5 C4.5 19.5 6.5 16.5 9.5 16.5 L15 16.5" fill="#7C5CE8"/>
-    <rect x="6" y="8" width="9" height="2.2" rx="1.1" fill="rgba(255,255,255,0.9)"/>
-    <rect x="6" y="12" width="6.5" height="2.2" rx="1.1" fill="rgba(255,255,255,0.6)"/>
-    <ellipse cx="6.5" cy="5.8" rx="2.5" ry="0.85" fill="rgba(255,255,255,0.32)"/>
+  // p4 Reflect & Share: chat bubble
+  p4:(<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+  </svg>),
+
+  // Toolbar icons
+  rotateCCW:(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2.5 2v6h6"/><path d="M2.66 15.57a10 10 0 1 0 .57-8.38"/>
+  </svg>),
+  upload:(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3v13M7 8l5-5 5 5"/><path d="M4 19h16"/>
+  </svg>),
+  filter:(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M4 6h16M7 12h10M10 18h4"/>
   </svg>),
 
   spark:(<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>),
@@ -5414,223 +5418,409 @@ function SessionCard({s,color,phaseId,progress,toggle,classView,openSession,setO
 function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,totalDone,totalSessions,theme,setTheme,classView,setClassView,subSectionId,user,onSignOut,onSignIn,isVisitor,onExportData,onImportData}){
   const [collapsed,setCollapsed]=useLocalStorage('sb-collapsed',false);
   const {teacherMode,setTeacherMode}=React.useContext(KWContext);
-  const totalPct=totalSessions?Math.round(totalDone/totalSessions*100):0;
   const [showProfilePopup,setShowProfilePopup]=React.useState(false);
-  const [visitorsMode,setVisitorsMode]=React.useState(false);
+  const [showSettingsPopup,setShowSettingsPopup]=React.useState(false);
   const [showTeacherPIN,setShowTeacherPIN]=React.useState(false);
 
+  // Spring hover bubble — one per card group
+  function useCardBubble(){
+    const bubbleRef=React.useRef(null);
+    const sp=React.useRef({x:0,y:0,h:0,ty:0,th:0,vy:0,vh:0,opacity:0,to:0});
+    const rafRef=React.useRef(null);
+    const S=1400,D=58;
+    function tick(){
+      const s=sp.current;
+      const dt=0.016,ST=4,ddt=dt/ST;
+      for(let i=0;i<ST;i++){
+        s.vy+=(-S*(s.y-s.ty)-D*s.vy)*ddt;
+        s.vh+=(-S*(s.h-s.th)-D*s.vh)*ddt;
+        s.y+=s.vy*ddt; s.h+=s.vh*ddt;
+      }
+      s.opacity+=(s.to-s.opacity)*0.18;
+      const el=bubbleRef.current;
+      if(el){
+        el.style.transform='translateY('+s.y+'px)';
+        el.style.height=Math.max(0,s.h)+'px';
+        el.style.opacity=s.opacity;
+      }
+      const done=Math.abs(s.vy)<0.5&&Math.abs(s.vh)<0.5&&Math.abs(s.y-s.ty)<0.5&&Math.abs(s.h-s.th)<0.5&&Math.abs(s.opacity-s.to)<0.003;
+      if(!done) rafRef.current=requestAnimationFrame(tick); else rafRef.current=null;
+    }
+    function startTick(){if(!rafRef.current) rafRef.current=requestAnimationFrame(tick);}
+    function onEnter(el,cardEl){
+      if(!el||!cardEl) return;
+      const cr=cardEl.getBoundingClientRect(),er=el.getBoundingClientRect();
+      const s=sp.current;
+      const ny=er.top-cr.top, nh=er.height;
+      if(s.to===0){s.y=ny;s.h=nh;}
+      s.ty=ny;s.th=nh;s.to=1;
+      startTick();
+    }
+    function onLeave(){
+      sp.current.to=0;
+      startTick();
+    }
+    return{bubbleRef,onEnter,onLeave};
+  }
+
+  const overviewBubble=useCardBubble();
+  const phasesBubble=useCardBubble();
+  const sectionsBubble=useCardBubble();
+
+  const overviewCardRef=React.useRef(null);
+  const phasesCardRef=React.useRef(null);
+  const sectionsCardRef=React.useRef(null);
+
   const handleTeacherToggle=React.useCallback(()=>{
-    if(teacherMode){ setTeacherMode(false); }
-    else { setShowTeacherPIN(true); }
+    if(teacherMode){setTeacherMode(false);}
+    else{setShowTeacherPIN(true);}
   },[teacherMode,setTeacherMode]);
+
+  const navItemStyle=(isActive)=>({
+    display:'flex',alignItems:'center',gap:12,
+    padding:'0 14px',height:52,
+    cursor:'pointer',background:'none',border:'none',width:'100%',
+    textAlign:'left',position:'relative',zIndex:2,
+    color:isActive?'#fff':'rgba(255,255,255,0.65)',
+    fontFamily:"'DM Sans',sans-serif",
+    transition:'color .12s',
+  });
 
   return(
     <React.Fragment>
     {showTeacherPIN&&<TeacherPINModal onClose={()=>setShowTeacherPIN(false)} onSuccess={()=>setTeacherMode(true)}/>}
-    <div className={`sidebar${collapsed?' collapsed':''}`}>
-      <button className="sb-collapse-btn" onClick={()=>setCollapsed(c=>!c)} title={collapsed?'Expand':'Collapse'}>
+    <div style={{
+      width:collapsed?60:232,flexShrink:0,
+      background:'#131313',
+      display:'flex',flexDirection:'column',
+      height:'100vh',overflow:'hidden',
+      transition:'width .22s cubic-bezier(0.34,1.2,0.64,1)',
+      position:'relative',zIndex:100,
+    }}>
+      {/* Collapse toggle */}
+      <button onClick={()=>setCollapsed(c=>!c)}
+        style={{position:'absolute',top:14,right:10,width:24,height:24,borderRadius:6,
+          background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.08)',
+          color:'rgba(255,255,255,0.4)',cursor:'pointer',fontSize:12,
+          display:'flex',alignItems:'center',justifyContent:'center',zIndex:10,
+          transition:'background .15s'}}>
         {collapsed?'›':'‹'}
       </button>
-      <div className="sb-inner">
-        <div className="sb-logo" onClick={()=>onNav('annual')} style={{cursor:'pointer'}} title="Go to Unit Overview">
-          <div className="sb-logo-icon">🌀</div>
-          {!collapsed&&(
-            <div className="sb-logo-text">
-              <div className="sb-grade">Grade 4 · Visual Arts</div>
-              <div className="sb-title">Order &amp; <em>Chaos</em></div>
-            </div>
-          )}
-        </div>
-        <div className="sb-nav">
-          {!collapsed&&<div className="sb-section">Overview</div>}
-          {[{id:'annual',icon:IC.home,name:'Unit Overview'},
-            {id:'months',icon:IC.calendar,name:'Monthly Summaries'},
-            ...(!isVisitor?[{id:'notes',icon:IC.notes,name:'Unit Notes'}]:[]),
-            {id:'gallery',icon:'🎨',name:'Gallery'}].map(item=>(
-            <button key={item.id} className={`nb ${view===item.id?'active':''}`}
-              title={collapsed?item.name:''}
-              onClick={()=>onNav(item.id)}>
-              <span className="nb-icon">{item.icon}</span>
-              {!collapsed&&<span className="nb-meta"><span className="nb-name">{item.name}</span></span>}
-            </button>
-          ))}
-          {/* Search button */}
-          <button className="nb" title={collapsed?'Search (⌘K)':''}
-            onClick={()=>window.dispatchEvent(new CustomEvent('search-toggle'))}>
-            <span className="nb-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-            </span>
-            {!collapsed&&<span className="nb-meta"><span className="nb-name">Search</span><span className="nb-sub">⌘K</span></span>}
-          </button>
-          {!collapsed&&<div className="sb-section" style={{marginTop:6}}>Phases</div>}
-          {collapsed&&<div style={{height:6}}/>}
-          {PHASES.map(p=>{
-            const pm=PM[p.color];
-            const prog=getPhaseProgress(p.id);
-            const isActive=view==='phase'&&phase&&phase.id===p.id;
-            const pct=prog.total?Math.round(prog.done/prog.total*100):0;
-            return(
-              <button key={p.id} className={`nb ${isActive?'active':''}`}
-                style={isActive?{borderColor:pm.l,background:pm.na}:{}}
-                title={collapsed?p.name:''}
-                onClick={()=>onPhase(p)}>
-                <span className="nb-icon">{IC['p'+p.id.replace('p','')]}</span>
-                {!collapsed&&<span className="nb-meta">
-                  <span className="nb-name">{p.name}</span>
-                  <span className="nb-sub">{prog.done}/{prog.total} · {p.months}</span>
-                </span>}
-                {!collapsed&&pct>0&&<span className="nb-pct" style={{color:pm.l}}>{pct}%</span>}
-              </button>
-            );
-          })}
 
-          {/* Grade 4 Sections */}
-          {!collapsed&&<div className="sb-section" style={{marginTop:6}}>Grade 4 Classes</div>}
-          {collapsed&&<div style={{height:6}}/>}
-          {G4_SECTIONS.map(sec=>(
-            <button key={sec.id}
-              className={`nb grade4-section${view==='section'&&section&&section.id===sec.id?' active':''}`}
-              style={(()=>{const s={};if(view==='section'&&section&&section.id===sec.id){s.borderColor='var(--vs)';s.background='var(--vs)';}if(subSectionId&&sec.id!==subSectionId){s.opacity=0.35;s.pointerEvents='none';}return s;})()}
-              title={collapsed?sec.name:(subSectionId&&sec.id!==subSectionId?'Locked in sub mode':'')}
-              onClick={()=>onSection(sec)}>
-              <span className="nb-icon">{sec.icon}</span>
-              {!collapsed&&<span className="nb-meta">
-                <span className="nb-name">{sec.name}</span>
-                <span className="nb-sub nb-sub-grade4">{sec.students.length} students</span>
-              </span>}
-            </button>
-          ))}
-        </div>
-
-        {/* Progress */}
+      {/* Logo */}
+      <div onClick={()=>onNav('annual')}
+        style={{padding:'16px 14px 14px',cursor:'pointer',flexShrink:0,minHeight:52,
+          display:'flex',alignItems:'center',gap:10}}>
+        <div style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,0.08)',
+          border:'1px solid rgba(255,255,255,0.1)',flexShrink:0,
+          display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>🌀</div>
         {!collapsed&&(
-          <div className="sb-foot">
-            <div className="sf-row"><span>Total Progress</span><span>{totalDone}/{totalSessions} · {totalPct}%</span></div>
-            <div className="sf-bar"><div className="sf-fill" style={{width:totalPct+'%'}}></div></div>
+          <div style={{overflow:'hidden'}}>
+            <div style={{fontSize:14,fontWeight:800,color:'#fff',fontFamily:"'Bricolage Grotesque',sans-serif",
+              whiteSpace:'nowrap',lineHeight:1.2}}>Order &amp; Chaos</div>
+            <div style={{fontSize:10,color:'var(--sky)',fontWeight:600,letterSpacing:'.04em',marginTop:1}}>GRADE 4 | 2026-27</div>
           </div>
         )}
+      </div>
 
-        {/* Controls: lock, class view, theme */}
-        <div className="sb-controls">
-          {/* Export HTML — teacher only */}
-          {teacherMode&&(
-            <button onClick={exportHTML}
-              className="sb-ctrl-row"
-              title="Export portable HTML file with all your data baked in">
-              <span style={{display:"flex",alignItems:"center"}}>{IC.download}</span>
-              <span className="sb-ctrl-label">Export HTML</span>
-            </button>
-          )}
+      {/* Scrollable nav area */}
+      <div style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'0 8px',display:'flex',flexDirection:'column',gap:8}}>
 
-          {/* Annual Plan PDF — available to all */}
-          <button onClick={generateAnnualPlanPDF}
-            className="sb-ctrl-row"
-            title="Download Annual Plan as PDF">
-            <span style={{display:"flex",alignItems:"center"}}>{IC.download}</span>
-            <span className="sb-ctrl-label">Annual Plan PDF</span>
-          </button>
-
-          {/* Lock / unlock */}
-          <button onClick={handleTeacherToggle}
-            className={`sb-ctrl-row${teacherMode?' active-teal':''}`}
-            title={teacherMode?'Lock — return to read-only':'Unlock teacher mode'}>
-            <span className={`lock-icon${teacherMode?' unlocked':' locked'}`}>
-              {teacherMode?IC.unlock:IC.lock}
-            </span>
-            <span className="sb-ctrl-label">{teacherMode?'Teacher mode':'Read-only'}</span>
-          </button>
-
-          {/* Class View — teacher only */}
-          {!isVisitor&&(
-          <button onClick={()=>setClassView(v=>!v)}
-            className={`sb-ctrl-row${classView?' active-coral':''}`}
-            title="Class View">
-            <span style={{display:'flex',alignItems:'center'}}>{IC.projector}</span>
-            <span className="sb-ctrl-label">{classView?'Exit Class View':'Class View'}</span>
-          </button>
-          )}
-
-          {/* Dark / Light toggle pill */}
-          <div className="theme-toggle-pill">
-            <button className={`tt-btn${theme==='dark'?' active':''}`} onClick={()=>setTheme('dark')} title="Dark">
-              {IC.moon}<span>Dark</span>
-            </button>
-            <button className={`tt-btn${theme==='light'?' active':''}`} onClick={()=>setTheme('light')} title="Light">
-              {IC.sun}<span>Light</span>
-            </button>
+        {/* OVERVIEW card */}
+        <div>
+          {!collapsed&&<div style={{fontSize:9,fontWeight:700,color:'var(--sky)',letterSpacing:'.1em',
+            textTransform:'uppercase',padding:'4px 6px 4px',opacity:0.9}}>Overview</div>}
+          <div ref={overviewCardRef}
+            style={{background:'#212121',borderRadius:14,overflow:'hidden',position:'relative'}}>
+            {/* Hover bubble */}
+            <div ref={overviewBubble.bubbleRef} style={{
+              position:'absolute',left:0,right:0,top:0,height:52,
+              background:'rgba(29,94,250,0.18)',borderRadius:10,
+              pointerEvents:'none',zIndex:1,opacity:0,
+              transition:'none',
+            }}/>
+            {[
+              {id:'annual',icon:IC.home,name:'Unit Overview'},
+              {id:'months',icon:IC.calendar,name:'Monthly Syllabus'},
+              {id:'gallery',icon:IC.gallery,name:'Gallery'},
+              ...(!isVisitor?[{id:'notes',icon:IC.notes,name:'Unit Notes'}]:[]),
+            ].map(item=>{
+              const isActive=view===item.id;
+              return(
+                <button key={item.id}
+                  style={navItemStyle(isActive)}
+                  title={collapsed?item.name:''}
+                  onClick={()=>onNav(item.id)}
+                  onMouseEnter={e=>overviewBubble.onEnter(e.currentTarget,overviewCardRef.current)}
+                  onMouseLeave={()=>overviewBubble.onLeave()}>
+                  <span style={{color:isActive?'var(--sky)':'rgba(255,255,255,0.45)',flexShrink:0,display:'flex',alignItems:'center'}}>
+                    {item.icon}
+                  </span>
+                  {!collapsed&&<span style={{fontSize:13,fontWeight:isActive?700:500,whiteSpace:'nowrap'}}>{item.name}</span>}
+                  {isActive&&<div style={{position:'absolute',left:0,top:'50%',transform:'translateY(-50%)',
+                    width:3,height:20,borderRadius:'0 3px 3px 0',background:'var(--sky)'}}/>}
+                </button>
+              );
+            })}
           </div>
+        </div>
 
-          {/* Signed-in user → popup / or sign-in button */}
-          {user?(
-            <>
-            <button onClick={()=>setShowProfilePopup(true)} className="sb-ctrl-row" title={`Signed in as ${user.email}`}
-              style={{fontSize:10}}>
-              {user.photoURL
-                ?<img src={user.photoURL} style={{width:20,height:20,borderRadius:'50%',objectFit:'cover',flexShrink:0}} alt=""/>
-                :<span style={{fontSize:14}}>👤</span>}
-              <span className="sb-ctrl-label" style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:130}}>
-                {user.displayName||user.email}
-              </span>
-            </button>
-            {showProfilePopup&&(
-              <div style={{position:'fixed',inset:0,zIndex:600,display:'flex',alignItems:'center',justifyContent:'center'}}
-                onClick={()=>setShowProfilePopup(false)}>
-                <div onClick={e=>e.stopPropagation()} style={{
-                  background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',
-                  borderRadius:18,padding:'20px 22px',minWidth:260,
-                  boxShadow:'var(--glass-shadow2)',backdropFilter:'blur(24px)'}}>
-                  {/* User info */}
-                  <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
-                    {user.photoURL
-                      ?<img src={user.photoURL} style={{width:44,height:44,borderRadius:'50%',objectFit:'cover',border:'2px solid var(--glass-border2)',flexShrink:0}} alt=""/>
-                      :<div style={{width:44,height:44,borderRadius:'50%',background:'var(--glass-bg2)',border:'2px solid var(--glass-border2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>👤</div>}
-                    <div>
-                      <div style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{user.displayName||'Teacher'}</div>
-                      <div style={{fontSize:11,color:'var(--tx3)'}}>{user.email}</div>
-                    </div>
-                  </div>
-                  {/* Visitors Mode toggle */}
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0',borderTop:'1px solid var(--glass-border)',marginBottom:8}}>
-                    <div>
-                      <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>Visitors Mode</div>
-                      <div style={{fontSize:10,color:'var(--tx3)'}}>Read-only view — same as unauthenticated</div>
-                    </div>
-                    <div onClick={()=>{setVisitorsMode(v=>{const newV=!v;if(newV){setTeacherMode(false);}return newV;})}}
-                      style={{width:40,height:22,borderRadius:11,background:visitorsMode?'rgba(59,191,160,0.3)':'rgba(255,255,255,0.1)',border:`1.5px solid ${visitorsMode?'var(--teal)':'var(--glass-border)'}`,cursor:'pointer',position:'relative',transition:'all .2s',flexShrink:0,marginLeft:12}}>
-                      <div style={{position:'absolute',top:2,left:visitorsMode?18:2,width:16,height:16,borderRadius:'50%',background:visitorsMode?'var(--teal)':'var(--tx3)',transition:'left .2s'}}/>
-                    </div>
-                  </div>
-                  {/* Export / Import data */}
-                  <div style={{display:'flex',gap:8,marginBottom:8}}>
-                    <button onClick={onExportData}
-                      style={{flex:1,padding:'8px 0',borderRadius:10,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer'}}>
-                      ⬇ Export Data
-                    </button>
-                    <label style={{flex:1,padding:'8px 0',borderRadius:10,border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer',textAlign:'center',display:'block'}}>
-                      ⬆ Import Data
-                      <input type="file" accept=".json" style={{display:'none'}} onChange={onImportData}/>
-                    </label>
-                  </div>
-                  {/* Sign out */}
-                  <button onClick={()=>{setShowProfilePopup(false);onSignOut();}}
-                    style={{width:'100%',padding:'9px 0',borderRadius:10,border:'1px solid rgba(232,112,90,0.35)',background:'rgba(232,112,90,0.1)',color:'var(--coral)',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',transition:'all .15s'}}>
-                    Sign out
-                  </button>
-                </div>
-              </div>
-            )}
-            </>
-          ):(
-            <button onClick={onSignIn} className="sb-ctrl-row" title="Sign in as teacher">
-              <span style={{fontSize:14}}>🔑</span>
-              <span className="sb-ctrl-label">Teacher Sign In</span>
+        {/* PHASES card */}
+        <div>
+          {!collapsed&&<div style={{fontSize:9,fontWeight:700,color:'var(--sky)',letterSpacing:'.1em',
+            textTransform:'uppercase',padding:'4px 6px 4px',opacity:0.9}}>Phases</div>}
+          <div ref={phasesCardRef}
+            style={{background:'#212121',borderRadius:14,overflow:'hidden',position:'relative'}}>
+            <div ref={phasesBubble.bubbleRef} style={{
+              position:'absolute',left:0,right:0,top:0,height:52,
+              background:'rgba(29,94,250,0.18)',borderRadius:10,
+              pointerEvents:'none',zIndex:1,opacity:0,
+            }}/>
+            {PHASES.map(p=>{
+              const pm=PM[p.color];
+              const prog=getPhaseProgress(p.id);
+              const isActive=view==='phase'&&phase&&phase.id===p.id;
+              return(
+                <button key={p.id}
+                  style={navItemStyle(isActive)}
+                  title={collapsed?p.name:''}
+                  onClick={()=>onPhase(p)}
+                  onMouseEnter={e=>phasesBubble.onEnter(e.currentTarget,phasesCardRef.current)}
+                  onMouseLeave={()=>phasesBubble.onLeave()}>
+                  <span style={{color:isActive?pm.l:'rgba(255,255,255,0.45)',flexShrink:0,display:'flex',alignItems:'center'}}>
+                    {IC['p'+p.id.replace('p','')]}
+                  </span>
+                  {!collapsed&&(
+                    <span style={{flex:1,overflow:'hidden'}}>
+                      <div style={{fontSize:13,fontWeight:isActive?700:500,whiteSpace:'nowrap'}}>{p.name}</div>
+                      <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',marginTop:1}}>{prog.done}/{prog.total} · {p.months}</div>
+                    </span>
+                  )}
+                  {isActive&&<div style={{position:'absolute',left:0,top:'50%',transform:'translateY(-50%)',
+                    width:3,height:20,borderRadius:'0 3px 3px 0',background:pm.l}}/>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* SECTIONS card */}
+        <div>
+          {!collapsed&&<div style={{fontSize:9,fontWeight:700,color:'var(--sky)',letterSpacing:'.1em',
+            textTransform:'uppercase',padding:'4px 6px 4px',opacity:0.9}}>Sections</div>}
+          <div ref={sectionsCardRef}
+            style={{background:'#212121',borderRadius:14,overflow:'hidden',position:'relative'}}>
+            <div ref={sectionsBubble.bubbleRef} style={{
+              position:'absolute',left:0,right:0,top:0,height:52,
+              background:'rgba(29,94,250,0.18)',borderRadius:10,
+              pointerEvents:'none',zIndex:1,opacity:0,
+            }}/>
+            {G4_SECTIONS.map(sec=>{
+              const isActive=view==='section'&&section&&section.id===sec.id;
+              const locked=subSectionId&&sec.id!==subSectionId;
+              return(
+                <button key={sec.id}
+                  style={{...navItemStyle(isActive),opacity:locked?0.3:1,pointerEvents:locked?'none':'auto'}}
+                  title={collapsed?sec.name:''}
+                  onClick={()=>onSection(sec)}
+                  onMouseEnter={e=>sectionsBubble.onEnter(e.currentTarget,sectionsCardRef.current)}
+                  onMouseLeave={()=>sectionsBubble.onLeave()}>
+                  <span style={{color:isActive?'var(--sky)':'rgba(255,255,255,0.45)',flexShrink:0,display:'flex',alignItems:'center'}}>
+                    {IC.section}
+                  </span>
+                  {!collapsed&&(
+                    <span style={{flex:1,overflow:'hidden'}}>
+                      <div style={{fontSize:13,fontWeight:isActive?700:500,whiteSpace:'nowrap'}}>{sec.name}</div>
+                      <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',marginTop:1}}>{sec.students.length} students</div>
+                    </span>
+                  )}
+                  {isActive&&<div style={{position:'absolute',left:0,top:'50%',transform:'translateY(-50%)',
+                    width:3,height:20,borderRadius:'0 3px 3px 0',background:'var(--sky)'}}/>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Search */}
+        {!collapsed&&(
+          <button onClick={()=>window.dispatchEvent(new CustomEvent('search-toggle'))}
+            style={{display:'flex',alignItems:'center',gap:8,
+              background:'#212121',border:'none',borderRadius:10,
+              padding:'0 12px',height:34,cursor:'pointer',width:'100%',
+              color:'rgba(255,255,255,0.3)',fontFamily:"'DM Sans',sans-serif",fontSize:12}}>
+            <span style={{display:'flex',alignItems:'center',flexShrink:0}}>{IC.search}</span>
+            <span>Search</span>
+            <span style={{marginLeft:'auto',fontSize:10,opacity:0.5}}>⌘K</span>
+          </button>
+        )}
+        {collapsed&&(
+          <button onClick={()=>window.dispatchEvent(new CustomEvent('search-toggle'))}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',
+              background:'#212121',border:'none',borderRadius:10,
+              height:34,cursor:'pointer',width:'100%',
+              color:'rgba(255,255,255,0.3)'}}>
+            {IC.search}
+          </button>
+        )}
+
+      </div>{/* end scrollable nav */}
+
+      {/* Bottom bar — profile + settings */}
+      <div style={{flexShrink:0,padding:'8px',borderTop:'1px solid rgba(255,255,255,0.06)',
+        display:'flex',alignItems:'center',gap:6}}>
+        {/* Profile pill */}
+        <button onClick={()=>setShowProfilePopup(true)}
+          style={{flex:1,display:'flex',alignItems:'center',gap:8,
+            background:'#212121',border:'none',borderRadius:10,
+            padding:'6px 10px',height:36,cursor:'pointer',minWidth:0,
+            textAlign:'left',transition:'background .15s'}}
+          onMouseEnter={e=>e.currentTarget.style.background='#2a2a2a'}
+          onMouseLeave={e=>e.currentTarget.style.background='#212121'}>
+          {user?.photoURL
+            ?<img src={user.photoURL} style={{width:22,height:22,borderRadius:'50%',objectFit:'cover',flexShrink:0}} alt=""/>
+            :<div style={{width:22,height:22,borderRadius:'50%',background:'rgba(91,174,232,0.25)',
+              border:'1px solid rgba(91,174,232,0.4)',display:'flex',alignItems:'center',
+              justifyContent:'center',fontSize:11,color:'var(--sky)',fontWeight:700,flexShrink:0}}>
+              {user?.displayName?user.displayName[0].toUpperCase():'S'}
+            </div>}
+          {!collapsed&&<span style={{fontSize:12,fontWeight:500,color:'rgba(255,255,255,0.7)',
+            whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',fontFamily:"'DM Sans',sans-serif"}}>
+            {user?.displayName||user?.email||'Guest'}
+          </span>}
+        </button>
+        {/* Settings gear */}
+        <button onClick={()=>setShowSettingsPopup(v=>!v)}
+          style={{width:36,height:36,borderRadius:10,flexShrink:0,
+            background:showSettingsPopup?'rgba(91,174,232,0.15)':'#212121',
+            border:showSettingsPopup?'1px solid rgba(91,174,232,0.3)':'none',
+            color:showSettingsPopup?'var(--sky)':'rgba(255,255,255,0.4)',
+            cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+            transition:'all .15s'}}
+          title="Settings">
+          {IC.settings}
+        </button>
+      </div>
+
+      {/* Settings popup */}
+      {showSettingsPopup&&(
+        <div style={{position:'absolute',bottom:60,left:8,right:8,zIndex:500,
+          background:'rgba(18,18,18,0.97)',backdropFilter:'blur(20px)',
+          border:'1px solid rgba(255,255,255,0.1)',borderRadius:14,
+          boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:'12px',
+          display:'flex',flexDirection:'column',gap:8}}>
+          {/* Dark/light toggle */}
+          <div style={{display:'flex',background:'rgba(255,255,255,0.05)',borderRadius:8,padding:3,gap:3}}>
+            {[['dark',IC.moon,'Dark'],['light',IC.sun,'Light']].map(([t,icon,label])=>(
+              <button key={t} onClick={()=>setTheme(t)}
+                style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,
+                  height:28,borderRadius:6,border:'none',cursor:'pointer',
+                  fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,
+                  background:theme===t?'rgba(91,174,232,0.2)':'transparent',
+                  color:theme===t?'var(--sky)':'rgba(255,255,255,0.4)',
+                  transition:'all .15s'}}>
+                {icon}<span>{label}</span>
+              </button>
+            ))}
+          </div>
+          {/* Lock/unlock */}
+          <button onClick={()=>{handleTeacherToggle();setShowSettingsPopup(false);}}
+            style={{display:'flex',alignItems:'center',gap:8,height:34,
+              borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',
+              background:teacherMode?'rgba(59,191,160,0.1)':'rgba(255,255,255,0.04)',
+              color:teacherMode?'var(--teal)':'rgba(255,255,255,0.6)',
+              cursor:'pointer',padding:'0 10px',fontFamily:"'DM Sans',sans-serif",
+              fontSize:12,fontWeight:600,transition:'all .15s'}}>
+            <span style={{display:'flex',alignItems:'center'}}>{teacherMode?IC.unlock:IC.lock}</span>
+            <span>{teacherMode?'Teacher mode · Lock':'Read-only · Unlock'}</span>
+          </button>
+          {/* Class View */}
+          {!isVisitor&&(
+            <button onClick={()=>{setClassView(v=>!v);setShowSettingsPopup(false);}}
+              style={{display:'flex',alignItems:'center',gap:8,height:34,
+                borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',
+                background:classView?'rgba(232,112,90,0.1)':'rgba(255,255,255,0.04)',
+                color:classView?'var(--coral)':'rgba(255,255,255,0.6)',
+                cursor:'pointer',padding:'0 10px',fontFamily:"'DM Sans',sans-serif",
+                fontSize:12,fontWeight:600,transition:'all .15s'}}>
+              <span style={{display:'flex',alignItems:'center'}}>{IC.projector}</span>
+              <span>{classView?'Exit Class View':'Class View'}</span>
             </button>
           )}
         </div>
-      </div>
+      )}
+      {showSettingsPopup&&<div style={{position:'fixed',inset:0,zIndex:499}} onClick={()=>setShowSettingsPopup(false)}/>}
+
+      {/* Profile popup */}
+      {showProfilePopup&&(
+        <div style={{position:'fixed',inset:0,zIndex:600,display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={()=>setShowProfilePopup(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{
+            background:'rgba(18,18,18,0.97)',backdropFilter:'blur(24px)',
+            border:'1px solid rgba(255,255,255,0.1)',
+            borderRadius:18,padding:'20px 22px',minWidth:260,
+            boxShadow:'0 24px 64px rgba(0,0,0,0.7)'}}>
+            {/* User info */}
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
+              {user?.photoURL
+                ?<img src={user.photoURL} style={{width:44,height:44,borderRadius:'50%',objectFit:'cover',
+                    border:'2px solid rgba(255,255,255,0.1)',flexShrink:0}} alt=""/>
+                :<div style={{width:44,height:44,borderRadius:'50%',
+                    background:'rgba(91,174,232,0.15)',border:'1px solid rgba(91,174,232,0.3)',
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    fontSize:18,color:'var(--sky)',fontWeight:700,flexShrink:0}}>
+                  {user?.displayName?user.displayName[0].toUpperCase():'S'}
+                </div>}
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{user?.displayName||'Teacher'}</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{user?.email}</div>
+              </div>
+            </div>
+            <div style={{borderTop:'1px solid rgba(255,255,255,0.08)',marginBottom:12}}/>
+            {/* Export HTML */}
+            {teacherMode&&(
+              <button onClick={()=>{exportHTML();setShowProfilePopup(false);}}
+                style={{width:'100%',display:'flex',alignItems:'center',gap:8,
+                  padding:'8px 10px',borderRadius:10,marginBottom:6,
+                  border:'1px solid rgba(255,255,255,0.08)',
+                  background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.7)',
+                  fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,cursor:'pointer',
+                  textAlign:'left',transition:'background .15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.08)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}>
+                {IC.download}<span>Export HTML</span>
+              </button>
+            )}
+            {/* Export / Import data */}
+            <div style={{display:'flex',gap:6,marginBottom:6}}>
+              <button onClick={onExportData}
+                style={{flex:1,padding:'7px 0',borderRadius:10,
+                  border:'1px solid rgba(255,255,255,0.08)',
+                  background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.6)',
+                  fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,cursor:'pointer'}}>
+                ⬇ Export Data
+              </button>
+              <label style={{flex:1,padding:'7px 0',borderRadius:10,
+                border:'1px solid rgba(255,255,255,0.08)',
+                background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.6)',
+                fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,cursor:'pointer',
+                textAlign:'center',display:'block'}}>
+                ⬆ Import Data
+                <input type="file" accept=".json" style={{display:'none'}} onChange={onImportData}/>
+              </label>
+            </div>
+            {/* Sign out */}
+            <button onClick={()=>{setShowProfilePopup(false);onSignOut();}}
+              style={{width:'100%',padding:'9px 0',borderRadius:10,
+                border:'1px solid rgba(232,112,90,0.25)',
+                background:'rgba(232,112,90,0.08)',color:'var(--coral)',
+                fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer'}}>
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
     </React.Fragment>
   );
@@ -11757,204 +11947,6 @@ function StudentPopup({studentName,sectionId,allPhotos,onClose,onOpenPhoto}){
     document.body
   );
 }
-
-// ── Gallery fan/stack carousel strip ──
-function RefsStrip_(){
-  const CARD_H=468; // 30% bigger than 360
-  const CARD_W=Math.round(CARD_H*(4/3));
-  const START_ACTIVE=4; // start with 4 cards on left, active = index 4
-  const [photos,setPhotos]=React.useState([]);
-  const [activeIdx,setActiveIdx]=React.useState(START_ACTIVE);
-  const [lightbox,setLightbox]=React.useState(null);
-  const [studentPopup,setStudentPopup]=React.useState(null);
-  const [allPhotos,setAllPhotos]=React.useState([]);
-  const [hlEditedUrls,setHlEditedUrls]=React.useState({});
-  const handleHlPhotoEdit=React.useCallback((newUrl,photo)=>{
-    setHlEditedUrls(prev=>({...prev,[photo.url]:newUrl}));
-  },[]);
-  const scrollAccum=React.useRef(0);
-  const lastRefresh=React.useRef(0);
-  const activeIdxRef=React.useRef(START_ACTIVE);
-  const photosRef=React.useRef([]);
-
-  // Keep refs in sync for wheel closure
-  React.useEffect(()=>{activeIdxRef.current=activeIdx;},[activeIdx]);
-  React.useEffect(()=>{photosRef.current=photos;},[photos]);
-
-  function pickRandom(pool){
-    const shuffled=[...pool].sort(()=>Math.random()-0.5);
-    return shuffled.slice(0,Math.min(10,shuffled.length));
-  }
-
-  React.useEffect(()=>{
-    const db=window._db;
-    if(!db) return;
-    const SECTION_IDS=G4_SECTIONS.map(s=>s.id);
-    const unsubs=[];
-    let loaded=0;
-    const dataMap={};
-    SECTION_IDS.forEach(sid=>{
-      const unsub=db.collection('sections').doc('shared-'+sid).onSnapshot(snap=>{
-        if(snap.exists) dataMap[sid]=snap.data();
-        loaded++;
-        if(loaded>=SECTION_IDS.length){
-          const all=[];
-          SECTION_IDS.forEach(sid2=>{
-            const sec=G4_SECTIONS.find(s=>s.id===sid2);
-            const d=dataMap[sid2];
-            if(!d||!d.students) return;
-            d.students.forEach((st,idx)=>{
-              (st.portfolio||[]).forEach((p,pIdx)=>{
-                if(p.url) all.push({...p,studentName:st.name,studentIdx:idx,photoIdx:pIdx,sectionId:sid2,sectionName:sec?sec.name:sid2});
-              });
-            });
-          });
-          setAllPhotos(all);
-          const now=Date.now();
-          if(now-lastRefresh.current>7200000||photosRef.current.length===0){
-            lastRefresh.current=now;
-            const picked=pickRandom(all);
-            setPhotos(picked);
-            photosRef.current=picked;
-            setActiveIdx(Math.min(START_ACTIVE,picked.length-1));
-          }
-        }
-      },()=>{loaded++;});
-      unsubs.push(unsub);
-    });
-    const interval=setInterval(()=>{
-      const pool=allPhotos;
-      if(pool.length>0){
-        lastRefresh.current=Date.now();
-        const picked=pickRandom(pool);
-        setPhotos(picked);
-        photosRef.current=picked;
-        setActiveIdx(Math.min(START_ACTIVE,picked.length-1));
-      }
-    },7200000);
-    return()=>{unsubs.forEach(u=>u());clearInterval(interval);};
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[]);
-
-  // Navigate callback for PhotoLightbox
-  const handleHlNavigate=React.useCallback((dir)=>{
-    setLightbox(prev=>{
-      if(!prev) return null;
-      const idx=photosRef.current.findIndex(p=>p.url===prev.url);
-      const next=photosRef.current[idx+dir];
-      return next||prev;
-    });
-  },[]);
-
-  // Attach wheel listener with passive:false — reads from refs to avoid stale closure
-  const callbackRef=React.useCallback(node=>{
-    if(!node) return;
-    function onWheel(e){
-      e.preventDefault();
-      scrollAccum.current+=(e.deltaX||e.deltaY);
-      const threshold=35;
-      if(scrollAccum.current>threshold){
-        const next=Math.min(photosRef.current.length-1,activeIdxRef.current+1);
-        activeIdxRef.current=next;
-        setActiveIdx(next);
-        scrollAccum.current=0;
-      } else if(scrollAccum.current<-threshold){
-        const next=Math.max(0,activeIdxRef.current-1);
-        activeIdxRef.current=next;
-        setActiveIdx(next);
-        scrollAccum.current=0;
-      }
-    }
-    node.addEventListener('wheel',onWheel,{passive:false});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[]);
-
-  if(photos.length===0) return null;
-
-  return(
-    <div style={{flexShrink:0}}>
-      <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.07em',
-        textTransform:'uppercase',marginBottom:8}}>Gallery highlights</div>
-
-      {/* Carousel */}
-      <div ref={callbackRef}
-        style={{position:'relative',height:CARD_H+'px',width:'100%',overflow:'hidden',userSelect:'none'}}>
-        {photos.map((p,i)=>{
-          const dist=i-activeIdx;
-          const absDist=Math.abs(dist);
-          const scale=Math.max(0.62,1-absDist*0.1);
-          const xOffset=dist*Math.round(CARD_W*0.38);
-          const zIdx=100-absDist*10;
-          const isActive=i===activeIdx;
-          return(
-            <div key={i}
-              onClick={()=>{if(!isActive){setActiveIdx(i);return;}setLightbox(p);}}
-              style={{position:'absolute',left:'50%',top:'50%',
-                width:CARD_W+'px',height:CARD_H+'px',
-                borderRadius:16,overflow:'hidden',background:'#111',
-                border:`2px solid ${isActive?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.06)'}`,
-                transform:`translateX(calc(${xOffset}px - 50%)) translateY(-50%) scale(${scale})`,
-                transition:'transform .42s cubic-bezier(.25,0.1,.25,1), filter .42s',
-                zIndex:zIdx,cursor:'pointer',
-                filter:absDist>0?`brightness(${0.55+0.45/absDist})`:'brightness(1)'}}>
-              <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',pointerEvents:'none'}}/>
-              {isActive&&(
-                <div style={{position:'absolute',bottom:0,left:0,right:0,
-                  background:'linear-gradient(to top,rgba(0,0,0,0.82) 0%,transparent 100%)',
-                  padding:'28px 14px 12px',pointerEvents:'none'}}>
-                  {p.type==='documentation'
-                    ?<div style={{fontSize:11,color:'rgba(255,255,255,0.7)'}}>{p.resolvedLesson||'Documentation'}</div>
-                    :<div style={{fontSize:12,fontWeight:700,color:'#fff'}}>{p.studentName}</div>}
-                  <div style={{display:'flex',alignItems:'center',gap:5,marginTop:3}}>
-                    <SectionDot sectionId={p.sectionId} size={6}/>
-                    <span style={{fontSize:9,color:'rgba(255,255,255,0.55)'}}>{p.sectionName}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Dot indicators — below the strip, with breathing room */}
-      <div style={{display:'flex',gap:4,justifyContent:'center',marginTop:12,marginBottom:4}}>
-        {photos.map((_,i)=>(
-          <div key={i} onClick={()=>setActiveIdx(i)}
-            style={{width:i===activeIdx?14:5,height:5,borderRadius:3,cursor:'pointer',
-              background:i===activeIdx?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.25)',
-              transition:'all .25s'}}/>
-        ))}
-      </div>
-
-      {/* Highlights Lightbox */}
-      {lightbox&&<PhotoLightbox
-        photo={lightbox}
-        allPhotos={photos}
-        onClose={()=>setLightbox(null)}
-        onNavigate={handleHlNavigate}
-        teacherMode={true}
-        setStudentPopup={setStudentPopup}
-        zIndex={5000}
-        onPhotoEdit={handleHlPhotoEdit}
-        editedUrls={hlEditedUrls}
-      />}
-            {/* Student popup */}
-      {studentPopup&&(
-        <StudentPopup
-          studentName={studentPopup.studentName}
-          sectionId={studentPopup.sectionId}
-          allPhotos={allPhotos}
-          onClose={()=>setStudentPopup(null)}
-          onOpenPhoto={p=>{
-            setStudentPopup(null);
-            setLightbox(p);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
 // ── CropOverlay constants & helpers ─────────────────────────────────────────
 const _CROP_MIN_BOX=80,_CROP_EDGE_HIT=14,_CROP_ROT_OUT=22,_CROP_BAR_RANGE=45,_CROP_MARGIN_V=0.12,_CROP_MARGIN_H=0.10;
 function _cropClamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
@@ -13299,14 +13291,22 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
     updateUndoBtns();
     // Row hover bubble — spring physics matching CropToolPill
     
-    // Pill bubble — hover spring physics
+    // Pill bubble + cell-division physics — cursor-tracked approach (no DOM gap issues)
     const pillBubble=document.querySelector('#ep-pill-bubble');
     const pill=document.querySelector('#ep-pill');
+    const applyBtn=document.querySelector('#ep-apply');
+
+    // Visual bridge element
+    const bridgeVis=document.createElement('div');
+    bridgeVis.style.cssText='position:fixed;pointer-events:none;z-index:19;border-radius:100px;opacity:0;';
+    document.body.appendChild(bridgeVis);
 
     if(pillBubble&&pill){
       const psp={x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0};
       const PS=520,PD=26,PSS=280,PSD=18;
       let praf=null,pmouseVel=0,plastX=null,hoveredBtn=null;
+      // Bridge opacity spring
+      let bridgeOpacity=0,bridgeOpacityTarget=0,braf=null;
 
       function isUndoActive(){return histIdxRef.current>0;}
       function isRedoActive(){return histIdxRef.current<histRef.current.length-1;}
@@ -13337,6 +13337,84 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
       }
       function startTick(){if(!praf)praf=requestAnimationFrame(ptick);}
 
+      function btick(){
+        bridgeOpacity+=(bridgeOpacityTarget-bridgeOpacity)*0.12;
+        const pr=pill?pill.getBoundingClientRect():null;
+        const ar=applyBtn?applyBtn.getBoundingClientRect():null;
+        if(pr&&ar&&bridgeOpacity>0.005){
+          const pillRight=pr.right;
+          const applyLeft=ar.left;
+          const gap=applyLeft-pillRight;
+          // Pinch: sin curve narrows bridge at peak, creating the cell membrane feel
+          const pinch=Math.sin(Math.PI*bridgeOpacity)*9;
+          const h=Math.max(2,pr.height-pinch*2);
+          const topOff=pr.top+(pr.height-h)/2;
+          // Colour: blue at 0, green at 1
+          const t=bridgeOpacity;
+          const rc=Math.round(0+t*34),gc=Math.round(116+t*81),bc=Math.round(240-t*146);
+          bridgeVis.style.left=pillRight+'px';
+          bridgeVis.style.top=topOff+'px';
+          bridgeVis.style.width=Math.max(0,gap)+'px';
+          bridgeVis.style.height=h+'px';
+          bridgeVis.style.background='rgb('+rc+','+gc+','+bc+')';
+          bridgeVis.style.opacity=String(Math.min(1,bridgeOpacity*1.2));
+        } else {
+          bridgeVis.style.opacity='0';
+        }
+        const done=Math.abs(bridgeOpacity-bridgeOpacityTarget)<0.002;
+        if(!done)braf=requestAnimationFrame(btick);else braf=null;
+      }
+      function startBridge(){if(!braf)braf=requestAnimationFrame(btick);}
+
+      // Global pointermove — detect cursor in pill, gap, or applyBtn zones
+      function onGlobalMove(e){
+        if(!pill||!applyBtn) return;
+        const pr=pill.getBoundingClientRect();
+        const ar=applyBtn.getBoundingClientRect();
+        const cx=e.clientX, cy=e.clientY;
+        // Expand hit zones slightly so cursor never skips the gap
+        const inPill=cx>=pr.left-2&&cx<=pr.right+2&&cy>=pr.top-6&&cy<=pr.bottom+6;
+        const inApply=cx>=ar.left-2&&cx<=ar.right+2&&cy>=ar.top-6&&cy<=ar.bottom+6;
+        // Gap zone: between pill right and apply left, vertically overlapping both
+        const inGap=cx>pr.right-4&&cx<ar.right&&cy>=Math.min(pr.top,ar.top)-6&&cy<=Math.max(pr.bottom,ar.bottom)+6;
+
+        if(plastX!==null) pmouseVel=cx-plastX;
+        plastX=cx;
+
+        if(inGap&&!inPill){
+          // Show bridge stretching — opacity based on how far across the gap
+          const totalSpan=ar.right-pr.right;
+          const progress=Math.min(1,Math.max(0,(cx-pr.right)/totalSpan));
+          bridgeOpacityTarget=inApply?0.8:1;
+          startBridge();
+          // Keep pill bubble anchored to reset button
+          const btns=[...pill.querySelectorAll('button')];
+          const lastBtn=btns[btns.length-1];
+          if(lastBtn){
+            const lr=lastBtn.getBoundingClientRect();
+            const nx=lr.left-pr.left, nw=lr.width;
+            psp.tx=nx; psp.tw=nw;
+            if(psp.to===0){psp.x=nx;psp.w=nw;}
+          }
+          psp.to=1;
+          pillBubble.style.background='rgb(0,116,240)';
+          startTick();
+        } else if(inApply){
+          // Cursor on green tick — bridge collapses
+          bridgeOpacityTarget=0;
+          startBridge();
+          psp.to=0;
+          startTick();
+        } else if(!inPill&&!inGap&&!inApply){
+          // Cursor left everything
+          bridgeOpacityTarget=0;
+          startBridge();
+          psp.to=0;
+          startTick();
+        }
+      }
+      document.addEventListener('pointermove',onGlobalMove);
+
       pill.querySelectorAll('button').forEach(btn=>{
         btn.addEventListener('mouseenter',()=>{
           hoveredBtn=btn;
@@ -13345,12 +13423,13 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
           if(psp.to===0){psp.x=nx;psp.w=nw;}
           psp.tx=nx;psp.tw=nw;psp.to=1;
           pillBubble.style.background=btnColor(btn);
+          bridgeOpacityTarget=0;startBridge();
           startTick();
         });
         btn.addEventListener('mouseleave',()=>{hoveredBtn=null;});
       });
 
-      pill.addEventListener('mouseleave',()=>{plastX=null;pmouseVel=0;psp.to=0;startTick();});
+      pill.addEventListener('mouseleave',()=>{plastX=null;pmouseVel=0;});
     }
     // Transform buttons (inside panel)
     const btn=(id,fn)=>{const el=p.querySelector(id);if(el)el.addEventListener('click',fn);};
@@ -14574,211 +14653,239 @@ function GalleryView({isVisitor}){
     });
   },[]);
 
+  const [tileSize,setTileSize]=React.useState(2); // 0=large,1=med,2=small,3=xs,4=2xs
+  const tileCols=['repeat(auto-fill,minmax(320px,1fr))','repeat(auto-fill,minmax(240px,1fr))','repeat(auto-fill,minmax(180px,1fr))','repeat(auto-fill,minmax(140px,1fr))','repeat(auto-fill,minmax(110px,1fr))'];
+
   return(
-    <div style={{padding:'24px 28px',height:'100%',overflowY:'auto',display:'flex',flexDirection:'column',gap:16}}>
-      {/* Header */}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+    <div style={{height:'100%',overflowY:'auto',display:'flex',flexDirection:'column',background:'#0d0d0d'}}>
+
+      {/* Top bar */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+        padding:'18px 24px 14px',flexShrink:0}}>
         <div>
-          <div style={{fontSize:22,fontWeight:800,fontFamily:"'Bricolage Grotesque',sans-serif",color:'var(--tx)'}}>Gallery</div>
-          <div style={{fontSize:12,color:'var(--tx3)',marginTop:2}}>{filtered.length} photo{filtered.length!==1?'s':''} across all sections</div>
+          <div style={{fontSize:22,fontWeight:800,fontFamily:"'Bricolage Grotesque',sans-serif",color:'#fff',letterSpacing:'-.02em'}}>Gallery</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginTop:2,fontWeight:500}}>{filtered.length} photo{filtered.length!==1?'s':''}</div>
         </div>
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
-          {/* Upload button — teacher only */}
-          {teacherMode&&!isVisitor&&(
-            <button onClick={()=>setShowUpload(true)}
-              style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,
-                padding:'7px 16px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                border:'1px solid var(--teal)',background:'rgba(59,191,160,0.12)',color:'var(--teal)'}}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-              Upload
-            </button>
-          )}
-          {/* Edit mode toggle — teacher only */}
-          {teacherMode&&!isVisitor&&(
-            <button onClick={()=>galleryEditMode?exitEditMode():setGalleryEditMode(true)}
-              style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,
-                padding:'7px 16px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                border:galleryEditMode?'1px solid var(--yellow)':'1px solid var(--glass-border)',
-                background:galleryEditMode?'rgba(251,191,36,0.15)':'var(--glass-bg)',
-                color:galleryEditMode?'var(--yellow)':'var(--tx2)'}}>
-              {galleryEditMode?(
-                <>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Done
-                </>
-              ):(
-                <>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Edit
-                </>
-              )}
-            </button>
-          )}
-          {/* ⚙ Filter button */}
-        <div style={{position:'relative'}}>
-          <button onClick={()=>setShowFilter(v=>!v)}
-            style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,padding:'7px 16px',borderRadius:10,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-              border:showFilter||activeFilterCount>0?'1px solid var(--violet)':'1px solid var(--glass-border)',
-              background:showFilter||activeFilterCount>0?'rgba(155,127,232,0.15)':'var(--glass-bg)',
-              color:activeFilterCount>0?'var(--violet)':'var(--tx2)'}}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{flexShrink:0}}>
-              <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h11A1.5 1.5 0 0 1 15 2.5v1.5a1 1 0 0 1-.293.707L10 9.414V14a1 1 0 0 1-1.447.894l-2-1A1 1 0 0 1 6 13V9.414L1.293 4.707A1 1 0 0 1 1 4V2.5z"/>
-            </svg>
-            Filter
-            {activeFilterCount>0&&<span style={{background:'var(--violet)',color:'#fff',borderRadius:'50%',fontSize:9,fontWeight:700,width:16,height:16,display:'inline-flex',alignItems:'center',justifyContent:'center'}}>{activeFilterCount}</span>}
-          </button>
-          {/* Filter popup */}
-          {showFilter&&(
-            <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'calc(100% + 8px)',right:0,zIndex:500,width:320,background:'var(--popup-bg)',border:'1px solid var(--glass-border2)',borderRadius:14,boxShadow:'var(--glass-shadow2)',padding:'14px 16px',display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <span style={{fontSize:11,fontWeight:700,color:'var(--tx)'}}>Filter</span>
-                <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                  {activeFilterCount>0&&<button onClick={clearFilters} style={{fontSize:10,fontWeight:700,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Clear ({activeFilterCount})</button>}
-                  <button onClick={()=>setShowFilter(false)} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:16,cursor:'pointer',padding:'0 2px'}}>✕</button>
-                </div>
-              </div>
-              {/* Type */}
-              <div>
-                <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Type</div>
-                <div style={{display:'flex',gap:5}}>
-                  {[['all','All'],['artwork','Artwork'],...(isVisitor?[]:[['documentation','Docs']])].map(([v,l])=>(
-                    <button key={v} onClick={()=>setFilterType(v)}
-                      style={{flex:1,fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                        border:filterType===v?'1px solid var(--teal)':'1px solid var(--glass-border)',
-                        background:filterType===v?'rgba(59,191,160,0.15)':'var(--glass-bg)',
-                        color:filterType===v?'var(--teal)':'var(--tx3)'}}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* Section */}
-              <div>
-                <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Section</div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-                  {G4_SECTIONS.map(s=>{
-                    const on=filterSections.has(s.id);
-                    return(
-                      <button key={s.id} onClick={()=>setFilterSections(prev=>{const n=new Set(prev);on?n.delete(s.id):n.add(s.id);return n;})}
-                        style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                          border:on?'1px solid var(--violet)':'1px solid var(--glass-border)',
-                          background:on?'rgba(155,127,232,0.15)':'var(--glass-bg)',
-                          color:on?'var(--violet)':'var(--tx3)'}}>
-                        {s.icon} {s.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              {/* Lesson */}
-              <div>
-                <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                  {allLessons.map(l=>{
-                    const key=l.phaseId+':'+l.n;
-                    const on=filterLessons.has(key);
-                    return(
-                      <button key={l.n} onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);on?n.delete(key):n.add(key);return n;})}
-                        style={{fontSize:9,padding:'2px 8px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:on?700:400,
-                          border:on?'1px solid '+phaseColors[l.color]:'1px solid var(--glass-border)',
-                          background:on?'rgba(255,255,255,0.08)':'var(--glass-bg)',
-                          color:on?phaseColors[l.color]:'var(--tx3)'}}>
-                        L{l.n}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              {/* Assessment — hidden for visitors */}
-              {filterType!=='documentation'&&!isVisitor&&(
-                <div>
-                  <div style={{fontSize:9,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Assessment</div>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                    {artworkTags.map(t=>{
-                      const on=filterTags.has(t.label);
-                      return(
-                        <button key={t.label} onClick={()=>setFilterTags(prev=>{const n=new Set(prev);on?n.delete(t.label):n.add(t.label);return n;})}
-                          style={{fontSize:9,padding:'2px 9px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:on?700:400,
-                            border:on?'1px solid '+tagColors[t.color]:'1px solid var(--glass-border)',
-                            background:on?'rgba(255,255,255,0.08)':'var(--glass-bg)',
-                            color:on?tagColors[t.color]:'var(--tx3)'}}>
-                          {t.label}
-                        </button>
-                      );
-                    })}
+
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+
+          {/* Zoom − + */}
+          <div style={{display:'flex',alignItems:'center',height:34,
+            background:'rgba(255,255,255,0.06)',borderRadius:100,
+            border:'1px solid rgba(255,255,255,0.1)',overflow:'hidden'}}>
+            <button onClick={()=>setTileSize(s=>Math.min(4,s+1))}
+              style={{width:36,height:34,background:'none',border:'none',cursor:'pointer',
+                color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:18,fontWeight:300,lineHeight:1,transition:'color .12s'}}
+              onMouseEnter={e=>e.currentTarget.style.color='#fff'}
+              onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.55)'}>&#8722;</button>
+            <div style={{width:1,height:14,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
+            <button onClick={()=>setTileSize(s=>Math.max(0,s-1))}
+              style={{width:36,height:34,background:'none',border:'none',cursor:'pointer',
+                color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:18,fontWeight:300,lineHeight:1,transition:'color .12s'}}
+              onMouseEnter={e=>e.currentTarget.style.color='#fff'}
+              onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.55)'}>&#43;</button>
+          </div>
+
+          {/* Actions pill */}
+          <div style={{display:'flex',alignItems:'center',height:34,
+            background:'rgba(255,255,255,0.06)',borderRadius:100,
+            border:'1px solid rgba(255,255,255,0.1)'}}>
+            {teacherMode&&!isVisitor&&(
+              <>
+              <button title="Rotate selected CCW"
+                style={{width:38,height:34,background:'none',border:'none',cursor:'pointer',
+                  color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center',justifyContent:'center',
+                  transition:'color .12s'}}
+                onMouseEnter={e=>e.currentTarget.style.color='#fff'}
+                onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.5)'}>
+                {IC.rotateCCW}
+              </button>
+              <div style={{width:1,height:14,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
+              <button onClick={()=>setShowUpload(true)} title="Upload"
+                style={{width:38,height:34,background:'none',border:'none',cursor:'pointer',
+                  color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center',justifyContent:'center',
+                  transition:'color .12s'}}
+                onMouseEnter={e=>e.currentTarget.style.color='#fff'}
+                onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.5)'}>
+                {IC.upload}
+              </button>
+              <div style={{width:1,height:14,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
+              </>
+            )}
+            <div style={{position:'relative'}}>
+              <button onClick={()=>setShowFilter(v=>!v)} title="Filter"
+                style={{width:38,height:34,background:'none',border:'none',cursor:'pointer',
+                  color:activeFilterCount>0?'var(--sky)':'rgba(255,255,255,0.5)',
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  position:'relative',transition:'color .12s'}}
+                onMouseEnter={e=>e.currentTarget.style.color='#fff'}
+                onMouseLeave={e=>e.currentTarget.style.color=activeFilterCount>0?'var(--sky)':'rgba(255,255,255,0.5)'}>
+                {IC.filter}
+                {activeFilterCount>0&&<span style={{position:'absolute',top:7,right:7,width:5,height:5,
+                  borderRadius:'50%',background:'var(--sky)'}}/>}
+              </button>
+              {showFilter&&(
+                <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'calc(100% + 10px)',right:0,zIndex:500,
+                  width:320,background:'rgba(14,14,18,0.97)',backdropFilter:'blur(24px)',
+                  border:'1px solid rgba(255,255,255,0.1)',borderRadius:14,
+                  boxShadow:'0 16px 48px rgba(0,0,0,0.7)',padding:'14px 16px',
+                  display:'flex',flexDirection:'column',gap:14}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span style={{fontSize:11,fontWeight:700,color:'#fff'}}>Filter</span>
+                    <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                      {activeFilterCount>0&&<button onClick={clearFilters} style={{fontSize:10,fontWeight:700,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Clear ({activeFilterCount})</button>}
+                      <button onClick={()=>setShowFilter(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',fontSize:16,cursor:'pointer',padding:'0 2px'}}>&#10005;</button>
+                    </div>
                   </div>
+                  <div>
+                    <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Type</div>
+                    <div style={{display:'flex',gap:5}}>
+                      {[['all','All'],['artwork','Artwork'],...(isVisitor?[]:[['documentation','Docs']])].map(([v,l])=>(
+                        <button key={v} onClick={()=>setFilterType(v)}
+                          style={{flex:1,fontSize:10,fontWeight:700,padding:'4px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                            border:filterType===v?'1px solid var(--sky)':'1px solid rgba(255,255,255,0.08)',
+                            background:filterType===v?'rgba(91,174,232,0.15)':'rgba(255,255,255,0.04)',
+                            color:filterType===v?'var(--sky)':'rgba(255,255,255,0.4)'}}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Section</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                      {G4_SECTIONS.map(s=>{
+                        const on=filterSections.has(s.id);
+                        return(
+                          <button key={s.id} onClick={()=>setFilterSections(prev=>{const n=new Set(prev);on?n.delete(s.id):n.add(s.id);return n;})}
+                            style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                              border:on?'1px solid var(--sky)':'1px solid rgba(255,255,255,0.08)',
+                              background:on?'rgba(91,174,232,0.15)':'rgba(255,255,255,0.04)',
+                              color:on?'var(--sky)':'rgba(255,255,255,0.4)'}}>
+                            {s.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                      {allLessons.map(l=>{
+                        const key=l.phaseId+':'+l.n;
+                        const on=filterLessons.has(key);
+                        return(
+                          <button key={key} onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);on?n.delete(key):n.add(key);return n;})}
+                            style={{fontSize:9,padding:'2px 9px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:on?700:400,
+                              border:on?'1px solid var(--sky)':'1px solid rgba(255,255,255,0.08)',
+                              background:on?'rgba(91,174,232,0.15)':'rgba(255,255,255,0.04)',
+                              color:on?'var(--sky)':'rgba(255,255,255,0.4)'}}>
+                            S{l.n}: {l.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {filterType!=='documentation'&&!isVisitor&&(
+                    <div>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Assessment</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                        {artworkTags.map(t=>{
+                          const on=filterTags.has(t.label);
+                          return(
+                            <button key={t.label} onClick={()=>setFilterTags(prev=>{const n=new Set(prev);on?n.delete(t.label):n.add(t.label);return n;})}
+                              style={{fontSize:9,padding:'2px 9px',borderRadius:12,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:on?700:400,
+                                border:on?'1px solid '+tagColors[t.color]:'1px solid rgba(255,255,255,0.08)',
+                                background:on?'rgba(255,255,255,0.06)':'rgba(255,255,255,0.04)',
+                                color:on?tagColors[t.color]:'rgba(255,255,255,0.4)'}}>
+                              {t.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Select */}
+          {teacherMode&&!isVisitor&&(
+            <button onClick={()=>galleryEditMode?exitEditMode():setGalleryEditMode(true)}
+              style={{height:34,padding:'0 18px',borderRadius:100,cursor:'pointer',
+                fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,
+                background:galleryEditMode?'rgba(29,94,250,0.2)':'rgba(255,255,255,0.06)',
+                color:galleryEditMode?'var(--sky)':'rgba(255,255,255,0.65)',
+                border:galleryEditMode?'1px solid rgba(29,94,250,0.35)':'1px solid rgba(255,255,255,0.1)',
+                transition:'all .15s'}}>
+              {galleryEditMode?'Done':'Select'}
+            </button>
           )}
+
+          {/* Search */}
+          <button onClick={()=>window.dispatchEvent(new CustomEvent('search-toggle'))}
+            style={{display:'flex',alignItems:'center',gap:8,height:34,padding:'0 14px',
+              borderRadius:100,background:'rgba(255,255,255,0.06)',
+              border:'1px solid rgba(255,255,255,0.1)',cursor:'pointer',
+              color:'rgba(255,255,255,0.3)',fontFamily:"'DM Sans',sans-serif",fontSize:12,
+              minWidth:160}}>
+            {IC.search}
+            <span>Search gallery</span>
+          </button>
+
         </div>
-        </div>{/* end upload+filter flex row */}
       </div>
-      {/* Click outside to close filter */}
       {showFilter&&<div style={{position:'fixed',inset:0,zIndex:499}} onClick={()=>setShowFilter(false)}/>}
 
-      {/* Selection action bar — visible in edit mode, fixed height */}
+      {/* Selection bar */}
       {galleryEditMode&&(
-        <div style={{display:'flex',alignItems:'center',gap:10,padding:'0 14px',borderRadius:12,
-          background:'var(--glass-bg2)',border:'1px solid var(--glass-border2)',flexShrink:0,
-          height:44,minHeight:44}}>
-          <div style={{fontSize:12,color:'var(--tx2)',flex:1,fontWeight:600}}>
-            {selectedPhotos.size===0?'Tap images to select them':`${selectedPhotos.size} selected`}
+        <div style={{display:'flex',alignItems:'center',gap:10,
+          margin:'0 24px 10px',padding:'0 16px',borderRadius:10,
+          background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',
+          height:42,flexShrink:0}}>
+          <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',flex:1,fontWeight:500}}>
+            {selectedPhotos.size===0?'Tap images to select':''+selectedPhotos.size+' selected'}
           </div>
           <div style={{display:'flex',gap:8,alignItems:'center',opacity:selectedPhotos.size>0?1:0,pointerEvents:selectedPhotos.size>0?'auto':'none',transition:'opacity .15s'}}>
             <button onClick={()=>{setBulkEditType('');setBulkEditLesson('');setBulkEditSection('');setBulkEditOpen(true);}}
-              style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,
-                padding:'6px 14px',borderRadius:8,border:'1px solid var(--yellow)',
-                background:'rgba(251,191,36,0.12)',color:'var(--yellow)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              Edit
-            </button>
+              style={{fontSize:11,fontWeight:700,padding:'5px 14px',borderRadius:8,
+                border:'1px solid rgba(212,168,67,0.3)',background:'rgba(212,168,67,0.1)',
+                color:'var(--yellow)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
             <button onClick={()=>setConfirmDelete(true)}
-              style={{display:'flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,
-                padding:'6px 14px',borderRadius:8,border:'1px solid var(--coral)',
-                background:'rgba(232,112,90,0.12)',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-              Delete
-            </button>
+              style={{fontSize:11,fontWeight:700,padding:'5px 14px',borderRadius:8,
+                border:'1px solid rgba(232,112,90,0.3)',background:'rgba(232,112,90,0.1)',
+                color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Delete</button>
             <button onClick={()=>setSelectedPhotos(new Set())}
-              style={{fontSize:10,color:'var(--tx3)',background:'none',border:'none',cursor:'pointer',padding:'4px 6px'}}>
-              Clear
-            </button>
+              style={{fontSize:10,color:'rgba(255,255,255,0.3)',background:'none',border:'none',cursor:'pointer',padding:'4px 6px'}}>Clear</button>
           </div>
         </div>
       )}
-      {showUpload&&<GalleryUpload
-        onClose={()=>setShowUpload(false)}
-        onDone={()=>setShowUpload(false)}/>}
 
-      {/* Refs image strip — horizontal 2:1 cards, random order, above thumbnails */}
-      <RefsStrip_/>
+      {showUpload&&<GalleryUpload onClose={()=>setShowUpload(false)} onDone={()=>setShowUpload(false)}/>}
 
       {/* Grid */}
       {loading?(
-        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx3)',fontSize:13}}>Loading gallery…</div>
+        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.2)',fontSize:13}}>Loading&#8230;</div>
       ):filtered.length===0?(
-        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,color:'var(--tx3)'}}>
-          <div style={{fontSize:40,opacity:0.3}}>🖼</div>
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,color:'rgba(255,255,255,0.2)'}}>
+          <div style={{fontSize:40,opacity:0.3}}>&#128444;</div>
           <div style={{fontSize:13}}>No photos match these filters.</div>
         </div>
       ):(
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:12}}>
+        <div style={{display:'grid',gridTemplateColumns:tileCols[tileSize],gap:2}}>
           {filtered.map((p,i)=>{
             const k=photoKey(p);
             const sel=selectedPhotos.has(k);
             return(
               <div key={i}
                 onClick={()=>{if(galleryEditMode){toggleSelect(p);}else{setLightbox(p);}}}
-                style={{borderRadius:12,overflow:'hidden',cursor:'pointer',position:'relative',
-                  aspectRatio:'1',
-                  outline:sel?'3px solid var(--teal)':'3px solid transparent',outlineOffset:'-3px'}}
+                style={{cursor:'pointer',position:'relative',aspectRatio:'1',overflow:'hidden',
+                  outline:sel?'2px solid var(--sky)':'2px solid transparent',outlineOffset:'-2px'}}
                 onMouseEnter={e=>{
-                  if(!galleryEditMode){const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1.08)';}
+                  if(!galleryEditMode){const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1.06)';}
                   const meta=e.currentTarget.querySelector('.tile-meta');if(meta)meta.style.opacity='1';
                   const grad=e.currentTarget.querySelector('.tile-grad');if(grad)grad.style.opacity='1';
                 }}
@@ -14788,35 +14895,22 @@ function GalleryView({isVisitor}){
                   const grad=e.currentTarget.querySelector('.tile-grad');if(grad)grad.style.opacity='0';
                 }}>
                 <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',
-                  transform:'scale(1)',transition:'transform .35s cubic-bezier(0.25,0.1,0.25,1)',
-                  filter:galleryEditMode&&!sel?'brightness(0.65)':'none'}}/>
-                <div className="tile-grad" style={{position:'absolute',inset:0,background:'linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.18) 28%, transparent 45%)',pointerEvents:'none',opacity:0,transition:'opacity .25s'}}/>
-                <div className="tile-meta" style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 10px',pointerEvents:'none',opacity:0,transition:'opacity .25s'}}>
-                  {p.type==='documentation'?(
-                    <>
-                      <div style={{fontSize:13,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.resolvedLesson||'Documentation'}</div>
-                      <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
-                        <SectionDot sectionId={p.sectionId} size={6}/>
-                        <span style={{fontSize:11,color:'rgba(255,255,255,0.65)'}}>{p.sectionName} · 📸</span>
-                      </div>
-                    </>
-                  ):(
-                    <>
-                      <div style={{fontSize:13,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.displayName||p.studentName}</div>
-                      <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
-                        <SectionDot sectionId={p.sectionId} size={6}/>
-                        <span style={{fontSize:11,color:'rgba(255,255,255,0.7)'}}>{p.sectionName}</span>
-                      </div>
-                    </>
-                  )}
+                  transform:'scale(1)',transition:'transform .3s cubic-bezier(0.25,0.1,0.25,1)',
+                  filter:galleryEditMode&&!sel?'brightness(0.55)':'none'}}/>
+                <div className="tile-grad" style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0.1) 35%,transparent 55%)',pointerEvents:'none',opacity:0,transition:'opacity .2s'}}/>
+                <div className="tile-meta" style={{position:'absolute',bottom:0,left:0,right:0,padding:'7px 9px',pointerEvents:'none',opacity:0,transition:'opacity .2s'}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.type==='documentation'?(p.resolvedLesson||'Documentation'):(p.displayName||p.studentName)}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
+                    <SectionDot sectionId={p.sectionId} size={5}/>
+                    <span style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>{p.sectionName}</span>
+                  </div>
                 </div>
-                {/* Selection circle — top right in edit mode */}
                 {galleryEditMode&&(
-                  <div style={{position:'absolute',top:8,right:8,width:22,height:22,borderRadius:'50%',
-                    border:`2px solid ${sel?'var(--teal)':'rgba(255,255,255,0.6)'}`,
-                    background:sel?'var(--teal)':'rgba(0,0,0,0.35)',
-                    display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}>
-                    {sel&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  <div style={{position:'absolute',top:7,right:7,width:20,height:20,borderRadius:'50%',
+                    border:'2px solid '+(sel?'var(--sky)':'rgba(255,255,255,0.5)'),
+                    background:sel?'var(--sky)':'rgba(0,0,0,0.4)',
+                    display:'flex',alignItems:'center',justifyContent:'center',transition:'all .12s'}}>
+                    {sel&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
                   </div>
                 )}
               </div>
@@ -15590,22 +15684,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
         node.querySelectorAll('.lb-glass-panel').forEach(ensureOverlay);
       });
     });
-  });Notice
-0/4 - AprilSound & Marks
-0/5 - May
-Cut & Compose
-0/5  - Jul-AugPHASEs4 Gir
-30 students
-4 Ranthambore
-30 students
-4 Kanha
-30 students
-4 Sariska
-30 students
-4 Corbett
-31 studentsSECTIONSSanket JadiaSJUnit Overview
-Monthly Syllabus
-GalleryOVERVIEWSelectSearch (     k)Search galleryGRADE 4 | 2026-27204 PhotosOrder & ChaosGallery
+  });
   observer.observe(document.body,{childList:true,subtree:true});
 })();
 </script>
