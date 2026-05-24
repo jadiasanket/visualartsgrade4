@@ -14727,10 +14727,15 @@ function GalleryView({isVisitor}){
               <div style={{fontSize:18,fontWeight:600,fontFamily:"'Bricolage Grotesque',sans-serif",color:'#fff',letterSpacing:'-.01em',lineHeight:1}}>Gallery</div>
               <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>{displayPhotos.length} photo{displayPhotos.length!==1?'s':''}</div>
             </div>
-            {/* Local gallery search — right-aligned via toolbar pills flex */}
-            <div style={{display:'flex',alignItems:'center',gap:6,height:30,padding:'0 10px',
-              background:'rgba(255,255,255,0.07)',borderRadius:100,
-              border:'1px solid rgba(255,255,255,0.1)',minWidth:154,marginLeft:'auto'}}>
+            </div>
+
+          {/* Toolbar pills */}
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+
+            {/* Search */}
+            <div style={{display:'flex',alignItems:'center',gap:6,height:34,padding:'0 12px',
+              background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
+              borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',minWidth:170}}>
               {React.cloneElement(IC.search,{width:13,height:13,stroke:'rgba(255,255,255,0.35)'})}
               <input ref={localInputRef}
                 value={localQuery}
@@ -14738,14 +14743,10 @@ function GalleryView({isVisitor}){
                 placeholder="Search gallery…"
                 style={{background:'none',border:'none',outline:'none',
                   fontSize:11,color:'#fff',fontFamily:"'DM Sans',sans-serif",
-                  caretColor:'var(--sky)',width:100}}/>
+                  caretColor:'var(--sky)',width:110}}/>
               {localQuery&&<button onClick={()=>setLocalQuery('')}
                 style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',padding:0,fontSize:12,lineHeight:1}}>&#10005;</button>}
             </div>
-          </div>
-
-          {/* Toolbar pills */}
-          <div style={{display:'flex',alignItems:'center',gap:6}}>
 
             {/* Zoom − + */}
             <div style={{display:'flex',alignItems:'center',height:34,
