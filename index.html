@@ -5477,32 +5477,8 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
   // ── EXPANDED NAV ITEM ──────────────────────────────────────────────────────
   function NavItem({id,icon,name,sub,isActive,onClick,onMouseEnter,onMouseLeave,locked}){
     const hasSub=!!sub;
-    const btnRef=React.useRef(null);
-    function handleEnter(e){
-      if(btnRef.current){
-        const ic=btnRef.current.querySelector('.nb-icon');
-        const tx=btnRef.current.querySelector('.nb-text');
-        const sub=btnRef.current.querySelector('.nb-sub');
-        if(ic)ic.style.color='#fff';
-        if(tx)tx.style.color='#fff';
-        if(sub)sub.style.color='rgba(255,255,255,0.6)';
-      }
-      if(onMouseEnter)onMouseEnter(e);
-    }
-    function handleLeave(e){
-      if(btnRef.current){
-        const ic=btnRef.current.querySelector('.nb-icon');
-        const tx=btnRef.current.querySelector('.nb-text');
-        const sub=btnRef.current.querySelector('.nb-sub');
-        if(ic)ic.style.color=isActive?'#0074F0':'rgba(200,200,200,0.7)';
-        if(tx)tx.style.color=isActive?'#0074F0':'rgba(200,200,200,0.78)';
-        if(sub)sub.style.color=isActive?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.3)';
-      }
-      if(onMouseLeave)onMouseLeave(e);
-    }
     return(
       <button
-        ref={btnRef}
         style={{display:'flex',alignItems:'center',gap:12,padding:'0 12px',
           height:hasSub?48:38,cursor:locked?'default':'pointer',
           background:'none',border:'none',width:'100%',textAlign:'left',
@@ -5510,19 +5486,19 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
           pointerEvents:locked?'none':'auto',
           fontFamily:"'DM Sans',sans-serif"}}
         onClick={onClick}
-        onMouseEnter={handleEnter}
-        onMouseLeave={handleLeave}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
         title={name}>
-        <span className="nb-icon" style={{color:isActive?'#0074F0':'rgba(200,200,200,0.7)',flexShrink:0,display:'flex',alignItems:'center',minWidth:ICON_SZ}}>
+        <span style={{color:isActive?'#0074F0':'rgba(200,200,200,0.7)',flexShrink:0,display:'flex',alignItems:'center',minWidth:ICON_SZ}}>
           {React.cloneElement(icon,{width:ICON_SZ,height:ICON_SZ})}
         </span>
         <span style={{flex:1,overflow:'hidden',minWidth:0}}>
-          <div className="nb-text" style={{fontSize:13,fontWeight:isActive?600:400,
+          <div style={{fontSize:13,fontWeight:isActive?600:400,
             color:isActive?'#0074F0':'rgba(200,200,200,0.78)',
             whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
             {name}
           </div>
-          {hasSub&&<div className="nb-sub" style={{fontSize:10,color:isActive?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.3)',marginTop:1}}>{sub}</div>}
+          {hasSub&&<div style={{fontSize:10,color:isActive?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.3)',marginTop:0}}>{sub}</div>}
         </span>
       </button>
     );
@@ -5530,12 +5506,12 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
 
   // Card style — more visible
   const cardStyle={
-    background:'rgba(255,255,255,0.06)',
+    background:'rgba(255,255,255,0.04)',
     borderRadius:12,overflow:'hidden',position:'relative',
     border:'1px solid rgba(255,255,255,0.09)',
   };
   const labelStyle={
-    fontSize:9,fontWeight:700,color:'var(--sky)',letterSpacing:'.1em',
+    fontSize:9,fontWeight:700,color:'#0074F0',letterSpacing:'.1em',
     textTransform:'uppercase',padding:'8px 12px 2px',display:'block',
     position:'relative',zIndex:2,
   };
@@ -5608,7 +5584,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
         {!collapsed&&(
           <div onClick={()=>onNav('annual')} style={{cursor:'pointer',flex:1,overflow:'hidden',paddingLeft:2}}>
             <div style={{fontSize:14,fontWeight:800,color:'#fff',fontFamily:"'Bricolage Grotesque',sans-serif",whiteSpace:'nowrap',lineHeight:1.2}}>Order &amp; Chaos</div>
-            <div style={{fontSize:10,color:'var(--sky)',fontWeight:600,letterSpacing:'.04em',marginTop:1}}>GRADE 4 | 2026-27</div>
+            <div style={{fontSize:10,color:'#0074F0',fontWeight:600,letterSpacing:'.04em',marginTop:1}}>GRADE 4 | 2026-27</div>
           </div>
         )}
         {/* Collapse button — no background box */}
@@ -5626,7 +5602,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
 
       {/* ── EXPANDED ─────────────────────────────────────────────────────────── */}
       {!collapsed&&(
-        <div style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'0 8px',display:'flex',flexDirection:'column',gap:6,paddingBottom:14}}>
+        <div style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'0 8px',display:'flex',flexDirection:'column',gap:6,paddingBottom:12}}>
 
           {/* OVERVIEW */}
           <div ref={overviewCardRef} style={cardStyle}>
@@ -5774,7 +5750,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
         <button onClick={()=>setShowProfilePopup(true)}
           style={{flex:collapsed?'unset':1,
             display:'flex',alignItems:'center',justifyContent:collapsed?'center':'flex-start',
-            gap:8,background:'rgba(255,255,255,0.06)',border:'none',borderRadius:10,
+            gap:8,background:'rgba(255,255,255,0.06)',border:'none',borderRadius:collapsed?'50%':100,
             padding:collapsed?'7px':'6px 10px',height:36,cursor:'pointer',minWidth:0,
             width:collapsed?36:undefined,
             textAlign:'left',transition:'background .15s'}}
@@ -5795,13 +5771,13 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
         </button>
         {/* Settings */}
         <button onClick={()=>setShowSettingsPopup(v=>!v)}
-          style={{width:36,height:36,borderRadius:10,flexShrink:0,
-            background:showSettingsPopup?'rgba(91,174,232,0.15)':'rgba(255,255,255,0.06)',
-            border:showSettingsPopup?'1px solid rgba(91,174,232,0.25)':'none',
-            color:showSettingsPopup?'var(--sky)':'rgba(255,255,255,0.35)',
+          style={{width:36,height:36,borderRadius:'50%',flexShrink:0,
+            background:showSettingsPopup?'rgb(0,116,240)':'rgba(255,255,255,0.06)',
+            border:'none',
+            color:showSettingsPopup?'#fff':'rgba(255,255,255,0.35)',
             cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
             transition:'all .15s'}} title="Settings">
-          {React.cloneElement(IC.settings,{width:16,height:16})}
+          {React.cloneElement(IC.settings,{width:18,height:18})}
         </button>
       </div>
 
@@ -14707,7 +14683,7 @@ function GalleryView({isVisitor}){
   },[filtered,localQuery]);
 
   return(
-    <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',background:'transparent',position:'relative'}}>
+    <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',background:'#0d0d0d',position:'relative'}}>
 
       {/* Sticky toolbar — blur only, no tint */}
       <div style={{position:'sticky',top:0,zIndex:100,flexShrink:0}}>
@@ -14715,7 +14691,8 @@ function GalleryView({isVisitor}){
           position:'absolute',inset:0,
           backdropFilter:'blur(20px)',
           WebkitBackdropFilter:'blur(20px)',
-          background:'linear-gradient(to bottom,rgba(13,13,13,0.85) 70%,transparent 100%)',
+          maskImage:'linear-gradient(to bottom,black 80%,transparent 100%)',
+          WebkitMaskImage:'linear-gradient(to bottom,black 80%,transparent 100%)',
           pointerEvents:'none',
         }}/>
         <div style={{position:'relative',display:'flex',alignItems:'center',
@@ -14727,26 +14704,10 @@ function GalleryView({isVisitor}){
               <div style={{fontSize:18,fontWeight:600,fontFamily:"'Bricolage Grotesque',sans-serif",color:'#fff',letterSpacing:'-.01em',lineHeight:1}}>Gallery</div>
               <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>{displayPhotos.length} photo{displayPhotos.length!==1?'s':''}</div>
             </div>
-            </div>
+          </div>
 
           {/* Toolbar pills */}
           <div style={{display:'flex',alignItems:'center',gap:6}}>
-
-            {/* Search */}
-            <div style={{display:'flex',alignItems:'center',gap:6,height:34,padding:'0 12px',
-              background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
-              borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',minWidth:170}}>
-              {React.cloneElement(IC.search,{width:13,height:13,stroke:'rgba(255,255,255,0.35)'})}
-              <input ref={localInputRef}
-                value={localQuery}
-                onChange={e=>setLocalQuery(e.target.value)}
-                placeholder="Search gallery…"
-                style={{background:'none',border:'none',outline:'none',
-                  fontSize:11,color:'#fff',fontFamily:"'DM Sans',sans-serif",
-                  caretColor:'var(--sky)',width:110}}/>
-              {localQuery&&<button onClick={()=>setLocalQuery('')}
-                style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',padding:0,fontSize:12,lineHeight:1}}>&#10005;</button>}
-            </div>
 
             {/* Zoom − + */}
             <div style={{display:'flex',alignItems:'center',height:34,
@@ -14914,15 +14875,33 @@ function GalleryView({isVisitor}){
             {/* Select */}
             {teacherMode&&!isVisitor&&(
               <button onClick={()=>galleryEditMode?exitEditMode():setGalleryEditMode(true)}
-                style={{height:32,padding:'0 14px',borderRadius:100,cursor:'pointer',
+                style={{height:34,padding:'0 14px',borderRadius:100,cursor:'pointer',
                   fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,
-                  background:galleryEditMode?'rgba(91,174,232,0.2)':'rgba(255,255,255,0.07)',
+                  background:galleryEditMode?'rgba(91,174,232,0.2)':'rgba(7,7,8,0.87)',
+                  backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
                   color:galleryEditMode?'var(--sky)':'rgba(255,255,255,0.65)',
-                  border:galleryEditMode?'1px solid rgba(91,174,232,0.35)':'1px solid rgba(255,255,255,0.1)',
+                  border:galleryEditMode?'1px solid rgba(91,174,232,0.35)':'1px solid rgba(255,255,255,0.15)',
+                  boxShadow:'0 4px 20px rgba(0,0,0,0.35)',
                   transition:'all .15s'}}>
                 {galleryEditMode?'Done':'Select'}
               </button>
             )}
+
+            {/* Search — extreme right */}
+            <div style={{display:'flex',alignItems:'center',gap:6,height:34,padding:'0 12px',
+              background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
+              borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',minWidth:170}}>
+              {React.cloneElement(IC.search,{width:13,height:13,stroke:'rgba(255,255,255,0.35)'})}
+              <input ref={localInputRef}
+                value={localQuery}
+                onChange={e=>setLocalQuery(e.target.value)}
+                placeholder="Search gallery…"
+                style={{background:'none',border:'none',outline:'none',
+                  fontSize:11,color:'#fff',fontFamily:"'DM Sans',sans-serif",
+                  caretColor:'var(--sky)',width:110}}/>
+              {localQuery&&<button onClick={()=>setLocalQuery('')}
+                style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',padding:0,fontSize:12,lineHeight:1}}>&#10005;</button>}
+            </div>
 
           </div>
         </div>
