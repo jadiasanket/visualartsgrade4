@@ -2098,6 +2098,40 @@ body, [data-theme="dark"] body, [data-theme="light"] body {
   box-shadow:0 3px 12px rgba(0,0,0,0.6),0 0 0 1px rgba(0,0,0,0.18);
 }
 
+/* style: unified main gallery toolbar buttons with lightbox stroke weights */
+.gallery-toolbar-btn {
+  height: 34px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 14px !important;
+  background: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 100px !important;
+  color: var(--tx2) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  gap: 6px !important;
+  transition: all 0.15s ease !important;
+  box-shadow: none !important;
+}
+
+.gallery-toolbar-btn:hover {
+  background: var(--glass-bg2) !important;
+  border-color: var(--glass-border2) !important;
+  color: var(--tx) !important;
+}
+
+.gallery-toolbar-btn svg {
+  width: 16px !important;
+  height: 16px !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  stroke-width: 3px !important;
+}
+
 </style>
 <style>
 /* ══════════════════════════════════════════════════════════
