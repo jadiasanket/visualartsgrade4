@@ -5477,8 +5477,32 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
   // ── EXPANDED NAV ITEM ──────────────────────────────────────────────────────
   function NavItem({id,icon,name,sub,isActive,onClick,onMouseEnter,onMouseLeave,locked}){
     const hasSub=!!sub;
+    const btnRef=React.useRef(null);
+    function handleEnter(e){
+      if(btnRef.current){
+        const ic=btnRef.current.querySelector('.nb-icon');
+        const tx=btnRef.current.querySelector('.nb-text');
+        const sub=btnRef.current.querySelector('.nb-sub');
+        if(ic)ic.style.color='#fff';
+        if(tx)tx.style.color='#fff';
+        if(sub)sub.style.color='rgba(255,255,255,0.6)';
+      }
+      if(onMouseEnter)onMouseEnter(e);
+    }
+    function handleLeave(e){
+      if(btnRef.current){
+        const ic=btnRef.current.querySelector('.nb-icon');
+        const tx=btnRef.current.querySelector('.nb-text');
+        const sub=btnRef.current.querySelector('.nb-sub');
+        if(ic)ic.style.color=isActive?'#0074F0':'rgba(200,200,200,0.7)';
+        if(tx)tx.style.color=isActive?'#0074F0':'rgba(200,200,200,0.78)';
+        if(sub)sub.style.color=isActive?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.3)';
+      }
+      if(onMouseLeave)onMouseLeave(e);
+    }
     return(
       <button
+        ref={btnRef}
         style={{display:'flex',alignItems:'center',gap:12,padding:'0 12px',
           height:hasSub?48:38,cursor:locked?'default':'pointer',
           background:'none',border:'none',width:'100%',textAlign:'left',
@@ -5486,19 +5510,19 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
           pointerEvents:locked?'none':'auto',
           fontFamily:"'DM Sans',sans-serif"}}
         onClick={onClick}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
         title={name}>
-        <span style={{color:isActive?'#0074F0':'rgba(200,200,200,0.7)',flexShrink:0,display:'flex',alignItems:'center',minWidth:ICON_SZ}}>
+        <span className="nb-icon" style={{color:isActive?'#0074F0':'rgba(200,200,200,0.7)',flexShrink:0,display:'flex',alignItems:'center',minWidth:ICON_SZ}}>
           {React.cloneElement(icon,{width:ICON_SZ,height:ICON_SZ})}
         </span>
         <span style={{flex:1,overflow:'hidden',minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:isActive?600:400,
+          <div className="nb-text" style={{fontSize:13,fontWeight:isActive?600:400,
             color:isActive?'#0074F0':'rgba(200,200,200,0.78)',
             whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
             {name}
           </div>
-          {hasSub&&<div style={{fontSize:10,color:isActive?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.3)',marginTop:2}}>{sub}</div>}
+          {hasSub&&<div className="nb-sub" style={{fontSize:10,color:isActive?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.3)',marginTop:1}}>{sub}</div>}
         </span>
       </button>
     );
@@ -5602,11 +5626,11 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
 
       {/* ── EXPANDED ─────────────────────────────────────────────────────────── */}
       {!collapsed&&(
-        <div style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'0 8px',display:'flex',flexDirection:'column',gap:6,paddingBottom:8}}>
+        <div style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'0 8px',display:'flex',flexDirection:'column',gap:6,paddingBottom:14}}>
 
           {/* OVERVIEW */}
           <div ref={overviewCardRef} style={cardStyle}>
-            <div ref={overviewBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:38,background:'rgba(0,116,240,0.18)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
+            <div ref={overviewBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:38,background:'rgb(0,116,240)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
             <span style={labelStyle}>Overview</span>
             {[
               {id:'annual',icon:IC.home,name:'Unit Overview'},
@@ -5626,7 +5650,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
 
           {/* PHASES */}
           <div ref={phasesCardRef} style={cardStyle}>
-            <div ref={phasesBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:48,background:'rgba(0,116,240,0.18)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
+            <div ref={phasesBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:48,background:'rgb(0,116,240)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
             <span style={labelStyle}>Phases</span>
             {PHASES.map(p=>{
               const pm=PM[p.color];
@@ -5644,7 +5668,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
 
           {/* SECTIONS */}
           <div ref={sectionsCardRef} style={cardStyle}>
-            <div ref={sectionsBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:48,background:'rgba(0,116,240,0.18)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
+            <div ref={sectionsBubble.bubbleRef} style={{position:'absolute',left:5,right:5,top:0,height:48,background:'rgb(0,116,240)',borderRadius:8,pointerEvents:'none',zIndex:1,opacity:0}}/>
             <span style={labelStyle}>Sections</span>
             {G4_SECTIONS.map(sec=>{
               const isActive=view==='section'&&section&&section.id===sec.id;
@@ -5783,7 +5807,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
 
       {/* Settings popup */}
       {showSettingsPopup&&(
-        <div style={{position:'fixed',bottom:56,left:(collapsed?52:260)+6+6,zIndex:500,
+        <div style={{position:'fixed',bottom:14,left:6+(collapsed?52:260)+6,zIndex:600,
           background:'rgba(18,18,18,0.98)',backdropFilter:'blur(20px)',
           border:'1px solid rgba(255,255,255,0.09)',borderRadius:14,
           boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:'10px',width:220,
@@ -5823,7 +5847,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
           )}
         </div>
       )}
-      {showSettingsPopup&&<div style={{position:'fixed',inset:0,zIndex:499}} onClick={()=>setShowSettingsPopup(false)}/>}
+      {showSettingsPopup&&<div style={{position:'fixed',inset:0,zIndex:599}} onClick={()=>setShowSettingsPopup(false)}/>}
 
       {/* Profile popup */}
       {showProfilePopup&&(
@@ -14683,7 +14707,7 @@ function GalleryView({isVisitor}){
   },[filtered,localQuery]);
 
   return(
-    <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',background:'#0d0d0d',position:'relative'}}>
+    <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',background:'transparent',position:'relative'}}>
 
       {/* Sticky toolbar — blur only, no tint */}
       <div style={{position:'sticky',top:0,zIndex:100,flexShrink:0}}>
@@ -14691,8 +14715,7 @@ function GalleryView({isVisitor}){
           position:'absolute',inset:0,
           backdropFilter:'blur(20px)',
           WebkitBackdropFilter:'blur(20px)',
-          maskImage:'linear-gradient(to bottom,black 80%,transparent 100%)',
-          WebkitMaskImage:'linear-gradient(to bottom,black 80%,transparent 100%)',
+          background:'linear-gradient(to bottom,rgba(13,13,13,0.85) 70%,transparent 100%)',
           pointerEvents:'none',
         }}/>
         <div style={{position:'relative',display:'flex',alignItems:'center',
@@ -14750,11 +14773,11 @@ function GalleryView({isVisitor}){
               {teacherMode&&!isVisitor&&(
                 <>
                 <button title="Rotate CCW"
-                  style={{width:36,height:32,background:'none',border:'none',cursor:'pointer',
+                  style={{width:40,height:34,background:'none',border:'none',cursor:'pointer',
                     color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center',justifyContent:'center',transition:'color .12s'}}
                   onMouseEnter={e=>e.currentTarget.style.color='#fff'}
                   onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.5)'}>
-                  <svg width="16" height="16" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="19" height="19" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="9.4" y="21.8" width="20.3" height="20.3" rx="2.1" ry="2.1"/>
                     <path d="M23,5.9l-2.4,6.3,6.3,2.4"/>
                     <path d="M38,23.5c2.3-6-1.6-12.9-8.6-13.6-1.6-.2-3.2.1-4.7.7l-4.1,1.6"/>
