@@ -14184,13 +14184,13 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
             {isDoc&&(
               <>
                 <div style={{fontSize:'clamp(13px,1.5vh,16px)',fontWeight:700,color:'#fff',
-                  fontFamily:F,letterSpacing:'0.01em',lineHeight:1.3,
+                  fontFamily:F,letterSpacing:'0.01em',marginBottom:3,lineHeight:1.2,
                   paddingRight:teacherMode&&onPhotoReassign?34:0}}>
-                  {lessonN?('L'+lessonN+': '+lessonSession.title):(lessonTitle||'Documentation')}
+                  {photo.sectionName||'Documentation'}
                 </div>
                 <div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.42)',
-                  fontFamily:F,display:'flex',alignItems:'center',gap:5,marginTop:3}}>
-                  <SectionDot sectionId={photo.sectionId} size={5}/>{photo.sectionName||''}
+                  fontFamily:F,display:'flex',alignItems:'center',gap:5}}>
+                  <SectionDot sectionId={photo.sectionId} size={5}/>Documentation
                 </div>
                 {/* Section pill — only in edit mode, docs only */}
                 {infoEditMode&&teacherMode&&onPhotoReassign&&(
@@ -14219,81 +14219,76 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           </div>
 
           {/* ── BODY: conditional first divider ────────────────── */}
-          {(lessonN||lessonTitle||lessonOverview||(infoEditMode&&teacherMode&&onPhotoReassign&&!isDoc)||lessonKws.length>0||(photo.artTags||[]).length>0||(photo.note)||(teacherMode&&!!onPhotoReassign)||photo.date||(infoEditMode&&teacherMode&&onPhotoReassign))&&(
+          {(lessonN||lessonTitle||lessonOverview||(infoEditMode&&teacherMode&&onPhotoReassign)||lessonKws.length>0||(photo.artTags||[]).length>0||(photo.note)||(teacherMode&&!!onPhotoReassign)||photo.date)&&(
             <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
           )}
 
           {/* ── LESSON SECTION ───────────────────────────────────── */}
-          {(lessonN||lessonTitle||lessonOverview||(infoEditMode&&teacherMode&&onPhotoReassign&&!isDoc))&&(
+          {(lessonN||lessonTitle||lessonOverview||(infoEditMode&&teacherMode&&onPhotoReassign))&&(
             <div style={{padding:'6px 12px 8px',overflow:'visible'}}>
-              {!isDoc&&(
-                <>
-                  {/* Read mode: click opens lesson overlay */}
-                  {!infoEditMode&&(
-                    <div
-                      onClick={lessonSession?()=>setLessonOverlayOpen(true):undefined}
-                      style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,
-                        color:lessonSession?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.75)',
-                        fontFamily:F,marginBottom:lessonOverview?7:0,lineHeight:1.3,
-                        paddingTop:3,
-                        cursor:lessonSession?'pointer':'default'}}>
-                      {lessonN?('L'+lessonN+': '+lessonSession.title):lessonTitle}
-                    </div>
-                  )}
-                  {/* Edit mode: lesson pill */}
-                  {infoEditMode&&teacherMode&&onPhotoReassign&&(
-                    <InfoPill
-                      label={lessonN?('L'+lessonN+': '+lessonSession.title):(lessonTitle||'No lesson')}
-                      open={reassignField==='lesson'}
-                      onToggle={()=>setReassignField(reassignField==='lesson'?null:'lesson')}>
-                      <InfoDropdownList
-                        filterEnabled={true}
-                        items={[
-                          {id:'__h_lessons__',label:'Lessons',isHeader:true,isCurrent:false,onSelect:()=>{}},
-                          ...PHASES.flatMap(ph=>ph.sessions.map(s=>{
-                            const key=ph.id+':'+s.n;
-                            const currentKey=(photo.lessons&&photo.lessons[0])||'';
-                            return{
-                              id:key,
-                              label:'S'+s.n+': '+s.title,
-                              isCurrent:currentKey===key||currentKey==='L'+key,
-                              onSelect:async()=>{
-                                if(reassignSaving) return;
-                                setReassignSaving(true);
-                                await onPhotoReassign(photo,{newLesson:key});
-                                setReassignSaving(false);
-                                setReassignField(null);
-                              }
-                            };
-                          })),
-                          ...(customLessons.length>0?[
-                            {id:'__div__',isDivider:true,label:'',isCurrent:false,onSelect:()=>{}},
-                            {id:'__h_custom__',label:'Custom Lessons',isHeader:true,isCurrent:false,onSelect:()=>{}},
-                            ...customLessons.map(cl=>{
-                              const key='custom:'+cl.id;
-                              return{
-                                id:cl.id,
-                                label:'★ '+(cl.title||cl.label),
-                                isCurrent:(photo.lessons&&photo.lessons[0])===key,
-                                onSelect:async()=>{
-                                  if(reassignSaving) return;
-                                  setReassignSaving(true);
-                                  await onPhotoReassign(photo,{newLesson:key});
-                                  setReassignSaving(false);
-                                  setReassignField(null);
-                                }
-                              };
-                            })
-                          ]:[])
-                        ]}
-                      />
-                    </InfoPill>
-                  )}
-                  {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.48)',fontFamily:F,lineHeight:1.6,fontStyle:'italic',marginTop:6}}>{lessonOverview}</div>}
-                  {photo.lessonDate&&!infoEditMode&&<div style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.28)',fontFamily:F,marginTop:4,letterSpacing:'0.02em'}}>{photo.lessonDate}</div>}
-                </>
+              {/* Read mode: lesson title (artwork and docs) */}
+              {!infoEditMode&&(lessonN||lessonTitle)&&(
+                <div
+                  onClick={lessonSession?()=>setLessonOverlayOpen(true):undefined}
+                  style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:600,
+                    color:lessonSession?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.75)',
+                    fontFamily:F,marginBottom:lessonOverview?7:0,lineHeight:1.3,
+                    paddingTop:3,
+                    cursor:lessonSession?'pointer':'default'}}>
+                  {lessonN?('L'+lessonN+': '+lessonSession.title):lessonTitle}
+                </div>
               )}
-              {isDoc&&lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.48)',fontFamily:F,lineHeight:1.6,fontStyle:'italic'}}>{lessonOverview}</div>}
+              {/* Edit mode: lesson pill (artwork and docs) */}
+              {infoEditMode&&teacherMode&&onPhotoReassign&&(
+                <InfoPill
+                  label={lessonN?('L'+lessonN+': '+lessonSession.title):(lessonTitle||'No lesson')}
+                  open={reassignField==='lesson'}
+                  onToggle={()=>setReassignField(reassignField==='lesson'?null:'lesson')}>
+                  <InfoDropdownList
+                    filterEnabled={true}
+                    items={[
+                      {id:'__h_lessons__',label:'Lessons',isHeader:true,isCurrent:false,onSelect:()=>{}},
+                      ...PHASES.flatMap(ph=>ph.sessions.map(s=>{
+                        const key=ph.id+':'+s.n;
+                        const currentKey=(photo.lessons&&photo.lessons[0])||'';
+                        return{
+                          id:key,
+                          label:'S'+s.n+': '+s.title,
+                          isCurrent:currentKey===key||currentKey==='L'+key,
+                          onSelect:async()=>{
+                            if(reassignSaving) return;
+                            setReassignSaving(true);
+                            await onPhotoReassign(photo,{newLesson:key});
+                            setReassignSaving(false);
+                            setReassignField(null);
+                          }
+                        };
+                      })),
+                      ...(customLessons.length>0?[
+                        {id:'__div__',isDivider:true,label:'',isCurrent:false,onSelect:()=>{}},
+                        {id:'__h_custom__',label:'Custom Lessons',isHeader:true,isCurrent:false,onSelect:()=>{}},
+                        ...customLessons.map(cl=>{
+                          const key='custom:'+cl.id;
+                          return{
+                            id:cl.id,
+                            label:'\u2605 '+(cl.title||cl.label),
+                            isCurrent:(photo.lessons&&photo.lessons[0])===key,
+                            onSelect:async()=>{
+                              if(reassignSaving) return;
+                              setReassignSaving(true);
+                              await onPhotoReassign(photo,{newLesson:key});
+                              setReassignSaving(false);
+                              setReassignField(null);
+                            }
+                          };
+                        })
+                      ]:[])
+                    ]}
+                  />
+                </InfoPill>
+              )}
+              {lessonOverview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'rgba(255,255,255,0.48)',fontFamily:F,lineHeight:1.6,fontStyle:'italic',marginTop:6}}>{lessonOverview}</div>}
+              {photo.lessonDate&&!infoEditMode&&<div style={{fontSize:'clamp(9px,1vh,11px)',color:'rgba(255,255,255,0.28)',fontFamily:F,marginTop:4,letterSpacing:'0.02em'}}>{photo.lessonDate}</div>}
             </div>
           )}
 
@@ -14310,7 +14305,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           {/* ── NOTES — editable inline; click activates full edit mode ── */}
           {(teacherMode&&!!onPhotoReassign||!!(photo.note))&&(
             <>
-              {(lessonN||lessonTitle||lessonOverview||(infoEditMode&&teacherMode&&onPhotoReassign&&!isDoc)||lessonKws.length>0)&&(
+              {(lessonN||lessonTitle||lessonOverview||(infoEditMode&&teacherMode&&onPhotoReassign)||lessonKws.length>0)&&(
                 <div style={{height:1,background:'rgba(255,255,255,0.15)',margin:'0 12px'}}/>
               )}
               <div
