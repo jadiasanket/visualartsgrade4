@@ -5578,8 +5578,22 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
   // ── EXPANDED NAV ITEM ──────────────────────────────────────────────────────
   function NavItem({id,icon,name,sub,isActive,onClick,onMouseEnter,onMouseLeave,locked}){
     const hasSub=!!sub;
+    const btnRef=React.useRef(null);
+    function handleEnter(e){
+      if(onMouseEnter) onMouseEnter(e);
+      const btn=btnRef.current; if(!btn) return;
+      btn.querySelectorAll('.ni-icon,.ni-name,.ni-sub').forEach(el=>el.style.color='#fff');
+    }
+    function handleLeave(e){
+      if(onMouseLeave) onMouseLeave(e);
+      const btn=btnRef.current; if(!btn) return;
+      btn.querySelectorAll('.ni-icon').forEach(el=>el.style.color=isActive?'#0074F0':'rgba(200,200,200,0.7)');
+      btn.querySelectorAll('.ni-name').forEach(el=>el.style.color=isActive?'#0074F0':'rgba(200,200,200,0.78)');
+      btn.querySelectorAll('.ni-sub').forEach(el=>el.style.color=isActive?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.3)');
+    }
     return(
       <button
+        ref={btnRef}
         style={{display:'flex',alignItems:'center',gap:12,padding:'0 12px',
           height:hasSub?48:38,cursor:locked?'default':'pointer',
           background:'none',border:'none',width:'100%',textAlign:'left',
@@ -5587,19 +5601,19 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
           pointerEvents:locked?'none':'auto',
           fontFamily:"'DM Sans',sans-serif"}}
         onClick={onClick}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
         title={name}>
-        <span style={{color:isActive?'#0074F0':'rgba(200,200,200,0.7)',flexShrink:0,display:'flex',alignItems:'center',minWidth:ICON_SZ}}>
+        <span className="ni-icon" style={{color:isActive?'#0074F0':'rgba(200,200,200,0.7)',flexShrink:0,display:'flex',alignItems:'center',minWidth:ICON_SZ,transition:'color .12s'}}>
           {React.cloneElement(icon,{width:ICON_SZ,height:ICON_SZ})}
         </span>
         <span style={{flex:1,overflow:'hidden',minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:isActive?600:400,
+          <div className="ni-name" style={{fontSize:13,fontWeight:isActive?600:400,
             color:isActive?'#0074F0':'rgba(200,200,200,0.78)',
-            whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+            whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',transition:'color .12s'}}>
             {name}
           </div>
-          {hasSub&&<div style={{fontSize:10,color:isActive?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.3)',marginTop:0}}>{sub}</div>}
+          {hasSub&&<div className="ni-sub" style={{fontSize:10,color:isActive?'rgba(0,116,240,0.6)':'rgba(255,255,255,0.3)',marginTop:0,transition:'color .12s'}}>{sub}</div>}
         </span>
       </button>
     );
@@ -5626,7 +5640,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
         {/* Hover/active circle bubble */}
         <div ref={bubbleRef} style={{
           position:'absolute',inset:0,borderRadius:'50%',
-          background:'var(--sky)',zIndex:1,opacity:0,
+          background:'rgb(0,116,240)',zIndex:1,opacity:0,
           pointerEvents:'none',transition:'none',
         }}/>
         <button
@@ -5636,9 +5650,9 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
             background:'none',border:'none',cursor:'pointer',
             display:'flex',alignItems:'center',justifyContent:'center',
             position:'relative',zIndex:2}}
-          onMouseEnter={onMouseEnter}
-          onMouseLeave={onMouseLeave}>
-          <span style={{color:isActive?'#0074F0':'rgba(200,200,200,0.7)',display:'flex',alignItems:'center'}}>
+          onMouseEnter={e=>{if(onMouseEnter)onMouseEnter(e);const sp=e.currentTarget.querySelector('.ci-icon');if(sp)sp.style.color='#fff';}}
+          onMouseLeave={e=>{if(onMouseLeave)onMouseLeave(e);const sp=e.currentTarget.querySelector('.ci-icon');if(sp)sp.style.color=isActive?'#0074F0':'rgba(200,200,200,0.7)';}}>
+          <span className="ci-icon" style={{color:isActive?'#0074F0':'rgba(200,200,200,0.7)',display:'flex',alignItems:'center',transition:'color .12s'}}>
             {React.cloneElement(icon,{width:ICON_SZ,height:ICON_SZ})}
           </span>
         </button>
@@ -14772,6 +14786,110 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   ];
 }
 
+// ── GalleryToolbarPill — spring bubble hover, same feel as lightbox ToolbarPill
+function GalleryToolbarPill({children,style={}}){
+  const pillRef=React.useRef(null);
+  const wrapRef=React.useRef(null);
+  const btnRefs=React.useRef([]);
+  const sp=React.useRef({x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0});
+  const rafId=React.useRef(null);
+  const mouseVelRef=React.useRef(0);
+  const lastMouseX=React.useRef(null);
+  const S=520,D=26,SS=280,SD=18;
+
+  function tick(){
+    const s=sp.current;
+    const dt=0.016,STEPS=4,ddt=dt/STEPS;
+    for(let i=0;i<STEPS;i++){
+      s.vx+=(-S*(s.x-s.tx)-D*s.vx)*ddt;
+      s.vw+=(-S*(s.w-s.tw)-D*s.vw)*ddt;
+      s.x+=s.vx*ddt; s.w+=s.vw*ddt;
+      const tSx=Math.max(-18,Math.min(18,mouseVelRef.current*1.4));
+      s.vsx+=(-SS*(s.sx-tSx)-SD*s.vsx)*ddt;
+      s.sx+=s.vsx*ddt;
+    }
+    mouseVelRef.current*=0.82;
+    s.opacity+=(s.to-s.opacity)*0.18;
+    const pill=pillRef.current;
+    if(pill){
+      const stretchW=Math.abs(s.sx)*0.5;
+      const offsetX=s.sx>0?-s.sx*0.15:-s.sx*0.15;
+      const sc=0.85+0.15*s.opacity;
+      pill.style.transform='translateX('+(s.x+offsetX)+'px) scaleY('+sc+')';
+      pill.style.width=Math.max(4,s.w+stretchW)+'px';
+      pill.style.opacity=s.opacity;
+    }
+    const s2=sp.current;
+    const settled=Math.abs(s2.vx)<0.3&&Math.abs(s2.vw)<0.3&&Math.abs(s2.vsx)<0.3&&
+      Math.abs(s2.x-s2.tx)<0.3&&Math.abs(s2.w-s2.tw)<0.3&&
+      Math.abs(s2.sx)<0.3&&Math.abs(s2.opacity-s2.to)<0.002;
+    if(!settled) rafId.current=requestAnimationFrame(tick);
+    else rafId.current=null;
+  }
+  function startTick(){if(!rafId.current) rafId.current=requestAnimationFrame(tick);}
+  function onMouseMove(e){
+    if(lastMouseX.current!==null) mouseVelRef.current=e.clientX-lastMouseX.current;
+    lastMouseX.current=e.clientX;
+  }
+  function onEnter(el){
+    if(!wrapRef.current||!el) return;
+    const pr=wrapRef.current.getBoundingClientRect();
+    const br=el.getBoundingClientRect();
+    const s=sp.current;
+    const x=br.left-pr.left, w=br.width;
+    if(s.to===0){s.x=x; s.w=w;}
+    s.tx=x; s.tw=w; s.to=1;
+    startTick();
+  }
+  function onLeave(){
+    lastMouseX.current=null;
+    mouseVelRef.current=0;
+    sp.current.to=0;
+    startTick();
+  }
+  // Expose onEnter/onLeave via context so child buttons can call it
+  return(
+    <GalleryToolbarPillCtx.Provider value={{onEnter,onLeave,onMouseMove,btnRefs}}>
+      <div ref={wrapRef}
+        style={{display:'flex',alignItems:'center',height:34,position:'relative',
+          background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px)',WebkitBackdropFilter:'blur(6px)',
+          borderRadius:100,border:'1px solid rgba(255,255,255,0.13)',
+          boxShadow:'0 4px 20px rgba(0,0,0,0.35)',overflow:'visible',...style}}
+        onMouseLeave={onLeave}
+        onMouseMove={onMouseMove}>
+        {/* Spring bubble */}
+        <div ref={pillRef} style={{
+          position:'absolute',top:0,left:0,height:'100%',
+          background:'rgb(0,116,240)',borderRadius:100,
+          pointerEvents:'none',zIndex:1,opacity:0,
+          willChange:'transform,width,opacity',
+        }}/>
+        {children}
+      </div>
+    </GalleryToolbarPillCtx.Provider>
+  );
+}
+const GalleryToolbarPillCtx=React.createContext({onEnter:()=>{},onLeave:()=>{},onMouseMove:()=>{}});
+// GalleryPillBtn — a button inside a GalleryToolbarPill
+function GalleryPillBtn({onClick,title,active,children,width=40,redHover=false}){
+  const ref=React.useRef(null);
+  const ctx=React.useContext(GalleryToolbarPillCtx);
+  return(
+    <button ref={ref}
+      onClick={onClick} title={title}
+      onMouseEnter={()=>ctx.onEnter(ref.current)}
+      style={{width,height:34,background:'none',border:'none',cursor:'pointer',
+        display:'flex',alignItems:'center',justifyContent:'center',
+        color:active?'#fff':'rgba(255,255,255,0.55)',
+        background:active?'rgb(0,116,240)':'transparent',
+        position:'relative',zIndex:2,flexShrink:0,
+        transition:'color .12s',borderRadius:active?100:0}}
+      >
+      {children}
+    </button>
+  );
+}
+
 // ── Shared tile renderer ──────────────────────────────────────────────────────
 function renderGalleryTile(p,k,sel,i,focusIdx,galleryEditMode,handleTileClick){
   return(
@@ -15263,139 +15381,98 @@ function GalleryView({isVisitor}){
   return(
     <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',background:'#0d0d0d',position:'relative'}}>
 
-      {/* ── Toolbar ── */}
-      <div style={{position:'sticky',top:0,zIndex:200,flexShrink:0}}>
-
-        {/* Blur backdrop — extends 32px below the toolbar so the fade covers the grid */}
+      {/* Sticky toolbar — blur fades downward */}
+      <div style={{position:'sticky',top:0,zIndex:100,flexShrink:0}}>
+        {/* Pure blur layer — no background so photos show through blurred */}
         <div style={{
-          position:'absolute',left:0,right:0,top:0,
-          height:'calc(100% + 32px)',
-          backdropFilter:'blur(16px)',
-          WebkitBackdropFilter:'blur(16px)',
-          background:'linear-gradient(to bottom,rgba(13,13,13,0.82) 0%,rgba(13,13,13,0.55) 65%,transparent 100%)',
-          maskImage:'linear-gradient(to bottom,black 50%,transparent 100%)',
-          WebkitMaskImage:'linear-gradient(to bottom,black 50%,transparent 100%)',
+          position:'absolute',inset:0,bottom:'-28px',
+          backdropFilter:'blur(20px) saturate(180%)',
+          WebkitBackdropFilter:'blur(20px) saturate(180%)',
+          maskImage:'linear-gradient(to bottom,black 55%,transparent 100%)',
+          WebkitMaskImage:'linear-gradient(to bottom,black 55%,transparent 100%)',
           pointerEvents:'none',
-          zIndex:0,
         }}/>
-
-        {/* Toolbar content — sits above the blur */}
+        {/* Separate scrim for text legibility — low opacity so blur shows through */}
+        <div style={{
+          position:'absolute',inset:0,bottom:'-28px',
+          background:'linear-gradient(to bottom,rgba(13,13,13,0.52) 0%,rgba(13,13,13,0.2) 65%,transparent 100%)',
+          maskImage:'linear-gradient(to bottom,black 55%,transparent 100%)',
+          WebkitMaskImage:'linear-gradient(to bottom,black 55%,transparent 100%)',
+          pointerEvents:'none',
+        }}/>
         <div style={{position:'relative',zIndex:1,display:'flex',alignItems:'center',
-          justifyContent:'space-between',padding:'10px 16px 10px',pointerEvents:'auto'}}>
+          justifyContent:'space-between',padding:'12px 16px 12px',pointerEvents:'auto'}}>
 
-          {/* Left: Title */}
-          <div>
-            <div style={{fontSize:18,fontWeight:600,fontFamily:"'Bricolage Grotesque',sans-serif",color:'#fff',letterSpacing:'-.01em',lineHeight:1}}>Gallery</div>
-            <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>{displayPhotos.length} photo{displayPhotos.length!==1?'s':''}</div>
+          {/* Title */}
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div>
+              <div style={{fontSize:18,fontWeight:600,fontFamily:"'Bricolage Grotesque',sans-serif",color:'#fff',letterSpacing:'-.01em',lineHeight:1}}>Gallery</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>{displayPhotos.length} photo{displayPhotos.length!==1?'s':''}</div>
+            </div>
           </div>
 
-          {/* Right: controls */}
+          {/* Toolbar pills */}
           <div style={{display:'flex',alignItems:'center',gap:6}}>
 
-            {/* ── Zoom pill ── */}
-            <div style={{display:'flex',alignItems:'center',height:34,
-              background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px)',WebkitBackdropFilter:'blur(6px)',
-              borderRadius:100,border:'1px solid rgba(255,255,255,0.13)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',overflow:'hidden'}}>
-              {[['&#8722;',()=>setTileSize(s=>Math.min(4,s+1)),'Zoom out'],['&#43;',()=>setTileSize(s=>Math.max(0,s-1)),'Zoom in']].map(([icon,action,title],i)=>(
-                <React.Fragment key={i}>
-                  {i>0&&<div style={{width:1,height:14,background:'rgba(255,255,255,0.12)',flexShrink:0}}/>}
-                  <button onClick={action} title={title}
-                    style={{width:34,height:34,background:'none',border:'none',cursor:'pointer',
-                      color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',justifyContent:'center',
-                      fontSize:20,fontWeight:300,lineHeight:1,transition:'background .15s,color .15s',position:'relative'}}
-                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(91,174,232,0.18)';e.currentTarget.style.color='var(--sky)';}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='none';e.currentTarget.style.color='rgba(255,255,255,0.55)';}}
-                    dangerouslySetInnerHTML={{__html:icon}}/>
-                </React.Fragment>
-              ))}
-            </div>
+            {/* Zoom pill */}
+            <GalleryToolbarPill>
+              <GalleryPillBtn onClick={()=>setTileSize(s=>Math.min(4,s+1))} title="Zoom out" width={34}>
+                <span style={{fontSize:20,fontWeight:300,lineHeight:1}}>&#8722;</span>
+              </GalleryPillBtn>
+              <div style={{width:1,height:14,background:'rgba(255,255,255,0.12)',flexShrink:0,zIndex:3,position:'relative'}}/>
+              <GalleryPillBtn onClick={()=>setTileSize(s=>Math.max(0,s-1))} title="Zoom in" width={34}>
+                <span style={{fontSize:20,fontWeight:300,lineHeight:1}}>&#43;</span>
+              </GalleryPillBtn>
+            </GalleryToolbarPill>
 
-            {/* ── Actions pill: rotate, upload, filter ── */}
-            <div style={{display:'flex',alignItems:'center',height:34,
-              background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px)',WebkitBackdropFilter:'blur(6px)',
-              borderRadius:100,border:'1px solid rgba(255,255,255,0.13)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',overflow:'visible',position:'relative'}}>
-
+            {/* Actions pill: rotate, upload, filter */}
+            <GalleryToolbarPill>
               {teacherMode&&!isVisitor&&(
                 <>
-                  <button title="Rotate CCW"
-                    style={{width:40,height:34,background:'none',border:'none',cursor:'pointer',
-                      color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center',justifyContent:'center',
-                      transition:'background .15s,color .15s',borderRadius:'100px 0 0 100px'}}
-                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(91,174,232,0.18)';e.currentTarget.style.color='var(--sky)';}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='none';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>
+                  <GalleryPillBtn title="Rotate CCW" width={40}>
                     <svg width="17" height="17" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="9.4" y="21.8" width="20.3" height="20.3" rx="2.1" ry="2.1"/>
                       <path d="M23,5.9l-2.4,6.3,6.3,2.4"/><path d="M38,23.5c2.3-6-1.6-12.9-8.6-13.6-1.6-.2-3.2.1-4.7.7l-4.1,1.6"/>
                     </svg>
-                  </button>
-                  <div style={{width:1,height:14,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
-                  <button onClick={()=>setShowUpload(true)} title="Upload"
-                    style={{width:40,height:34,background:'none',border:'none',cursor:'pointer',
-                      color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center',justifyContent:'center',
-                      transition:'background .15s,color .15s'}}
-                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(91,174,232,0.18)';e.currentTarget.style.color='var(--sky)';}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='none';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>
+                  </GalleryPillBtn>
+                  <div style={{width:1,height:14,background:'rgba(255,255,255,0.12)',flexShrink:0,zIndex:3,position:'relative'}}/>
+                  <GalleryPillBtn onClick={()=>setShowUpload(true)} title="Upload" width={40}>
                     <svg width="17" height="17" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M24,10.5v18"/><path d="M31.5,18l-7.5-7.5-7.5,7.5"/>
                       <path d="M37.5,28.5v6c0,1.7-1.3,3-3,3H13.5c-1.7,0-3-1.3-3-3v-6"/>
                     </svg>
-                  </button>
-                  <div style={{width:1,height:14,background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
+                  </GalleryPillBtn>
+                  <div style={{width:1,height:14,background:'rgba(255,255,255,0.12)',flexShrink:0,zIndex:3,position:'relative'}}/>
                 </>
               )}
-
-              {/* Filter button — NOT overflow:hidden so dropdown can escape */}
+              {/* Filter — wrapper needed so dropdown escapes overflow */}
               <div style={{position:'relative'}}>
-                <button onClick={()=>setShowFilter(v=>!v)} title="Filter"
-                  style={{width:40,height:34,background:showFilter?'rgba(91,174,232,0.18)':'none',border:'none',cursor:'pointer',
-                    color:activeFilterCount>0||showFilter?'var(--sky)':'rgba(255,255,255,0.5)',
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    transition:'background .15s,color .15s',
-                    borderRadius:teacherMode&&!isVisitor?'0 100px 100px 0':'100px'}}>
+                <GalleryPillBtn onClick={()=>setShowFilter(v=>!v)} title="Filter" active={showFilter} width={40}>
                   {IC.filter}
                   {activeFilterCount>0&&(
-                    <span style={{position:'absolute',top:5,right:6,width:6,height:6,borderRadius:'50%',background:'var(--sky)'}}/>
+                    <span style={{position:'absolute',top:5,right:7,width:6,height:6,borderRadius:'50%',background:'rgb(0,116,240)',border:'2px solid rgba(7,7,8,0.87)'}}/>
                   )}
-                </button>
-
-                {/* Filter dropdown — rendered outside pill overflow */}
+                </GalleryPillBtn>
                 {showFilter&&(
-                  <div
-                    onClick={e=>e.stopPropagation()}
-                    style={{position:'absolute',top:'calc(100% + 10px)',right:-60,zIndex:1000,
-                      width:288,background:'rgba(12,12,16,0.98)',
-                      backdropFilter:'blur(28px)',WebkitBackdropFilter:'blur(28px)',
-                      border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,
-                      boxShadow:'0 24px 64px rgba(0,0,0,0.85)',overflow:'hidden'}}>
-                    {/* Header */}
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 14px 9px',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-                      <span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.85)',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.02em'}}>Filter &amp; Arrange</span>
+                  <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'calc(100% + 8px)',right:0,zIndex:600,
+                    width:300,background:'rgba(12,12,16,0.98)',backdropFilter:'blur(28px)',WebkitBackdropFilter:'blur(28px)',
+                    border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,
+                    boxShadow:'0 20px 60px rgba(0,0,0,0.8)',overflow:'hidden'}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 14px 9px'}}>
+                      <span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.85)',letterSpacing:'.02em'}}>Filter &amp; Arrange</span>
                       <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                        {activeFilterCount>0&&(
-                          <button onClick={clearFilters}
-                            style={{fontSize:10,fontWeight:700,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",padding:0}}>
-                            Clear all
-                          </button>
-                        )}
-                        <button onClick={()=>setShowFilter(false)}
-                          style={{background:'rgba(255,255,255,0.06)',border:'none',borderRadius:6,color:'rgba(255,255,255,0.5)',
-                            fontSize:12,cursor:'pointer',width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',
-                            transition:'background .12s'}}
-                          onMouseEnter={e=>{e.currentTarget.style.background='rgba(232,112,90,0.25)';e.currentTarget.style.color='var(--coral)';}}
-                          onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';e.currentTarget.style.color='rgba(255,255,255,0.5)';}}>
-                          &#10005;
-                        </button>
+                        {activeFilterCount>0&&<button onClick={clearFilters} style={{fontSize:10,fontWeight:700,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",padding:0}}>Clear all</button>}
+                        <button onClick={()=>setShowFilter(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:14,cursor:'pointer',padding:'0 2px',lineHeight:1}}>&#10005;</button>
                       </div>
                     </div>
                     {/* Type */}
-                    <div style={{padding:'9px 14px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:7,fontFamily:"'DM Sans',sans-serif"}}>Type</div>
+                    <div style={{padding:'6px 14px 8px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Type</div>
                       <div style={{display:'flex',gap:4}}>
                         {[['all','All'],['artwork','Artwork'],...(isVisitor?[]:[['documentation','Docs']])].map(([v,l])=>(
                           <button key={v} onClick={()=>setFilterType(v)}
-                            style={{flex:1,fontSize:11,fontWeight:filterType===v?700:400,height:28,borderRadius:8,cursor:'pointer',
-                              fontFamily:"'DM Sans',sans-serif",border:'1px solid',
-                              borderColor:filterType===v?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                            style={{flex:1,fontSize:11,fontWeight:filterType===v?700:400,height:28,borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                              border:'1px solid',borderColor:filterType===v?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
                               background:filterType===v?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
                               color:filterType===v?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
                             {l}
@@ -15403,19 +15480,18 @@ function GalleryView({isVisitor}){
                         ))}
                       </div>
                     </div>
-                    <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
+                    <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
                     {/* Section */}
-                    <div style={{padding:'9px 14px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:7,fontFamily:"'DM Sans',sans-serif"}}>Section</div>
+                    <div style={{padding:'8px 14px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Section</div>
                       <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
                         {G4_SECTIONS.map(sec=>{
                           const on=filterSections.has(sec.id);
                           return(
-                            <button key={sec.id}
-                              onClick={()=>setFilterSections(prev=>{const n=new Set(prev);on?n.delete(sec.id):n.add(sec.id);return n;})}
-                              style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',
-                                fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',gap:5,border:'1px solid',
-                                borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                            <button key={sec.id} onClick={()=>setFilterSections(prev=>{const n=new Set(prev);on?n.delete(sec.id):n.add(sec.id);return n;})}
+                              style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                                display:'flex',alignItems:'center',gap:5,
+                                border:'1px solid',borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
                                 background:on?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
                                 color:on?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
                               <SectionDot sectionId={sec.id} size={5}/>{sec.name}
@@ -15424,39 +15500,36 @@ function GalleryView({isVisitor}){
                         })}
                       </div>
                     </div>
-                    <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
+                    <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
                     {/* Lesson */}
-                    <div style={{padding:'9px 14px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:7,fontFamily:"'DM Sans',sans-serif"}}>Lesson</div>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:4,maxHeight:100,overflowY:'auto'}}>
+                    <div style={{padding:'8px 14px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4,maxHeight:90,overflowY:'auto'}}>
                         {allLessons.map(l=>{
                           const key=l.key||(l.phaseId+':'+l.n);
                           const on=filterLessons.has(key);
                           const chipLabel=l.phaseId==='custom'?(l.title||'Custom'):'S'+l.n;
                           return(
-                            <button key={key}
-                              onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);on?n.delete(key):n.add(key);return n;})}
-                              style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',
-                                fontFamily:"'DM Sans',sans-serif",flexShrink:0,border:'1px solid',
-                                borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                            <button key={key} onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);on?n.delete(key):n.add(key);return n;})}
+                              style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                                border:'1px solid',borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
                                 background:on?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
-                                color:on?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
+                                color:on?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s',flexShrink:0}}>
                               {chipLabel}
                             </button>
                           );
                         })}
                       </div>
                     </div>
-                    <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
+                    <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
                     {/* Arrange */}
-                    <div style={{padding:'9px 14px 12px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:7,fontFamily:"'DM Sans',sans-serif"}}>Arrange</div>
+                    <div style={{padding:'8px 14px 12px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Arrange</div>
                       <div style={{display:'flex',gap:4}}>
                         {[['default','Default'],['az','A → Z'],['za','Z → A'],['section','By Section']].map(([v,l])=>(
                           <button key={v} onClick={()=>setArrange(v)}
-                            style={{flex:1,fontSize:10,fontWeight:arrange===v?700:400,padding:'5px 0',borderRadius:8,cursor:'pointer',
-                              fontFamily:"'DM Sans',sans-serif",border:'1px solid',
-                              borderColor:arrange===v?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                            style={{flex:1,fontSize:10,fontWeight:arrange===v?700:400,padding:'5px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                              border:'1px solid',borderColor:arrange===v?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
                               background:arrange===v?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
                               color:arrange===v?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
                             {l}
@@ -15467,55 +15540,49 @@ function GalleryView({isVisitor}){
                   </div>
                 )}
               </div>
-            </div>
+            </GalleryToolbarPill>
 
-            {/* ── Select — standalone pill ── */}
+            {/* Select — standalone pill */}
             {teacherMode&&!isVisitor&&(
-              <button
-                onClick={()=>{setGalleryEditMode(v=>!v);setSelectedPhotos(new Set());}}
-                style={{height:34,padding:'0 16px',
-                  background:galleryEditMode?'rgba(91,174,232,0.18)':'rgba(7,7,8,0.87)',
-                  backdropFilter:'blur(6px)',WebkitBackdropFilter:'blur(6px)',
-                  borderRadius:100,border:'1px solid',
-                  borderColor:galleryEditMode?'rgba(91,174,232,0.45)':'rgba(255,255,255,0.13)',
-                  boxShadow:'0 4px 20px rgba(0,0,0,0.35)',
-                  color:galleryEditMode?'var(--sky)':'rgba(255,255,255,0.5)',
-                  fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,cursor:'pointer',
-                  transition:'all .15s',whiteSpace:'nowrap'}}
-                onMouseEnter={e=>{if(!galleryEditMode){e.currentTarget.style.background='rgba(91,174,232,0.12)';e.currentTarget.style.color='var(--sky)';e.currentTarget.style.borderColor='rgba(91,174,232,0.35)';}}}
-                onMouseLeave={e=>{if(!galleryEditMode){e.currentTarget.style.background='rgba(7,7,8,0.87)';e.currentTarget.style.color='rgba(255,255,255,0.5)';e.currentTarget.style.borderColor='rgba(255,255,255,0.13)';}}}
-              >
-                {galleryEditMode?'Done':'Select'}
-              </button>
+              <GalleryToolbarPill style={{
+                borderColor:galleryEditMode?'rgba(0,116,240,0.45)':'rgba(255,255,255,0.13)',
+              }}>
+                <GalleryPillBtn
+                  onClick={()=>{setGalleryEditMode(v=>!v);setSelectedPhotos(new Set());}}
+                  active={galleryEditMode}
+                  title="Select mode"
+                  width={72}>
+                  <span style={{fontSize:11,fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>
+                    {galleryEditMode?'Done':'Select'}
+                  </span>
+                </GalleryPillBtn>
+              </GalleryToolbarPill>
             )}
 
-            {/* ── Search ── */}
+
+            {/* Search */}
             <div style={{position:'relative',display:'flex',alignItems:'center'}}>
               <input
                 ref={localInputRef}
                 value={localQuery}
                 onChange={e=>setLocalQuery(e.target.value)}
                 placeholder="Search gallery..."
-                style={{height:34,padding:'0 12px 0 34px',borderRadius:100,
+                style={{height:34,padding:'0 12px 0 32px',borderRadius:100,
                   background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px)',WebkitBackdropFilter:'blur(6px)',
                   border:'1px solid rgba(255,255,255,0.13)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',
                   color:'rgba(255,255,255,0.8)',fontFamily:"'DM Sans',sans-serif",
                   fontSize:11,outline:'none',width:148,transition:'width .2s,border-color .15s'}}
-                onFocus={e=>{e.target.style.width='210px';e.target.style.borderColor='rgba(91,174,232,0.4)';}}
+                onFocus={e=>{e.target.style.width='210px';e.target.style.borderColor='rgba(0,116,240,0.4)';}}
                 onBlur={e=>{e.target.style.width='148px';e.target.style.borderColor='rgba(255,255,255,0.13)';}}
               />
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)"
-                strokeWidth="2.5" strokeLinecap="round" style={{position:'absolute',left:12,pointerEvents:'none',flexShrink:0}}>
+                strokeWidth="2.5" strokeLinecap="round" style={{position:'absolute',left:10,pointerEvents:'none'}}>
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
             </div>
-
           </div>
         </div>
       </div>
-
-      {/* Filter backdrop — closes dropdown when clicking outside */}
-      {showFilter&&<div style={{position:'fixed',inset:0,zIndex:999}} onClick={()=>setShowFilter(false)}/>}
 
       {/* Active filter chips */}
       {activeFilterCount>0&&(
@@ -15570,6 +15637,8 @@ function GalleryView({isVisitor}){
         </div>
       )}
 
+      {showFilter&&<div style={{position:'fixed',inset:0,zIndex:499}} onClick={()=>setShowFilter(false)}/>}
+
       {/* Selection bar */}
       {galleryEditMode&&(
         <div style={{display:'flex',alignItems:'center',gap:10,
@@ -15595,7 +15664,7 @@ function GalleryView({isVisitor}){
         </div>
       )}
 
-            {showUpload&&<GalleryUpload onClose={()=>setShowUpload(false)} onDone={()=>setShowUpload(false)}/>}
+      {showUpload&&<GalleryUpload onClose={()=>setShowUpload(false)} onDone={()=>setShowUpload(false)}/>}
 
       {/* Scrollable grid — reverse order (newest at bottom, scroll up for more) */}
       <div ref={gridScrollRef} className="gallery-scroll" style={{flex:1,overflowY:'auto',paddingRight:6}}>
