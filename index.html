@@ -15148,6 +15148,8 @@ function GalleryView({isVisitor}){
       return next||prev;
     });
   },[]);
+
+  const [tileSize,setTileSize]=React.useState(1); // 0=largest..4=smallest; default=1 = 4 cols
   const tileCols=[
     'repeat(2,1fr)',
     'repeat(4,1fr)',
