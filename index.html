@@ -6189,14 +6189,14 @@ const TAG_COLOR_MAP={
 };
 
 // InlineField — click to edit, brightens parent card, auto-saves on blur
-function InlineField({value,onChange,onSave,placeholder,multiline,style={},labelStyle={},label,disabled}){
+function InlineField({value,onChange,onSave,placeholder,multiline,style={},labelStyle={},label,disabled,onEditStart,onEditEnd}){
   const [editing,setEditing]=React.useState(false);
   const [draft,setDraft]=React.useState(value||'');
   const ref=React.useRef(null);
   React.useEffect(()=>{setDraft(value||'');},[value]);
-  function startEdit(){if(disabled)return;setDraft(value||'');setEditing(true);setTimeout(()=>ref.current&&ref.current.focus(),30);}
-  function commit(){setEditing(false);const v=draft.trim();if(v!==(value||'').trim())onSave(v);}
-  function onKeyDown(e){if(e.key==='Escape'){setEditing(false);setDraft(value||'');}if(!multiline&&e.key==='Enter'){e.preventDefault();commit();}}
+  function startEdit(){if(disabled)return;setDraft(value||'');setEditing(true);if(onEditStart)onEditStart();setTimeout(()=>ref.current&&ref.current.focus(),30);}
+  function commit(){setEditing(false);if(onEditEnd)onEditEnd();const v=draft.trim();if(v!==(value||'').trim())onSave(v);}
+  function onKeyDown(e){if(e.key==='Escape'){setEditing(false);if(onEditEnd)onEditEnd();setDraft(value||'');}if(!multiline&&e.key==='Enter'){e.preventDefault();commit();}}
   const sharedStyle={width:'100%',background:'transparent',border:'none',outline:'none',
     color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",resize:'none',
     padding:0,margin:0,boxSizing:'border-box',...style};
@@ -6219,7 +6219,7 @@ function InlineField({value,onChange,onSave,placeholder,multiline,style={},label
 function CustomSessionCard({lesson,teacherMode,n}){
   const [open,setOpen]=React.useState(false);
   const [tab,setTab]=React.useState('overview');
-  const [editing,setEditing]=React.useState(false);
+  const [anyEditing,setAnyEditing]=React.useState(false);
   const cardRef=React.useRef(null);
   const meta=useCustomPhaseMeta();
   const pm=PM[meta.color||'sky']||PM.sky;
@@ -6231,18 +6231,7 @@ function CustomSessionCard({lesson,teacherMode,n}){
   const matsArr=Array.isArray(lesson.mats)?lesson.mats:[];
   const sessionKey='custom-'+lesson.id;
 
-  // Click-outside exits edit mode
-  React.useEffect(()=>{
-    if(!editing) return;
-    function handle(e){if(cardRef.current&&!cardRef.current.contains(e.target)){setEditing(false);}}
-    document.addEventListener('pointerdown',handle,true);
-    return()=>document.removeEventListener('pointerdown',handle,true);
-  },[editing]);
-
-  async function save(field,val){
-    try{await updateCustomLesson(lesson.id,{[field]:val});}catch(e){console.error(e);}
-  }
-
+  async function save(field,val){try{await updateCustomLesson(lesson.id,{[field]:val});}catch(e){console.error(e);}}
   async function saveKeywords(raw){
     const arr=raw.split(',').map(k=>k.trim()).filter(Boolean);
     const existing=getArtworkTags();
@@ -6250,56 +6239,29 @@ function CustomSessionCard({lesson,teacherMode,n}){
     await save('keywords',tagged.map(t=>t.label));
     await save('keywordColors',Object.fromEntries(tagged.map(t=>[t.label,t.color])));
   }
-
-  async function saveBigQ(raw){
-    const arr=raw.split('\n').map(q=>q.trim()).filter(Boolean);
-    await save('bigQ',arr);
-  }
-
-  async function saveMats(raw){
-    const arr=raw.split('\n').map(m=>m.trim()).filter(Boolean);
-    await save('mats',arr);
-  }
-
-  async function saveStep(i,field,val){
-    const s=[...steps];if(!s[i])s[i]={t:'',s:''};s[i]={...s[i],[field]:val};
-    await save('steps',s);
-  }
-
-  async function addStep(){
-    await save('steps',[...steps,{t:'',s:''}]);
-  }
-
-  async function removeStep(i){
-    await save('steps',steps.filter((_,j)=>j!==i));
-  }
-
-  async function handleDelete(){
-    if(!window.confirm('Delete "'+lesson.title+'"? This cannot be undone.')) return;
-    try{await deleteCustomLesson(lesson.id);}catch(e){console.error(e);}
-  }
+  async function saveBigQ(raw){await save('bigQ',raw.split('\n').map(q=>q.trim()).filter(Boolean));}
+  async function saveMats(raw){await save('mats',raw.split('\n').map(m=>m.trim()).filter(Boolean));}
+  async function saveStep(i,field,val){const s=[...steps];if(!s[i])s[i]={t:'',s:''};s[i]={...s[i],[field]:val};await save('steps',s);}
+  async function addStep(){await save('steps',[...steps,{t:'',s:''}]);}
+  async function removeStep(i){await save('steps',steps.filter((_,j)=>j!==i));}
+  async function handleDelete(){if(!window.confirm('Delete "'+lesson.title+'"?')) return;try{await deleteCustomLesson(lesson.id);}catch(e){console.error(e);}}
 
   const kwColors=lesson.keywordColors||{};
-  const visibleTabs=teacherMode
-    ?[{id:'overview',label:'Overview'},{id:'activity',label:'Activity'},{id:'references',label:'References'}]
-    :[{id:'overview',label:'Overview'},{id:'activity',label:'Activity'},{id:'references',label:'References'}];
+  function Field({value,onSave,placeholder,multiline,style={}}){
+    return <InlineField value={value} onSave={onSave} placeholder={placeholder} multiline={multiline}
+      style={style} disabled={!teacherMode}
+      onEditStart={()=>setAnyEditing(true)} onEditEnd={()=>setAnyEditing(false)}/>;
+  }
 
   return(
     <div ref={cardRef} className={'sc '+(open?'open-card':'')}
-      style={{background:editing?'rgba(255,255,255,0.04)':'',transition:'background .2s'}}>
-      <div className="sc-hdr" onClick={()=>{if(!editing){setOpen(v=>!v);}}}>
+      style={{background:anyEditing?'rgba(255,255,255,0.04)':'',transition:'background .25s'}}>
+      <div className="sc-hdr" onClick={()=>setOpen(v=>!v)}>
         <div className="sc-num" style={{background:pm.s,color:pm.l,minWidth:28,textAlign:'center'}}>{n}</div>
         <div style={{flex:1,minWidth:0}}>
-          {open&&editing&&teacherMode?(
-            <InlineField value={lesson.title} placeholder="Lesson title"
-              onSave={v=>save('title',v)}
-              style={{fontSize:'clamp(12px,1.4vh,14px)',fontWeight:700}}
-              disabled={false}/>
-          ):(
-            <div className="sc-title">
-              <span style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:700,color:'var(--tx)',fontFamily:F}}>{lesson.title}</span>
-            </div>
-          )}
+          <div className="sc-title">
+            <span style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:700,color:'var(--tx)',fontFamily:F}}>{lesson.title||'Untitled'}</span>
+          </div>
           {!open&&lesson.overview&&(
             <div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'var(--tx3)',fontStyle:'italic',
               lineHeight:1.4,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
@@ -6307,122 +6269,69 @@ function CustomSessionCard({lesson,teacherMode,n}){
             </div>
           )}
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-          {open&&teacherMode&&(
-            <button onClick={e=>{e.stopPropagation();setEditing(v=>!v);}}
-              title={editing?'Done editing':'Edit lesson'}
-              style={{fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:6,cursor:'pointer',
-                border:'1px solid',fontFamily:F,
-                borderColor:editing?pm.l:'rgba(255,255,255,0.12)',
-                background:editing?pm.s:'rgba(255,255,255,0.04)',
-                color:editing?pm.l:'var(--tx3)',transition:'all .15s'}}>
-              {editing?'Done':'Edit'}
-            </button>
-          )}
-          {open&&teacherMode&&editing&&(
-            <button onClick={e=>{e.stopPropagation();handleDelete();}}
-              style={{fontSize:11,padding:'3px 8px',borderRadius:6,cursor:'pointer',
-                border:'1px solid rgba(220,80,60,0.25)',background:'transparent',
-                color:'var(--coral)',fontFamily:F}}>Delete</button>
-          )}
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0,
-              transform:open?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s',color:'var(--tx3)'}}>
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </div>
+        {teacherMode&&(
+          <button onClick={e=>{e.stopPropagation();handleDelete();}} title="Delete lesson"
+            style={{background:'none',border:'none',color:'rgba(232,112,90,0.3)',fontSize:14,
+              cursor:'pointer',padding:'4px 6px',flexShrink:0,lineHeight:1,transition:'color .15s'}}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--coral)'}
+            onMouseLeave={e=>e.currentTarget.style.color='rgba(232,112,90,0.3)'}>&#10005;</button>
+        )}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0,marginLeft:4,
+            transform:open?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s',color:'var(--tx3)'}}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
       </div>
 
       {open&&(
         <div className="sc-body open">
           <div className="sc-tabs">
-            {visibleTabs.map(tb=>(
+            {[{id:'overview',label:'Overview'},{id:'activity',label:'Activity'},{id:'references',label:'References'}].map(tb=>(
               <button key={tb.id} className={'sc-tab '+(tab===tb.id?'active':'')}
                 style={tab===tb.id?{color:pm.l,borderBottomColor:pm.l}:{}}
-                onClick={()=>setTab(tb.id)}>
-                {tb.label}
-              </button>
+                onClick={()=>setTab(tb.id)}>{tb.label}</button>
             ))}
           </div>
 
           {tab==='overview'&&(
             <div className="sc-panel active">
-              {/* About this lesson */}
               <div className="pl">About this lesson</div>
-              <div className="pt" onClick={teacherMode?()=>setEditing(true):undefined} style={{cursor:teacherMode?'pointer':'default'}}>
-                {editing&&teacherMode?(
-                  <InlineField value={lesson.overview} placeholder="What happens in this lesson?" multiline
-                    onSave={v=>save('overview',v)} disabled={false}/>
-                ):(
-                  <span style={{color:lesson.overview?'var(--tx)':'var(--tx3)',fontStyle:lesson.overview?'normal':'italic'}}>
-                    {lesson.overview||'Click Edit to add an overview\u2026'}
-                  </span>
-                )}
-              </div>
-
+              <div className="pt"><Field value={lesson.overview} placeholder="Click to add an overview..." multiline onSave={v=>save('overview',v)}/></div>
               <div className="pgrid">
-                {/* Learning Objective */}
                 <div className="pbox">
                   <div className="pl">Learning Objective</div>
-                  {editing&&teacherMode?(
-                    <InlineField value={lesson.objective} placeholder="What will students learn?" multiline
-                      onSave={v=>save('objective',v)} style={{fontSize:12}} disabled={false}/>
-                  ):(
-                    <div className="pt" style={{fontSize:12,color:lesson.objective?'var(--tx)':'var(--tx3)',fontStyle:lesson.objective?'normal':'italic'}}>
-                      {lesson.objective||'Not set'}
-                    </div>
-                  )}
+                  <Field value={lesson.objective} placeholder="What will students learn?" multiline onSave={v=>save('objective',v)} style={{fontSize:12}}/>
                 </div>
-
-                {/* Materials */}
                 <div className="pbox">
                   <div className="pl">Materials</div>
-                  {editing&&teacherMode?(
-                    <InlineField value={matsArr.join('\n')} placeholder={'A3 paper\nPencils\nPaints'} multiline
-                      onSave={saveMats} style={{fontSize:12}} disabled={false}/>
-                  ):(
-                    matsArr.length>0
-                      ?<ul className="mat-list">{matsArr.map((m,i)=><li key={i}>{m}</li>)}</ul>
-                      :<div style={{fontSize:12,color:'var(--tx3)',fontStyle:'italic'}}>Not set</div>
-                  )}
+                  {!teacherMode&&matsArr.length>0
+                    ?<ul className="mat-list">{matsArr.map((m,i)=><li key={i}>{m}</li>)}</ul>
+                    :<Field value={matsArr.join('\n')} placeholder={'A3 paper\nPencils\nPaints'} multiline onSave={saveMats} style={{fontSize:12}}/>
+                  }
                 </div>
-
-                {/* Big Questions */}
                 <div className="pbox full">
                   <div className="pl">Big Questions</div>
-                  {editing&&teacherMode?(
-                    <InlineField value={bigQArr.join('\n')} placeholder={'Question one\nQuestion two'} multiline
-                      onSave={saveBigQ} style={{fontSize:12}} disabled={false}/>
-                  ):(
-                    bigQArr.length>0
-                      ?<ul className="bq-list">{bigQArr.map((q,i)=><li key={i}>{q}</li>)}</ul>
-                      :<div style={{fontSize:12,color:'var(--tx3)',fontStyle:'italic'}}>No questions yet</div>
-                  )}
+                  {!teacherMode&&bigQArr.length>0
+                    ?<ul className="bq-list">{bigQArr.map((q,i)=><li key={i}>{q}</li>)}</ul>
+                    :<Field value={bigQArr.join('\n')} placeholder={'One question per line...'} multiline onSave={saveBigQ} style={{fontSize:12}}/>
+                  }
                 </div>
-
-                {/* Key Words */}
                 <div className="pbox full">
-                  <div className="pl">Key Words {editing&&teacherMode&&<span style={{fontWeight:400,textTransform:'none',letterSpacing:0,fontSize:10,color:'var(--tx3)'}}> — comma separated</span>}</div>
-                  {editing&&teacherMode?(
-                    <InlineField value={kws.join(', ')} placeholder="e.g. Texture, Collage, Rhythm"
-                      onSave={saveKeywords} style={{fontSize:12}} disabled={false}/>
-                  ):(
-                    kws.length>0?(
-                      <div className="kw-mini-wrap">
-                        {kws.map((k,i)=>{
-                          const c=kwColors[k]||pickTagColor(k,[]);
-                          const tc=TAG_COLOR_MAP[c]||TAG_COLOR_MAP.teal;
-                          return(
-                            <span key={i} style={{padding:'3px 10px',borderRadius:100,
-                              background:tc.bg,color:tc.cl,
-                              fontSize:11,fontWeight:700,fontFamily:F,border:'none'}}>
-                              {k}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ):<div style={{fontSize:12,color:'var(--tx3)',fontStyle:'italic'}}>No keywords yet</div>
-                  )}
+                  <div className="pl">Key Words<span style={{fontWeight:400,textTransform:'none',letterSpacing:0,fontSize:10,color:'var(--tx3)'}}> — comma separated</span></div>
+                  {teacherMode?(
+                    <>
+                      <Field value={kws.join(', ')} placeholder="e.g. Texture, Collage, Rhythm" onSave={saveKeywords} style={{fontSize:12}}/>
+                      {kws.length>0&&(
+                        <div className="kw-mini-wrap" style={{marginTop:8}}>
+                          {kws.map((k,i)=>{const c=kwColors[k]||pickTagColor(k,[]);const tc=TAG_COLOR_MAP[c]||TAG_COLOR_MAP.teal;return <span key={i} style={{padding:'3px 10px',borderRadius:100,background:tc.bg,color:tc.cl,fontSize:11,fontWeight:700,fontFamily:F}}>{k}</span>;})}
+                        </div>
+                      )}
+                    </>
+                  ):kws.length>0?(
+                    <div className="kw-mini-wrap">
+                      {kws.map((k,i)=>{const c=kwColors[k]||pickTagColor(k,[]);const tc=TAG_COLOR_MAP[c]||TAG_COLOR_MAP.teal;return <span key={i} style={{padding:'3px 10px',borderRadius:100,background:tc.bg,color:tc.cl,fontSize:11,fontWeight:700,fontFamily:F}}>{k}</span>;})}
+                    </div>
+                  ):<div style={{fontSize:12,color:'var(--tx3)',fontStyle:'italic'}}>No keywords yet</div>}
                 </div>
               </div>
             </div>
@@ -6430,52 +6339,35 @@ function CustomSessionCard({lesson,teacherMode,n}){
 
           {tab==='activity'&&(
             <div className="sc-panel active">
-              {steps.length===0&&!editing&&(
-                <div style={{fontSize:12,color:'var(--tx3)',fontStyle:'italic',padding:'4px 0'}}>
-                  {teacherMode?'No steps yet. Click Edit to add activity steps.':'No activity steps added.'}
-                </div>
-              )}
+              {steps.length===0&&<div style={{fontSize:12,color:'var(--tx3)',fontStyle:'italic',padding:'4px 0'}}>{teacherMode?'No steps yet. Click + Add Step to begin.':'No activity steps added.'}</div>}
               {steps.map((step,i)=>(
                 <div key={i} className="step" style={{marginBottom:8,alignItems:'flex-start'}}>
                   <span className="step-n" style={{background:pm.s,color:pm.l,flexShrink:0,marginTop:2}}>{i+1}</span>
                   <div style={{flex:1,minWidth:0}}>
-                    {editing&&teacherMode?(
-                      <>
-                        <InlineField value={step.t} placeholder="Step title (e.g. Intro — 5 min)"
-                          onSave={v=>saveStep(i,'t',v)} style={{fontSize:12,fontWeight:700,marginBottom:4}} disabled={false}/>
-                        <InlineField value={step.s} placeholder="Step description" multiline
-                          onSave={v=>saveStep(i,'s',v)} style={{fontSize:12}} disabled={false}/>
-                      </>
-                    ):(
-                      <>
-                        {step.t&&<div style={{fontSize:12,fontWeight:700,color:'var(--tx)',marginBottom:3,fontFamily:F}}>{step.t}</div>}
-                        {step.s&&<div style={{fontSize:12,color:'var(--tx2)',lineHeight:1.5,fontFamily:F}}>{step.s}</div>}
-                      </>
-                    )}
+                    <Field value={step.t} placeholder="Step title (e.g. Intro — 5 min)" onSave={v=>saveStep(i,'t',v)} style={{fontSize:12,fontWeight:700,marginBottom:4}}/>
+                    <Field value={step.s} placeholder="Step description" multiline onSave={v=>saveStep(i,'s',v)} style={{fontSize:12}}/>
                   </div>
-                  {editing&&teacherMode&&(
+                  {teacherMode&&(
                     <button onClick={()=>removeStep(i)}
-                      style={{background:'none',border:'none',color:'var(--coral)',fontSize:16,
-                        cursor:'pointer',padding:'4px',flexShrink:0,lineHeight:1}}>
-                      \u00d7
-                    </button>
+                      style={{background:'none',border:'none',color:'rgba(232,112,90,0.3)',fontSize:16,
+                        cursor:'pointer',padding:'4px',flexShrink:0,lineHeight:1,transition:'color .15s'}}
+                      onMouseEnter={e=>e.currentTarget.style.color='var(--coral)'}
+                      onMouseLeave={e=>e.currentTarget.style.color='rgba(232,112,90,0.3)'}>&#10005;</button>
                   )}
                 </div>
               ))}
-              {teacherMode&&editing&&(
+              {teacherMode&&(
                 <button onClick={addStep}
                   style={{fontSize:11,fontWeight:600,padding:'5px 12px',borderRadius:8,
                     border:'1px dashed rgba(91,174,232,0.35)',background:'rgba(91,174,232,0.05)',
-                    color:'#5BAEE8',cursor:'pointer',fontFamily:F,marginTop:4}}>
-                  + Add Step
-                </button>
+                    color:'#5BAEE8',cursor:'pointer',fontFamily:F,marginTop:4}}>+ Add Step</button>
               )}
             </div>
           )}
 
           {tab==='references'&&(
             <div className="sc-panel active">
-              <RefsPanel refs={lesson.refs||{}} sessionKey={sessionKey}/>
+              <RefsPanel refs={lesson.refs||[]} sessionKey={sessionKey}/>
             </div>
           )}
         </div>
@@ -12415,7 +12307,7 @@ function StudentPopup({studentName,sectionId,allPhotos,onClose,onOpenPhoto}){
           {photos.length===0?(
             <div style={{textAlign:'center',color:'rgba(255,255,255,0.3)',fontSize:13,padding:'40px 0',fontFamily:"'DM Sans',sans-serif"}}>No photos yet</div>
           ):(
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:2}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:2}}>
               {photos.map((p,i)=>{
                 const lessonLabel=p.resolvedLesson||(p.type==='documentation'?'Documentation':'Artwork');
                 return(
@@ -14867,6 +14759,91 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   ];
 }
 
+// ── Shared tile renderer ──────────────────────────────────────────────────────
+function renderGalleryTile(p,k,sel,i,focusIdx,galleryEditMode,handleTileClick){
+  return(
+    <div key={i} onClick={()=>handleTileClick(p)}
+      style={{cursor:'pointer',position:'relative',aspectRatio:'1',overflow:'hidden',
+        boxShadow:sel?'inset 0 0 0 3px var(--sky)':focusIdx===i?'inset 0 0 0 2px rgba(255,255,255,0.4)':'inset 0 0 0 3px transparent',
+        transition:'box-shadow .12s'}}
+      onMouseEnter={e=>{const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1.06)';const m=e.currentTarget.querySelector('.tile-meta');if(m)m.style.opacity='1';const g=e.currentTarget.querySelector('.tile-grad');if(g)g.style.opacity='1';}}
+      onMouseLeave={e=>{const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1)';const m=e.currentTarget.querySelector('.tile-meta');if(m)m.style.opacity='0';const g=e.currentTarget.querySelector('.tile-grad');if(g)g.style.opacity='0';}}>
+      <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',transform:'scale(1)',transition:'transform .3s cubic-bezier(0.25,0.1,0.25,1)',filter:galleryEditMode&&sel?'brightness(0.7)':'none'}}/>
+      <div className="tile-grad" style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0.1) 35%,transparent 55%)',pointerEvents:'none',opacity:0,transition:'opacity .2s'}}/>
+      <div className="tile-meta" style={{position:'absolute',bottom:0,left:0,right:0,padding:'7px 9px',pointerEvents:'none',opacity:0,transition:'opacity .2s'}}>
+        <div style={{fontSize:12,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.type==='documentation'?(p.resolvedLesson||'Documentation'):(p.displayName||p.studentName)}</div>
+        <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}><SectionDot sectionId={p.sectionId} size={5}/><span style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>{p.sectionName}</span></div>
+      </div>
+      {galleryEditMode&&sel&&(<div style={{position:'absolute',top:6,right:6,width:18,height:18,borderRadius:'50%',border:'2px solid var(--sky)',background:'var(--sky)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>)}
+      {galleryEditMode&&!sel&&(<div style={{position:'absolute',top:6,right:6,width:18,height:18,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.35)',background:'rgba(0,0,0,0.3)'}}/>)}
+    </div>
+  );
+}
+
+// ── GalleryGrid — flat or section/lesson grouped renderer ─────────────────────
+function GalleryGrid({arrange,filterSections,filterLessons,displayPhotos,tileCols,tileSize,allLessons,selectedPhotos,focusIdx,galleryEditMode,handleTileClick,teacherMode,isVisitor,setShowUpload,photoKey}){
+  const useGrouped=arrange==='section'||(filterSections.size>0&&filterLessons.size>0);
+  const orderedPhotos=[...displayPhotos].reverse();
+  const F="'DM Sans',sans-serif";
+  const addTile=teacherMode&&!isVisitor?(
+    <div onClick={()=>setShowUpload(true)}
+      style={{aspectRatio:'1',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,0.04)',border:'1px dashed rgba(255,255,255,0.15)',transition:'all .15s'}}
+      onMouseEnter={e=>{e.currentTarget.style.background='rgba(91,174,232,0.08)';e.currentTarget.style.borderColor='rgba(91,174,232,0.3)';}}
+      onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor='rgba(255,255,255,0.15)';}}>
+      <div style={{width:28,height:28,borderRadius:'50%',background:'rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,color:'rgba(255,255,255,0.3)',fontWeight:200,lineHeight:1}}>+</div>
+    </div>
+  ):null;
+
+  if(!useGrouped){
+    return(
+      <div style={{display:'grid',gridTemplateColumns:tileCols[tileSize],gap:2}}>
+        {orderedPhotos.map((p,i)=>renderGalleryTile(p,photoKey(p),selectedPhotos.has(photoKey(p)),i,focusIdx,galleryEditMode,handleTileClick))}
+        {addTile}
+      </div>
+    );
+  }
+  const sections=G4_SECTIONS.filter(sec=>filterSections.size===0||filterSections.has(sec.id));
+  const useLessonGroups=filterLessons.size>0;
+  let absIdx=0;
+  return(
+    <div style={{padding:'0 0 32px'}}>
+      {sections.map(sec=>{
+        const secPhotos=orderedPhotos.filter(p=>p.sectionId===sec.id);
+        if(!secPhotos.length) return null;
+        return(
+          <div key={sec.id} style={{marginBottom:32}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'14px 12px 10px',position:'sticky',top:0,zIndex:10,background:'rgba(13,13,13,0.94)',backdropFilter:'blur(12px)'}}>
+              <SectionDot sectionId={sec.id} size={8}/>
+              <span style={{fontSize:13,fontWeight:700,color:'rgba(255,255,255,0.85)',fontFamily:F,letterSpacing:'-.01em'}}>{sec.name}</span>
+              <span style={{fontSize:11,color:'rgba(255,255,255,0.3)',fontFamily:F}}>{secPhotos.length} photo{secPhotos.length!==1?'s':''}</span>
+            </div>
+            {useLessonGroups?(
+              [...filterLessons].map(lKey=>{
+                const lObj=allLessons.find(x=>(x.key||(x.phaseId+':'+x.n))===lKey);
+                const lPhotos=secPhotos.filter(p=>(p.lessons||[]).some(l=>{const norm=l&&l.startsWith('L')?l.slice(1):l;return norm===lKey||l===lKey;}));
+                if(!lPhotos.length) return null;
+                const lLabel=lObj?(lObj.phaseId==='custom'?(lObj.title||'Custom'):'S'+lObj.n+': '+lObj.title):lKey;
+                return(
+                  <div key={lKey} style={{marginBottom:14}}>
+                    <div style={{padding:'5px 12px',fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.38)',letterSpacing:'.06em',textTransform:'uppercase',fontFamily:F}}>{lLabel}</div>
+                    <div style={{display:'grid',gridTemplateColumns:tileCols[tileSize],gap:2}}>
+                      {lPhotos.map(p=>{const ai=absIdx++;return renderGalleryTile(p,photoKey(p),selectedPhotos.has(photoKey(p)),ai,focusIdx,galleryEditMode,handleTileClick);})}
+                    </div>
+                  </div>
+                );
+              })
+            ):(
+              <div style={{display:'grid',gridTemplateColumns:tileCols[tileSize],gap:2}}>
+                {secPhotos.map(p=>{const ai=absIdx++;return renderGalleryTile(p,photoKey(p),selectedPhotos.has(photoKey(p)),ai,focusIdx,galleryEditMode,handleTileClick);})}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function GalleryView({isVisitor}){
   const SECTION_IDS=G4_SECTIONS.map(s=>s.id);
   const [allData,setAllData]=React.useState({});
@@ -14889,6 +14866,7 @@ function GalleryView({isVisitor}){
   const [filterLessons,setFilterLessons]=React.useState(new Set());
   const [filterTags,setFilterTags]=React.useState(new Set());
   const [showFilter,setShowFilter]=React.useState(false);
+  const [arrange,setArrange]=React.useState('default'); // 'default'|'az'|'za'|'section'
   const [showUpload,setShowUpload]=React.useState(false);
   const [lightbox,setLightbox]=React.useState(null);
   const [studentPopup,setStudentPopup]=React.useState(null);
@@ -15133,8 +15111,8 @@ function GalleryView({isVisitor}){
     });
   },[allPhotos,effectiveFilterType,filterSections,filterLessons,filterTags]);
 
-  const activeFilterCount=[filterType!=='all',filterSections.size>0,filterLessons.size>0,filterTags.size>0].filter(Boolean).length;
-  const clearFilters=()=>{setFilterType('all');setFilterSections(new Set());setFilterLessons(new Set());setFilterTags(new Set());};
+  const activeFilterCount=[filterType!=='all',filterSections.size>0,filterLessons.size>0,filterTags.size>0,arrange!=='default'].filter(Boolean).length;
+  const clearFilters=()=>{setFilterType('all');setFilterSections(new Set());setFilterLessons(new Set());setFilterTags(new Set());setArrange('default');};
 
   // filteredRef for navigate callback
   const filteredRef=React.useRef(filtered);
@@ -15165,15 +15143,30 @@ function GalleryView({isVisitor}){
   // displayRef — reversed order the grid renders, used by lightbox nav
   const displayRef=React.useRef([]);
   const displayPhotos=React.useMemo(()=>{
-    if(!localQuery.trim()) return filtered;
-    const q=localQuery.trim().toLowerCase();
-    return filtered.filter(p=>{
-      const name=(p.studentName||'').toLowerCase();
-      const section=(p.sectionName||'').toLowerCase();
-      const lesson=(p.resolvedLesson||'').toLowerCase();
-      return name.includes(q)||section.includes(q)||lesson.includes(q);
+    let base=filtered;
+    if(localQuery.trim()){
+      const q=localQuery.trim().toLowerCase();
+      base=filtered.filter(p=>{
+        const name=(p.studentName||'').toLowerCase();
+        const section=(p.sectionName||'').toLowerCase();
+        const lesson=(p.resolvedLesson||'').toLowerCase();
+        return name.includes(q)||section.includes(q)||lesson.includes(q);
+      });
+    }
+    if(arrange==='default') return base;
+    const sorted=[...base];
+    sorted.sort((a,b)=>{
+      const secA=(a.sectionName||a.sectionId||'').toLowerCase();
+      const secB=(b.sectionName||b.sectionId||'').toLowerCase();
+      const nameA=(a.studentName||'').toLowerCase();
+      const nameB=(b.studentName||'').toLowerCase();
+      if(arrange==='section'){if(secA!==secB)return secA<secB?-1:1;return nameA<nameB?-1:nameA>nameB?1:0;}
+      if(arrange==='az')return nameA<nameB?-1:nameA>nameB?1:secA<secB?-1:secA>secB?1:0;
+      if(arrange==='za')return nameA>nameB?-1:nameA<nameB?1:secA<secB?-1:secA>secB?1:0;
+      return 0;
     });
-  },[filtered,localQuery]);
+    return sorted;
+  },[filtered,localQuery,arrange]);
 
   // Keep displayRef in sync — filteredRef used by lightbox navigate callback
   React.useEffect(()=>{
@@ -15198,8 +15191,10 @@ function GalleryView({isVisitor}){
 
   // Keyboard cursor for gallery grid
   const [focusIdx,setFocusIdx]=React.useState(-1);
+  const toggleSelectRef=React.useRef(toggleSelect);
+  React.useEffect(()=>{toggleSelectRef.current=toggleSelect;},[toggleSelect]);
   React.useEffect(()=>{
-    if(lightbox) return; // lightbox has its own handler
+    if(lightbox) return;
     function onKey(e){
       const tag=(e.target&&e.target.tagName)||'';
       if(tag==='INPUT'||tag==='TEXTAREA') return;
@@ -15209,18 +15204,18 @@ function GalleryView({isVisitor}){
         e.preventDefault();
         setFocusIdx(i=>{
           const next=Math.min(photos.length-1,i<0?0:i+1);
-          if(e.shiftKey&&i>=0){const p=photos[next];if(p)toggleSelect(p);}
+          if(e.shiftKey&&galleryEditMode&&i>=0){const p=photos[next];if(p)toggleSelectRef.current(p);}
           return next;
         });
       } else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){
         e.preventDefault();
         setFocusIdx(i=>{
           const next=Math.max(0,i-1);
-          if(e.shiftKey&&i>=0){const p=photos[next];if(p)toggleSelect(p);}
+          if(e.shiftKey&&galleryEditMode&&i>=0){const p=photos[next];if(p)toggleSelectRef.current(p);}
           return next;
         });
-      } else if(e.key==='Enter'&&focusIdx>=0){
-        const p=photos[focusIdx];
+      } else if(e.key==='Enter'){
+        const p=focusIdx>=0?photos[focusIdx]:null;
         if(p) setLightbox(p);
       } else if(e.key==='Escape'){
         setSelectedPhotos(new Set());
@@ -15229,11 +15224,15 @@ function GalleryView({isVisitor}){
     }
     window.addEventListener('keydown',onKey);
     return()=>window.removeEventListener('keydown',onKey);
-  },[lightbox,focusIdx,toggleSelect]);
+  },[lightbox,galleryEditMode]);
 
-  // Click tracking for single=select, double=lightbox
+  // Click tracking — single click opens lightbox outside select mode; in select mode single=select, double=open
   const lastClickRef=React.useRef({key:null,time:0});
   function handleTileClick(p){
+    if(!galleryEditMode){
+      setLightbox(p);
+      return;
+    }
     const k=photoKey(p);
     const now=Date.now();
     const last=lastClickRef.current;
@@ -15328,71 +15327,68 @@ function GalleryView({isVisitor}){
               )}
               {/* Filter */}
               <div style={{position:'relative'}}>
-                <button onClick={()=>setShowFilter(v=>!v)} title="Filter"
-                  style={{width:40,height:34,background:'none',border:'none',cursor:'pointer',
-                    color:activeFilterCount>0?'var(--sky)':'rgba(255,255,255,0.5)',
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    position:'relative',transition:'color .12s'}}
-                  onMouseEnter={e=>e.currentTarget.style.color='#fff'}
-                  onMouseLeave={e=>e.currentTarget.style.color=activeFilterCount>0?'var(--sky)':'rgba(255,255,255,0.5)'}>
+                <button onClick={()=>setShowFilter(v=>!v)}
+                  style={{height:34,padding:'0 12px',borderRadius:100,cursor:'pointer',
+                    display:'flex',alignItems:'center',gap:6,fontFamily:"'DM Sans',sans-serif",
+                    fontSize:11,fontWeight:600,transition:'all .12s',
+                    border:'1px solid',
+                    borderColor:activeFilterCount>0?'rgba(91,174,232,0.45)':'rgba(255,255,255,0.12)',
+                    background:'rgba(7,7,8,0.7)',backdropFilter:'blur(6px)',
+                    color:activeFilterCount>0?'var(--sky)':'rgba(255,255,255,0.5)'}}>
                   {IC.filter}
-                  {activeFilterCount>0&&<span style={{position:'absolute',top:6,right:6,width:5,height:5,borderRadius:'50%',background:'var(--sky)'}}/>}
+                  <span>Filter{activeFilterCount>0?' ('+activeFilterCount+')':''}</span>
                 </button>
-                {/* Redesigned filter popup — clean, grouped */}
                 {showFilter&&(
                   <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'calc(100% + 8px)',right:0,zIndex:600,
-                    width:280,background:'rgba(14,14,18,0.97)',backdropFilter:'blur(24px)',
+                    width:300,background:'rgba(12,12,16,0.98)',backdropFilter:'blur(28px)',WebkitBackdropFilter:'blur(28px)',
                     border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,
-                    boxShadow:'0 16px 48px rgba(0,0,0,0.7)',overflow:'hidden'}}>
-                    {/* Header */}
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px 8px'}}>
-                      <span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.9)',letterSpacing:'.02em'}}>Filter</span>
+                    boxShadow:'0 20px 60px rgba(0,0,0,0.8)',overflow:'hidden'}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 14px 9px'}}>
+                      <span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.85)',letterSpacing:'.02em'}}>Filter &amp; Arrange</span>
                       <div style={{display:'flex',gap:8,alignItems:'center'}}>
                         {activeFilterCount>0&&<button onClick={clearFilters} style={{fontSize:10,fontWeight:700,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",padding:0}}>Clear all</button>}
-                        <button onClick={()=>setShowFilter(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:14,cursor:'pointer',padding:'0 2px',lineHeight:1}}>&#10005;</button>
+                        <button onClick={()=>setShowFilter(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:14,cursor:'pointer',padding:'0 2px',lineHeight:1}}>&#10005;</button>
                       </div>
                     </div>
-                    <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
                     {/* Type */}
-                    <div style={{padding:'10px 14px 6px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:8}}>Type</div>
+                    <div style={{padding:'6px 14px 8px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Type</div>
                       <div style={{display:'flex',gap:4}}>
                         {[['all','All'],['artwork','Artwork'],...(isVisitor?[]:[['documentation','Docs']])].map(([v,l])=>(
                           <button key={v} onClick={()=>setFilterType(v)}
-                            style={{flex:1,fontSize:11,fontWeight:filterType===v?700:400,height:28,borderRadius:100,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                              border:'none',
-                              background:filterType===v?'var(--sky)':'rgba(255,255,255,0.07)',
-                              color:filterType===v?'#000':'rgba(255,255,255,0.5)',
-                              transition:'all .15s'}}>
+                            style={{flex:1,fontSize:11,fontWeight:filterType===v?700:400,height:28,borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                              border:'1px solid',borderColor:filterType===v?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                              background:filterType===v?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
+                              color:filterType===v?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
                             {l}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
+                    <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
                     {/* Section */}
-                    <div style={{padding:'10px 14px 6px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:8}}>Section</div>
+                    <div style={{padding:'8px 14px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Section</div>
                       <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                        {G4_SECTIONS.map(s=>{
-                          const on=filterSections.has(s.id);
+                        {G4_SECTIONS.map(sec=>{
+                          const on=filterSections.has(sec.id);
                           return(
-                            <button key={s.id} onClick={()=>setFilterSections(prev=>{const n=new Set(prev);on?n.delete(s.id):n.add(s.id);return n;})}
-                              style={{fontSize:10,fontWeight:on?700:400,padding:'4px 10px',borderRadius:100,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                                border:'none',
-                                background:on?'var(--sky)':'rgba(255,255,255,0.07)',
-                                color:on?'#000':'rgba(255,255,255,0.5)',
-                                transition:'all .15s'}}>
-                              {s.name}
+                            <button key={sec.id} onClick={()=>setFilterSections(prev=>{const n=new Set(prev);on?n.delete(sec.id):n.add(sec.id);return n;})}
+                              style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                                display:'flex',alignItems:'center',gap:5,
+                                border:'1px solid',borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                                background:on?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
+                                color:on?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
+                              <SectionDot sectionId={sec.id} size={5}/>{sec.name}
                             </button>
                           );
                         })}
                       </div>
                     </div>
-                    <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
-                    {/* Lesson — scrollable */}
-                    <div style={{padding:'10px 14px 6px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:8}}>Lesson</div>
+                    <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
+                    {/* Lesson */}
+                    <div style={{padding:'8px 14px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
                       <div style={{display:'flex',flexWrap:'wrap',gap:4,maxHeight:90,overflowY:'auto'}}>
                         {allLessons.map(l=>{
                           const key=l.key||(l.phaseId+':'+l.n);
@@ -15400,82 +15396,118 @@ function GalleryView({isVisitor}){
                           const chipLabel=l.phaseId==='custom'?(l.title||'Custom'):'S'+l.n;
                           return(
                             <button key={key} onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);on?n.delete(key):n.add(key);return n;})}
-                              style={{fontSize:10,fontWeight:on?700:400,padding:'4px 10px',borderRadius:100,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                                border:'none',
-                                background:on?(l.color==='sky'?'rgba(91,174,232,0.35)':'var(--sky)'):'rgba(255,255,255,0.07)',
-                                color:on?(l.color==='sky'?'#fff':'#000'):'rgba(255,255,255,0.5)',
-                                transition:'all .15s',flexShrink:0}}>
+                              style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                                border:'1px solid',borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                                background:on?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
+                                color:on?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s',flexShrink:0}}>
                               {chipLabel}
                             </button>
                           );
                         })}
-                    </div>
+                      </div>
                     </div>
                     {filterType!=='documentation'&&!isVisitor&&(
                       <>
-                      <div style={{height:1,background:'rgba(255,255,255,0.07)',margin:'0 14px'}}/>
-                      <div style={{padding:'10px 14px 12px'}}>
-                        <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:8}}>Assessment</div>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                          {artworkTags.map(t=>{
-                            const on=filterTags.has(t.label);
-                            return(
-                              <button key={t.label} onClick={()=>setFilterTags(prev=>{const n=new Set(prev);on?n.delete(t.label):n.add(t.label);return n;})}
-                                style={{fontSize:10,fontWeight:on?700:400,padding:'4px 10px',borderRadius:100,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                                  border:'none',
-                                  background:on?tagColors[t.color]:'rgba(255,255,255,0.07)',
-                                  color:on?'#fff':'rgba(255,255,255,0.5)',
-                                  transition:'all .15s'}}>
-                                {t.label}
-                              </button>
-                            );
-                          })}
+                        <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
+                        <div style={{padding:'8px 14px'}}>
+                          <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Assessment Tags</div>
+                          <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                            {artworkTags.map(t=>{
+                              const on=filterTags.has(t.label);
+                              return(
+                                <button key={t.label} onClick={()=>setFilterTags(prev=>{const n=new Set(prev);on?n.delete(t.label):n.add(t.label);return n;})}
+                                  style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                                    border:'1px solid',borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                                    background:on?tagColors[t.color]:'rgba(255,255,255,0.04)',
+                                    color:on?'#fff':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
+                                  {t.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
                       </>
                     )}
+                    <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
+                    {/* Arrange */}
+                    <div style={{padding:'8px 14px 12px'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Arrange</div>
+                      <div style={{display:'flex',gap:4}}>
+                        {[['default','Default'],['az','A → Z'],['za','Z → A'],['section','By Section']].map(([v,l])=>(
+                          <button key={v} onClick={()=>setArrange(v)}
+                            style={{flex:1,fontSize:10,fontWeight:arrange===v?700:400,padding:'5px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                              border:'1px solid',borderColor:arrange===v?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                              background:arrange===v?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
+                              color:arrange===v?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
+                            {l}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Select */}
-            {teacherMode&&!isVisitor&&(
-              <button onClick={()=>galleryEditMode?exitEditMode():setGalleryEditMode(true)}
-                style={{height:34,padding:'0 14px',borderRadius:100,cursor:'pointer',
-                  fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,
-                  background:galleryEditMode?'rgba(91,174,232,0.2)':'rgba(7,7,8,0.87)',
-                  backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
-                  color:galleryEditMode?'var(--sky)':'rgba(255,255,255,0.65)',
-                  border:galleryEditMode?'1px solid rgba(91,174,232,0.35)':'1px solid rgba(255,255,255,0.15)',
-                  boxShadow:'0 4px 20px rgba(0,0,0,0.35)',
-                  transition:'all .15s'}}>
-                {galleryEditMode?'Done':'Select'}
-              </button>
-            )}
-
-            {/* Search — extreme right */}
-            <div style={{display:'flex',alignItems:'center',gap:6,height:34,padding:'0 12px',
-              background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',
-              borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',minWidth:170}}>
-              {React.cloneElement(IC.search,{width:13,height:13,stroke:'rgba(255,255,255,0.35)'})}
-              <input ref={localInputRef}
-                value={localQuery}
-                onChange={e=>setLocalQuery(e.target.value)}
-                placeholder="Search gallery…"
-                style={{background:'none',border:'none',outline:'none',
-                  fontSize:11,color:'#fff',fontFamily:"'DM Sans',sans-serif",
-                  caretColor:'var(--sky)',width:110}}/>
-              {localQuery&&<button onClick={()=>setLocalQuery('')}
-                style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',padding:0,fontSize:12,lineHeight:1}}>&#10005;</button>}
-            </div>
-
           </div>
         </div>
       </div>
+
+      {/* Active filter chips */}
+      {activeFilterCount>0&&(
+        <div style={{padding:'6px 16px 8px',display:'flex',flexWrap:'wrap',gap:5,alignItems:'center'}}>
+          {filterType!=='all'&&(
+            <span onClick={()=>setFilterType('all')}
+              style={{fontSize:10,fontWeight:600,padding:'3px 10px 3px 8px',borderRadius:100,
+                background:'rgba(91,174,232,0.12)',border:'1px solid rgba(91,174,232,0.3)',
+                color:'var(--sky)',cursor:'pointer',display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Sans',sans-serif"}}>
+              {filterType==='artwork'?'Artwork':'Docs'} <span style={{opacity:.55}}>&#10005;</span>
+            </span>
+          )}
+          {[...filterSections].map(sid=>{
+            const sec=G4_SECTIONS.find(s=>s.id===sid);
+            return(
+              <span key={sid} onClick={()=>setFilterSections(prev=>{const n=new Set(prev);n.delete(sid);return n;})}
+                style={{fontSize:10,fontWeight:600,padding:'3px 10px 3px 8px',borderRadius:100,
+                  background:'rgba(91,174,232,0.12)',border:'1px solid rgba(91,174,232,0.3)',
+                  color:'var(--sky)',cursor:'pointer',display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Sans',sans-serif"}}>
+                <SectionDot sectionId={sid} size={4}/>{sec?sec.name:sid} <span style={{opacity:.55}}>&#10005;</span>
+              </span>
+            );
+          })}
+          {[...filterLessons].map(key=>{
+            const l=allLessons.find(x=>(x.key||(x.phaseId+':'+x.n))===key);
+            const label=l?(l.phaseId==='custom'?(l.title||'Custom'):'S'+l.n):key;
+            return(
+              <span key={key} onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);n.delete(key);return n;})}
+                style={{fontSize:10,fontWeight:600,padding:'3px 10px 3px 8px',borderRadius:100,
+                  background:'rgba(91,174,232,0.12)',border:'1px solid rgba(91,174,232,0.3)',
+                  color:'var(--sky)',cursor:'pointer',display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Sans',sans-serif"}}>
+                {label} <span style={{opacity:.55}}>&#10005;</span>
+              </span>
+            );
+          })}
+          {[...filterTags].map(tag=>(
+            <span key={tag} onClick={()=>setFilterTags(prev=>{const n=new Set(prev);n.delete(tag);return n;})}
+              style={{fontSize:10,fontWeight:600,padding:'3px 10px 3px 8px',borderRadius:100,
+                background:'rgba(91,174,232,0.12)',border:'1px solid rgba(91,174,232,0.3)',
+                color:'var(--sky)',cursor:'pointer',display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Sans',sans-serif"}}>
+              {tag} <span style={{opacity:.55}}>&#10005;</span>
+            </span>
+          ))}
+          {arrange!=='default'&&(
+            <span onClick={()=>setArrange('default')}
+              style={{fontSize:10,fontWeight:600,padding:'3px 10px 3px 8px',borderRadius:100,
+                background:'rgba(91,174,232,0.12)',border:'1px solid rgba(91,174,232,0.3)',
+                color:'var(--sky)',cursor:'pointer',display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Sans',sans-serif"}}>
+              {arrange==='az'?'A→Z':arrange==='za'?'Z→A':'By Section'} <span style={{opacity:.55}}>&#10005;</span>
+            </span>
+          )}
+        </div>
+      )}
+
       {showFilter&&<div style={{position:'fixed',inset:0,zIndex:499}} onClick={()=>setShowFilter(false)}/>}
 
-      {/* Selection bar */}
+      {/* Selection bar */}}
       {galleryEditMode&&(
         <div style={{display:'flex',alignItems:'center',gap:10,
           padding:'0 16px',background:'rgba(255,255,255,0.04)',
@@ -15512,71 +15544,23 @@ function GalleryView({isVisitor}){
             <div style={{fontSize:12}}>No photos match.</div>
           </div>
         ):(
-          <div style={{display:'grid',gridTemplateColumns:tileCols[tileSize],gap:2}}>
-            {[...displayPhotos].reverse().map((p,i)=>{
-              const k=photoKey(p);
-              const sel=selectedPhotos.has(k);
-              return(
-                <div key={i}
-                  onClick={()=>handleTileClick(p)}
-                  style={{cursor:'pointer',position:'relative',aspectRatio:'1',overflow:'hidden',
-                    boxShadow:sel?'inset 0 0 0 3px var(--sky)':focusIdx===i?'inset 0 0 0 2px rgba(255,255,255,0.4)':'inset 0 0 0 3px transparent',
-                    transition:'box-shadow .12s'}}
-                  onMouseEnter={e=>{
-                    const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1.06)';
-                    const meta=e.currentTarget.querySelector('.tile-meta');if(meta)meta.style.opacity='1';
-                    const grad=e.currentTarget.querySelector('.tile-grad');if(grad)grad.style.opacity='1';
-                  }}
-                  onMouseLeave={e=>{
-                    const img=e.currentTarget.querySelector('img');if(img)img.style.transform='scale(1)';
-                    const meta=e.currentTarget.querySelector('.tile-meta');if(meta)meta.style.opacity='0';
-                    const grad=e.currentTarget.querySelector('.tile-grad');if(grad)grad.style.opacity='0';
-                  }}>
-                  <img src={p.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block',
-                    transform:'scale(1)',transition:'transform .3s cubic-bezier(0.25,0.1,0.25,1)',
-                    filter:galleryEditMode&&sel?'brightness(0.7)':'none'}}/>
-                  <div className="tile-grad" style={{position:'absolute',inset:0,
-                    background:'linear-gradient(to top,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0.1) 35%,transparent 55%)',
-                    pointerEvents:'none',opacity:0,transition:'opacity .2s'}}/>
-                  <div className="tile-meta" style={{position:'absolute',bottom:0,left:0,right:0,padding:'7px 9px',pointerEvents:'none',opacity:0,transition:'opacity .2s'}}>
-                    <div style={{fontSize:12,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                      {p.type==='documentation'?(p.resolvedLesson||'Documentation'):(p.displayName||p.studentName)}
-                    </div>
-                    <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
-                      <SectionDot sectionId={p.sectionId} size={5}/>
-                      <span style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>{p.sectionName}</span>
-                    </div>
-                  </div>
-                  {galleryEditMode&&sel&&(
-                    <div style={{position:'absolute',top:6,right:6,width:18,height:18,borderRadius:'50%',
-                      border:'2px solid var(--sky)',background:'var(--sky)',
-                      display:'flex',alignItems:'center',justifyContent:'center'}}>
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    </div>
-                  )}
-                  {galleryEditMode&&!sel&&(
-                    <div style={{position:'absolute',top:6,right:6,width:18,height:18,borderRadius:'50%',
-                      border:'1.5px solid rgba(255,255,255,0.35)',background:'rgba(0,0,0,0.3)'}}/>
-                  )}
-                </div>
-              );
-            })}
-            {/* + Add photo tile */}
-            {teacherMode&&!isVisitor&&(
-              <div onClick={()=>setShowUpload(true)}
-                style={{aspectRatio:'1',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
-                  background:'rgba(255,255,255,0.04)',border:'1px dashed rgba(255,255,255,0.15)',
-                  transition:'all .15s'}}
-                onMouseEnter={e=>{e.currentTarget.style.background='rgba(91,174,232,0.08)';e.currentTarget.style.borderColor='rgba(91,174,232,0.3)';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor='rgba(255,255,255,0.15)';}}>
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-                  <div style={{width:28,height:28,borderRadius:'50%',
-                    background:'rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',
-                    fontSize:18,color:'rgba(255,255,255,0.3)',fontWeight:200,lineHeight:1}}>+</div>
-                </div>
-              </div>
-            )}
-          </div>
+          <GalleryGrid
+            arrange={arrange}
+            filterSections={filterSections}
+            filterLessons={filterLessons}
+            displayPhotos={displayPhotos}
+            tileCols={tileCols}
+            tileSize={tileSize}
+            allLessons={allLessons}
+            selectedPhotos={selectedPhotos}
+            focusIdx={focusIdx}
+            galleryEditMode={galleryEditMode}
+            handleTileClick={handleTileClick}
+            teacherMode={teacherMode}
+            isVisitor={isVisitor}
+            setShowUpload={setShowUpload}
+            photoKey={photoKey}
+          />
         )}
       </div>
 
