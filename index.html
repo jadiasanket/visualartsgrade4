@@ -13295,15 +13295,28 @@ function ToolbarPill({activeControl,teacherMode,onSetControl}){
   const pillRef    = React.useRef(null);
   const btnRefs    = React.useRef([]);
   const divRefs    = React.useRef([]);
-  // Fluid spring state — same as CropToolPill
-  const sp         = React.useRef({x:0,w:0,tx:0,tw:0,vx:0,vw:0,sx:0,vsx:0,opacity:0,to:0});
+  const wrapRef    = React.useRef(null);
   const rafId      = React.useRef(null);
   const hoverIdx   = React.useRef(-1);
   const mouseVelRef= React.useRef(0);
   const lastMouseX = React.useRef(null);
 
-  // Same spring constants as CropToolPill for identical feel
-  const S=520, D=26, SS=280, SD=18;
+  // Two-spring "magnetic" system: head (fast) + tail (slow) give stretch effect
+  const HEAD_STIFFNESS = 520;
+  const HEAD_DAMPING   = 26;
+  const TAIL_STIFFNESS = 220;
+  const TAIL_DAMPING   = 16;
+  const SHAKE_STIFFNESS = 280;
+  const SHAKE_DAMPING   = 18;
+
+  // head.x = right edge, tail.x = left edge, shake = lateral wobble
+  const sp = React.useRef({
+    head:  { x: 0, v: 0, t: 0 },
+    tail:  { x: 0, v: 0, t: 0 },
+    shake: { x: 0, v: 0 },
+    opacity: 0,
+    to: 0,
+  });
 
   const buttons = [
     { key:'info', title:'Info (I)',
@@ -13318,98 +13331,109 @@ function ToolbarPill({activeControl,teacherMode,onSetControl}){
     const el=btnRefs.current[idx], wrap=el&&el.parentElement;
     if(!el||!wrap) return null;
     const pr=wrap.getBoundingClientRect(), br=el.getBoundingClientRect();
-    return {x:br.left-pr.left, w:br.width};
-  }
-
-  function updateDividers(idx){
-    divRefs.current.forEach((d,i)=>{
-      if(!d) return;
-      const hide = i===idx || i===idx-1
-                || i===activeControlIdx()-1 || i===activeControlIdx();
-      d.style.opacity = hide ? '0' : '1';
-    });
+    return { left: br.left-pr.left, right: br.right-pr.left, w: br.width };
   }
 
   function activeControlIdx(){
     return buttons.findIndex(b=>b.key===activeControl);
   }
 
+  function updateDividers(idx){
+    divRefs.current.forEach((d,i)=>{
+      if(!d) return;
+      const ai = activeControlIdx();
+      const hide = i===idx || i===idx-1 || i===ai-1 || i===ai;
+      d.style.opacity = hide ? '0' : '1';
+    });
+  }
+
+  // Sub-stepped spring integrator
+  function stepSpring(s, target, k, d, dt){
+    s.v += (-k*(s.x - target) - d*s.v) * dt;
+    s.x += s.v * dt;
+  }
+
   function tick(){
-    const s=sp.current;
-    const dt=0.016, STEPS=4, ddt=dt/STEPS;
+    const s = sp.current;
+    const dt = 0.016, STEPS = 4, ddt = dt/STEPS;
 
-    for(let i=0;i<STEPS;i++){
-      s.vx+=(-S*(s.x-s.tx)-D*s.vx)*ddt;
-      s.vw+=(-S*(s.w-s.tw)-D*s.vw)*ddt;
-      s.x+=s.vx*ddt; s.w+=s.vw*ddt;
-      // Balloon stretch
-      const targetSx=Math.max(-18,Math.min(18,mouseVelRef.current*1.4));
-      s.vsx+=(-SS*(s.sx-targetSx)-SD*s.vsx)*ddt;
-      s.sx+=s.vsx*ddt;
+    for(let i=0; i<STEPS; i++){
+      stepSpring(s.head, s.head.t, HEAD_STIFFNESS, HEAD_DAMPING, ddt);
+      stepSpring(s.tail, s.tail.t, TAIL_STIFFNESS, TAIL_DAMPING, ddt);
+      const shakeTarget = Math.max(-18, Math.min(18, mouseVelRef.current*1.4));
+      stepSpring(s.shake, shakeTarget, SHAKE_STIFFNESS, SHAKE_DAMPING, ddt);
     }
-    mouseVelRef.current*=0.82;
-    s.opacity+=(s.to-s.opacity)*0.18;
+    mouseVelRef.current *= 0.82;
+    s.opacity += (s.to - s.opacity) * 0.18;
 
-    const pill=pillRef.current;
-    if(pill&&s.to>0){
-      const stretchW=Math.abs(s.sx)*0.5;
-      const offsetX=s.sx>0?-s.sx*0.15:-s.sx*0.15;
-      pill.style.transform='translateX('+(s.x+offsetX)+'px)';
-      pill.style.width=Math.max(4,s.w+stretchW)+'px';
-      pill.style.opacity=s.opacity;
-      const sc=0.85+0.15*s.opacity;
-      pill.style.transform='translateX('+(s.x+offsetX)+'px) scaleY('+sc+')';
-    } else if(pill){
-      const sc=0.85+0.15*s.opacity;
-      pill.style.opacity=s.opacity;
-      pill.style.transform='translateX('+s.x+'px) scaleY('+sc+')';
+    const pill = pillRef.current;
+    if(pill){
+      const left  = Math.min(s.tail.x, s.head.x);
+      const right = Math.max(s.tail.x, s.head.x);
+      const w     = Math.max(4, right - left);
+      const stretchPad = Math.abs(s.shake.x) * 0.5;
+      const ox = -s.shake.x * 0.15;
+      const sc = 0.85 + 0.15 * s.opacity;
+      pill.style.opacity   = s.opacity;
+      pill.style.transform = 'translateX(' + (left + ox) + 'px) scaleY(' + sc + ')';
+      pill.style.width     = (w + stretchPad) + 'px';
     }
 
-    const settled=
-      Math.abs(s.vx)<0.3&&Math.abs(s.vw)<0.3&&Math.abs(s.vsx)<0.3&&
-      Math.abs(s.x-s.tx)<0.3&&Math.abs(s.w-s.tw)<0.3&&
-      Math.abs(s.sx)<0.3&&Math.abs(s.opacity-s.to)<0.002;
-    if(!settled) rafId.current=requestAnimationFrame(tick);
-    else rafId.current=null;
+    const settled =
+      Math.abs(s.head.v) < 0.3 && Math.abs(s.tail.v) < 0.3 &&
+      Math.abs(s.shake.v) < 0.3 &&
+      Math.abs(s.head.x - s.head.t) < 0.3 &&
+      Math.abs(s.tail.x - s.tail.t) < 0.3 &&
+      Math.abs(s.shake.x) < 0.3 &&
+      Math.abs(s.opacity - s.to) < 0.002;
+
+    if(!settled) rafId.current = requestAnimationFrame(tick);
+    else         rafId.current = null;
   }
 
   function startTick(){
-    if(!rafId.current) rafId.current=requestAnimationFrame(tick);
+    if(!rafId.current) rafId.current = requestAnimationFrame(tick);
   }
 
   function onMouseMove(e){
-    if(lastMouseX.current!==null) mouseVelRef.current=e.clientX-lastMouseX.current;
-    lastMouseX.current=e.clientX;
+    if(lastMouseX.current !== null) mouseVelRef.current = e.clientX - lastMouseX.current;
+    lastMouseX.current = e.clientX;
   }
 
   function onEnter(idx){
-    hoverIdx.current=idx;
-    const r=getBtnRect(idx); if(!r) return;
-    const s=sp.current;
-    if(s.to===0){ s.x=r.x; s.w=r.w; } // snap on first entry
-    s.tx=r.x; s.tw=r.w; s.to=1;
+    hoverIdx.current = idx;
+    const r = getBtnRect(idx);
+    if(!r) return;
+    const s = sp.current;
+    // Snap both edges on first appearance so bubble doesn't shoot in from x=0
+    if(s.to === 0){
+      s.head.x = r.right; s.tail.x = r.left;
+    }
+    s.head.t = r.right;
+    s.tail.t = r.left;
+    s.to = 1;
     updateDividers(idx);
     startTick();
   }
 
   function onLeave(){
-    hoverIdx.current=-1;
-    lastMouseX.current=null;
-    mouseVelRef.current=0;
-    sp.current.to=0;
-    divRefs.current.forEach(d=>{if(d) d.style.opacity='1';});
+    hoverIdx.current = -1;
+    lastMouseX.current = null;
+    mouseVelRef.current = 0;
+    sp.current.to = 0;
+    divRefs.current.forEach(d => { if(d) d.style.opacity = '1'; });
     startTick();
   }
 
-  const btnBase={
-    background:'transparent',border:'none',cursor:'pointer',
-    paddingLeft:12,paddingRight:12,height:34,borderRadius:100,lineHeight:1,
-    display:'flex',alignItems:'center',justifyContent:'center',
-    flexShrink:0,position:'relative',zIndex:2,
+  const btnBase = {
+    background:'transparent', border:'none', cursor:'pointer',
+    paddingLeft:12, paddingRight:12, height:34, borderRadius:100, lineHeight:1,
+    display:'flex', alignItems:'center', justifyContent:'center',
+    flexShrink:0, position:'relative', zIndex:2,
   };
 
   return (
-    <div className="tb-pill-wrap lb-glass-panel"
+    <div ref={wrapRef} className="tb-pill-wrap lb-glass-panel"
       style={{position:'relative',display:'flex',alignItems:'center',gap:0,
         background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',
         WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:100,
@@ -13417,37 +13441,37 @@ function ToolbarPill({activeControl,teacherMode,onSetControl}){
       onMouseLeave={onLeave}
       onMouseMove={onMouseMove}>
 
-      {/* Travelling blue bubble */}
+      {/* Travelling blue bubble — stretches between head & tail springs */}
       <div ref={pillRef} style={{
-        position:'absolute',top:0,left:0,height:'100%',
-        background:'rgb(0,116,240)',borderRadius:100,
-        pointerEvents:'none',zIndex:1,opacity:0,
+        position:'absolute', top:0, left:0, height:'100%',
+        background:'rgb(0,116,240)', borderRadius:100,
+        pointerEvents:'none', zIndex:1, opacity:0,
         willChange:'transform,width,opacity',
       }}/>
 
-      {buttons.map((b,i)=>{
-        const isActive=activeControl===b.key;
-        const leftNeighbourActive=i>0&&activeControl===buttons[i-1].key;
+      {buttons.map((b,i) => {
+        const isActive = activeControl === b.key;
+        const leftNeighbourActive = i>0 && activeControl === buttons[i-1].key;
         return (
           <React.Fragment key={b.key}>
-            {i>0&&<div
-              ref={el=>divRefs.current[i-1]=el}
+            {i>0 && <div
+              ref={el => divRefs.current[i-1] = el}
               style={{
-                width:(leftNeighbourActive||isActive)?0:1,
-                height:(leftNeighbourActive||isActive)?34:18,
-                background:(leftNeighbourActive||isActive)?'rgb(0,116,240)':'rgba(255,255,255,0.12)',
-                borderRadius:100,flexShrink:0,
+                width: (leftNeighbourActive||isActive) ? 0 : 1,
+                height:(leftNeighbourActive||isActive) ? 34 : 18,
+                background:(leftNeighbourActive||isActive) ? 'rgb(0,116,240)' : 'rgba(255,255,255,0.12)',
+                borderRadius:100, flexShrink:0,
                 transition:'width .22s cubic-bezier(0.34,1.56,0.64,1),height .22s cubic-bezier(0.34,1.56,0.64,1),background .18s,opacity .12s',
               }}/>}
             <button
-              ref={el=>btnRefs.current[i]=el}
-              onClick={()=>onSetControl(b.key)}
+              ref={el => btnRefs.current[i] = el}
+              onClick={() => onSetControl(b.key)}
               title={b.title}
-              onMouseEnter={()=>onEnter(i)}
+              onMouseEnter={() => onEnter(i)}
               style={{...btnBase,
-                color:isActive?'#fff':'rgba(255,255,255,0.55)',
-                background:isActive?'rgb(0,116,240)':'transparent',
-                animation:isActive?'pill-pop .22s cubic-bezier(0.34,1.56,0.64,1) forwards':undefined,
+                color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
+                background: isActive ? 'rgb(0,116,240)' : 'transparent',
+                animation: isActive ? 'pill-pop .22s cubic-bezier(0.34,1.56,0.64,1) forwards' : undefined,
               }}>
               <span style={{display:'flex',alignItems:'center',justifyContent:'center',width:20,height:20}}>
                 {b.icon}
@@ -15383,20 +15407,21 @@ function GalleryView({isVisitor}){
 
       {/* Sticky toolbar — blur fades downward */}
       <div style={{position:'sticky',top:0,zIndex:100,flexShrink:0}}>
-        {/* Blur + scrim — no inset shorthand, explicit sides, extends below toolbar */}
+        {/* Pure blur layer — no background so photos show through blurred */}
         <div style={{
-          position:'absolute',top:0,left:0,right:0,bottom:'-32px',
+          position:'absolute',inset:0,bottom:'-28px',
           backdropFilter:'blur(20px) saturate(180%)',
           WebkitBackdropFilter:'blur(20px) saturate(180%)',
-          maskImage:'linear-gradient(to bottom,black 50%,transparent 100%)',
-          WebkitMaskImage:'linear-gradient(to bottom,black 50%,transparent 100%)',
+          maskImage:'linear-gradient(to bottom,black 55%,transparent 100%)',
+          WebkitMaskImage:'linear-gradient(to bottom,black 55%,transparent 100%)',
           pointerEvents:'none',
         }}/>
+        {/* Separate scrim for text legibility — low opacity so blur shows through */}
         <div style={{
-          position:'absolute',top:0,left:0,right:0,bottom:'-32px',
-          background:'linear-gradient(to bottom,rgba(13,13,13,0.35) 0%,rgba(13,13,13,0.1) 60%,transparent 100%)',
-          maskImage:'linear-gradient(to bottom,black 50%,transparent 100%)',
-          WebkitMaskImage:'linear-gradient(to bottom,black 50%,transparent 100%)',
+          position:'absolute',inset:0,bottom:'-28px',
+          background:'linear-gradient(to bottom,rgba(13,13,13,0.52) 0%,rgba(13,13,13,0.2) 65%,transparent 100%)',
+          maskImage:'linear-gradient(to bottom,black 55%,transparent 100%)',
+          WebkitMaskImage:'linear-gradient(to bottom,black 55%,transparent 100%)',
           pointerEvents:'none',
         }}/>
         <div style={{position:'relative',zIndex:1,display:'flex',alignItems:'center',
