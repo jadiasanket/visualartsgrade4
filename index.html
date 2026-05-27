@@ -6439,7 +6439,7 @@ function CustomPhaseDetail({onBack,isVisitor}){
               )}
             </div>
             <div className="dh-sub">
-              {teacherMode&&!isVisitor?'Your own lessons — add anything that doesn't fit the curriculum phases.':'Custom lessons added by the teacher.'}
+              {teacherMode&&!isVisitor?'Your own lessons \u2014 add anything that doesn\u2019t fit the curriculum phases.':'Custom lessons added by the teacher.'}
             </div>
           </div>
           <div className="dh-badge" style={{background:pm.s,borderColor:pm.b,color:pm.l}}>
@@ -15255,6 +15255,7 @@ function GalleryView({isVisitor}){
                             </button>
                           );
                         })}
+                      </div>
                     </div>
                     {filterType!=='documentation'&&!isVisitor&&(
                       <>
