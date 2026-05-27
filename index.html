@@ -2785,6 +2785,7 @@ const PM={
   yellow:{l:'var(--yellow)',s:'var(--ys)',b:'var(--yb)',na:'var(--ys)',bg:'var(--ys)'},
   teal:{l:'var(--teal)',s:'var(--ts)',b:'var(--tb)',na:'var(--ts)',bg:'var(--ts)'},
   violet:{l:'var(--violet)',s:'var(--vs)',b:'var(--vb)',na:'var(--vs)',bg:'var(--vs)'},
+  sky:{l:'#5BAEE8',s:'rgba(91,174,232,0.14)',b:'rgba(91,174,232,0.30)',na:'rgba(91,174,232,0.14)',bg:'rgba(91,174,232,0.14)'},
 };
 
 // ── ARTWORK ASSESSMENT TAGS ──
@@ -3283,11 +3284,13 @@ async function addCustomLesson({title,overview='',keywords=[]}){
   return doc;
 }
 
-async function updateCustomLesson(id,{title,overview,keywords}){
+async function updateCustomLesson(id,{title,overview,keywords,steps,bigQ}){
   const updates={};
   if(title!==undefined) updates.title=title.trim();
   if(overview!==undefined) updates.overview=overview.trim();
   if(keywords!==undefined) updates.keywords=keywords;
+  if(steps!==undefined) updates.steps=steps;
+  if(bigQ!==undefined) updates.bigQ=bigQ;
   await CUSTOM_LESSONS_PATH().doc(id).update(updates);
 }
 
@@ -3295,7 +3298,29 @@ async function deleteCustomLesson(id){
   await CUSTOM_LESSONS_PATH().doc(id).delete();
 }
 
-// ── Firestore hook — replaces useLocalStorage for section data only ──
+// ── Custom phase metadata — name + color, stored at customPhase/sns ──────────
+const CUSTOM_PHASE_PATH=()=>window._db.collection('customPhase').doc(CUSTOM_LESSONS_SCHOOL);
+const CUSTOM_PHASE_DEFAULT={name:'My Lessons',color:'sky'};
+let _customPhaseMeta={...CUSTOM_PHASE_DEFAULT};
+function getCustomPhaseMeta(){return _customPhaseMeta;}
+
+function useCustomPhaseMeta(){
+  const [meta,setMeta]=React.useState(_customPhaseMeta);
+  React.useEffect(()=>{
+    const unsub=CUSTOM_PHASE_PATH().onSnapshot(snap=>{
+      const data=snap.exists?{...CUSTOM_PHASE_DEFAULT,...snap.data()}:{...CUSTOM_PHASE_DEFAULT};
+      _customPhaseMeta=data;
+      setMeta({...data});
+    },e=>console.warn('[CustomPhase] listener error',e));
+    return unsub;
+  },[]);
+  return meta;
+}
+
+async function updateCustomPhaseMeta(updates){
+  try{await CUSTOM_PHASE_PATH().set(updates,{merge:true});}
+  catch(e){console.error('[CustomPhase] update failed',e);}
+}
 // Reads/writes Firestore doc at sections/shared-[sectionId].
 // Accessible to all users (authenticated or sub PIN). Falls back to localStorage.
 // On first load, migrates data from old userId-sectionId doc if needed.
@@ -5502,6 +5527,8 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
   const [showProfilePopup,setShowProfilePopup]=React.useState(false);
   const [showSettingsPopup,setShowSettingsPopup]=React.useState(false);
   const [showTeacherPIN,setShowTeacherPIN]=React.useState(false);
+  const customPhaseMeta=useCustomPhaseMeta();
+  const customLessonsCount=useCustomLessons().length;
 
   // Spring hover bubble per card group
   function useCardBubble(){
@@ -5714,6 +5741,19 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
                   onMouseLeave={()=>phasesBubble.onLeave()}/>
               );
             })}
+            {/* Custom phase — My Lessons */}
+            {(()=>{
+              const isActive=view==='phase'&&phase&&phase.id==='custom';
+              return(
+                <NavItem key="custom" icon={IC.p4}
+                  name={customPhaseMeta.name||'My Lessons'}
+                  sub={customLessonsCount+' '+(customLessonsCount===1?'lesson':'lessons')}
+                  isActive={isActive}
+                  onClick={()=>onPhase({id:'custom',name:customPhaseMeta.name||'My Lessons',color:customPhaseMeta.color||'sky',sessions:[]})}
+                  onMouseEnter={e=>phasesBubble.onEnter(e.currentTarget,phasesCardRef.current)}
+                  onMouseLeave={()=>phasesBubble.onLeave()}/>
+              );
+            })()}
           </div>
 
           {/* SECTIONS */}
@@ -6119,136 +6159,355 @@ function MonthsView(){
   );
 }
 
-// ── CustomLessonCard — matches SessionCard style ──────────────────────────────
-function CustomLessonCard({lesson,teacherMode,onEdit,onDelete}){
+// ── CustomSessionCard — full session card for custom lessons ─────────────────
+function CustomSessionCard({lesson,teacherMode,n}){
   const [open,setOpen]=React.useState(false);
-  const kws=Array.isArray(lesson.keywords)?lesson.keywords:[];
-  return(
-    <div className="sc" style={{marginBottom:8}}>
-      <div className="sc-hdr" onClick={()=>setOpen(v=>!v)} style={{cursor:'pointer'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
-          <span style={{fontSize:15}}>★</span>
-          <div style={{flex:1,minWidth:0}}>
-            <div className="sc-title" style={{display:'flex',alignItems:'center',gap:6}}>
-              <span style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:700,color:'var(--tx)',fontFamily:"'DM Sans',sans-serif"}}>{lesson.title}</span>
-              <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.06em',color:'var(--violet)',background:'var(--vs)',border:'1px solid var(--vb)',borderRadius:100,padding:'1px 7px',flexShrink:0,textTransform:'uppercase'}}>Custom</span>
-            </div>
-            {lesson.overview&&<div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'var(--tx3)',fontStyle:'italic',lineHeight:1.5,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:open?'normal':'nowrap'}}>{lesson.overview}</div>}
-          </div>
-        </div>
-        <span style={{fontSize:11,color:'var(--tx3)',marginLeft:8,flexShrink:0}}>{open?'▲':'▼'}</span>
-      </div>
-      {open&&(
-        <div className="sc-panel" style={{padding:'10px 14px 12px'}}>
-          {lesson.overview&&(
-            <div style={{fontSize:'clamp(11px,1.2vh,13px)',color:'var(--tx2)',lineHeight:1.6,marginBottom:kws.length?10:0}}>{lesson.overview}</div>
-          )}
-          {kws.length>0&&(
-            <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:teacherMode?10:0}}>
-              {kws.map((k,i)=><span key={i} style={{fontSize:'clamp(9px,1vh,11px)',color:'var(--tx2)',background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',borderRadius:100,padding:'3px 10px'}}>{k}</span>)}
-            </div>
-          )}
-          {teacherMode&&(
-            <div style={{display:'flex',gap:8,marginTop:4}}>
-              <button onClick={e=>{e.stopPropagation();onEdit(lesson);}}
-                style={{fontSize:11,fontWeight:600,padding:'4px 12px',borderRadius:7,border:'1px solid var(--glass-border2)',background:'transparent',color:'var(--tx2)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
-              <button onClick={e=>{e.stopPropagation();onDelete(lesson.id);}}
-                style={{fontSize:11,fontWeight:600,padding:'4px 12px',borderRadius:7,border:'1px solid rgba(220,80,60,0.3)',background:'transparent',color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Delete</button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── CustomLessonsPanel — create/edit/delete, shown in PhaseDetail ─────────────
-function CustomLessonsPanel({teacherMode}){
-  const lessons=useCustomLessons();
-  const [editing,setEditing]=React.useState(null); // null | 'new' | lesson object
-  const [form,setForm]=React.useState({title:'',overview:'',keywords:''});
+  const [tab,setTab]=React.useState('overview');
+  const meta=useCustomPhaseMeta();
+  const pm=PM[meta.color||'sky']||PM.violet;
+  const [form,setForm]=React.useState({title:'',overview:'',keywords:'',bigQ:'',steps:[]});
   const [saving,setSaving]=React.useState(false);
 
-  function openNew(){setEditing('new');setForm({title:'',overview:'',keywords:''});}
-  function openEdit(l){setEditing(l);setForm({title:l.title||'',overview:l.overview||'',keywords:(l.keywords||[]).join(', ')});}
-  function closeForm(){setEditing(null);setForm({title:'',overview:'',keywords:''});}
+  const kws=Array.isArray(lesson.keywords)?lesson.keywords:[];
+  const steps=Array.isArray(lesson.steps)?lesson.steps:[];
+  const bigQArr=Array.isArray(lesson.bigQ)?lesson.bigQ:(lesson.bigQ?[lesson.bigQ]:[]);
+
+  function openEdit(){
+    setForm({
+      title:lesson.title||'',
+      overview:lesson.overview||'',
+      keywords:kws.join(', '),
+      bigQ:bigQArr.join('\n'),
+      steps:steps.map(s=>({t:s.t||'',s:s.s||''}))
+    });
+    setTab('edit');
+  }
+
+  function closeEdit(){setTab('overview');}
 
   async function handleSave(){
     if(!form.title.trim()) return;
     setSaving(true);
-    const kws=form.keywords.split(',').map(k=>k.trim()).filter(Boolean);
+    const kwsArr=form.keywords.split(',').map(k=>k.trim()).filter(Boolean);
+    const bigQFinal=form.bigQ.trim()?[form.bigQ.trim()]:[];
+    const stepsClean=form.steps.filter(s=>s.t.trim()||s.s.trim());
     try{
-      if(editing==='new'){
-        await addCustomLesson({title:form.title,overview:form.overview,keywords:kws});
-      } else {
-        await updateCustomLesson(editing.id,{title:form.title,overview:form.overview,keywords:kws});
-      }
-      closeForm();
-    }catch(e){console.error('Save custom lesson failed',e);}
+      await updateCustomLesson(lesson.id,{title:form.title,overview:form.overview,keywords:kwsArr,bigQ:bigQFinal,steps:stepsClean});
+      closeEdit();
+    }catch(e){console.error(e);}
     setSaving(false);
   }
 
-  async function handleDelete(id){
-    if(!window.confirm('Delete this custom lesson?')) return;
-    try{await deleteCustomLesson(id);}catch(e){console.error(e);}
+  async function handleDelete(){
+    if(!window.confirm('Delete "'+lesson.title+'"? This cannot be undone.')) return;
+    try{await deleteCustomLesson(lesson.id);}catch(e){console.error(e);}
   }
 
-  if(lessons.length===0&&!teacherMode) return null;
+  function setStep(i,field,val){
+    setForm(f=>{const s=[...f.steps];s[i]={...s[i],[field]:val};return{...f,steps:s};});
+  }
+  function addStep(){setForm(f=>({...f,steps:[...f.steps,{t:'',s:''}]}));}
+  function removeStep(i){setForm(f=>({...f,steps:f.steps.filter((_,j)=>j!==i)}));}
+
+  const F="'DM Sans',sans-serif";
+  const inputStyle={width:'100%',fontSize:12,padding:'7px 10px',borderRadius:8,
+    border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',
+    color:'var(--tx)',fontFamily:F,outline:'none',boxSizing:'border-box'};
+
+  const tabs=teacherMode
+    ?[{id:'overview',label:'Overview'},{id:'edit',label:'Edit'}]
+    :[{id:'overview',label:'Overview'}];
 
   return(
-    <div style={{marginTop:24}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
-        <div className="sec-hed" style={{margin:0}}>My Custom Lessons</div>
-        {teacherMode&&<button onClick={openNew}
-          style={{fontSize:11,fontWeight:700,padding:'4px 12px',borderRadius:100,border:'1px solid var(--glass-border2)',
-            background:'transparent',color:'var(--teal)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>+ New Lesson</button>}
+    <div className={'sc '+(open?'open-card':'')}>
+      <div className="sc-hdr" onClick={()=>setOpen(v=>!v)}>
+        <div className="sc-num" style={{background:pm.s,color:pm.l,minWidth:28,textAlign:'center'}}>{n}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div className="sc-title" style={{display:'flex',alignItems:'center',gap:6}}>
+            <span style={{fontSize:'clamp(11px,1.3vh,13px)',fontWeight:700,color:'var(--tx)',fontFamily:F}}>{lesson.title}</span>
+          </div>
+          {!open&&lesson.overview&&(
+            <div style={{fontSize:'clamp(10px,1.1vh,12px)',color:'var(--tx3)',fontStyle:'italic',
+              lineHeight:1.4,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+              {lesson.overview}
+            </div>
+          )}
+        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0,marginLeft:8,
+            transform:open?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s',color:'var(--tx3)'}}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
       </div>
 
-      {lessons.length===0&&teacherMode&&(
-        <div style={{fontSize:12,color:'var(--tx3)',fontStyle:'italic',marginBottom:8}}>No custom lessons yet. Add one above.</div>
-      )}
-
-      {lessons.map(l=>(
-        <CustomLessonCard key={l.id} lesson={l} teacherMode={teacherMode} onEdit={openEdit} onDelete={handleDelete}/>
-      ))}
-
-      {/* Create / Edit form */}
-      {editing&&(
-        <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border2)',borderRadius:12,padding:'14px 16px',marginTop:8}}>
-          <div style={{fontSize:12,fontWeight:700,color:'var(--tx2)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>
-            {editing==='new'?'New Custom Lesson':'Edit Lesson'}
+      {open&&(
+        <div className="sc-body open">
+          <div className="sc-tabs">
+            {tabs.map(tb=>(
+              <button key={tb.id} className={'sc-tab '+(tab===tb.id?'active':'')}
+                style={tab===tb.id?{color:pm.l,borderBottomColor:pm.l}:{}}
+                onClick={()=>tab===tb.id?null:setTab(tb.id)}>
+                {tb.label}
+              </button>
+            ))}
           </div>
-          <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}
-            placeholder="Lesson title (e.g. Field Trip, Guest Artist…)"
-            style={{width:'100%',fontSize:13,padding:'7px 10px',borderRadius:8,border:'1px solid var(--glass-border2)',
-              background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',marginBottom:8}}/>
-          <textarea value={form.overview} onChange={e=>setForm(f=>({...f,overview:e.target.value}))}
-            placeholder="Overview (optional — what happens in this lesson?)"
-            rows={3}
-            style={{width:'100%',fontSize:12,padding:'7px 10px',borderRadius:8,border:'1px solid var(--glass-border2)',
-              background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',
-              resize:'none',marginBottom:8,lineHeight:1.5}}/>
-          <input value={form.keywords} onChange={e=>setForm(f=>({...f,keywords:e.target.value}))}
-            placeholder="Keywords, comma separated (e.g. Texture, Collage, Observation)"
-            style={{width:'100%',fontSize:12,padding:'7px 10px',borderRadius:8,border:'1px solid var(--glass-border2)',
-              background:'var(--glass-bg2)',color:'var(--tx)',fontFamily:"'DM Sans',sans-serif",outline:'none',marginBottom:12}}/>
-          <div style={{display:'flex',gap:8}}>
-            <button onClick={handleSave} disabled={!form.title.trim()||saving}
-              style={{fontSize:12,fontWeight:700,padding:'6px 18px',borderRadius:8,border:'none',
-                background:form.title.trim()?'var(--teal)':'var(--glass-bg2)',
-                color:form.title.trim()?'#fff':'var(--tx3)',cursor:form.title.trim()?'pointer':'default',
-                fontFamily:"'DM Sans',sans-serif",opacity:saving?0.6:1}}>
-              {saving?'Saving…':'Save'}
-            </button>
-            <button onClick={closeForm}
-              style={{fontSize:12,padding:'6px 14px',borderRadius:8,border:'1px solid var(--glass-border)',
-                background:'transparent',color:'var(--tx3)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
-          </div>
+
+          {tab==='overview'&&(
+            <div className="sc-panel active">
+              {lesson.overview&&(
+                <>
+                  <div className="pl">About this lesson</div>
+                  <div className="pt">{lesson.overview}</div>
+                </>
+              )}
+              {bigQArr.length>0&&(
+                <div className="pbox full">
+                  <div className="pl">Big Question</div>
+                  <ul className="bq-list">{bigQArr.map((q,i)=><li key={i}>{q}</li>)}</ul>
+                </div>
+              )}
+              {kws.length>0&&(
+                <div className="pbox full">
+                  <div className="pl">Key Words</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:4}}>
+                    {kws.map((k,i)=><span key={i} style={{padding:'3px 10px',borderRadius:100,
+                      background:'var(--glass-bg2)',border:'1px solid var(--glass-border)',
+                      fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{k}</span>)}
+                  </div>
+                </div>
+              )}
+              {steps.length>0&&(
+                <div style={{marginTop:10}}>
+                  <div className="pl">Activity Steps</div>
+                  {steps.map((step,i)=>(
+                    <div key={i} className="step" style={{marginBottom:6}}>
+                      <div style={{width:22,height:22,borderRadius:'50%',background:pm.s,color:pm.l,
+                        display:'flex',alignItems:'center',justifyContent:'center',
+                        fontSize:10,fontWeight:700,flexShrink:0}}>{i+1}</div>
+                      <div style={{flex:1}}>
+                        {step.t&&<div style={{fontWeight:700,fontSize:12,color:'var(--tx)',fontFamily:F,marginBottom:2}}>{step.t}</div>}
+                        {step.s&&<div style={{fontSize:12,color:'var(--tx2)',fontFamily:F,lineHeight:1.5}}>{step.s}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!lesson.overview&&bigQArr.length===0&&kws.length===0&&steps.length===0&&(
+                <div style={{fontSize:12,color:'var(--tx3)',fontStyle:'italic',padding:'4px 0'}}>
+                  No details yet.{teacherMode?' Click Edit to fill in this lesson.':''}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab==='edit'&&teacherMode&&(
+            <div className="sc-panel active" style={{display:'flex',flexDirection:'column',gap:8}}>
+              <div>
+                <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:4}}>Title</div>
+                <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}
+                  placeholder="Lesson title" style={inputStyle}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:4}}>Overview</div>
+                <textarea value={form.overview} onChange={e=>setForm(f=>({...f,overview:e.target.value}))}
+                  placeholder="What happens in this lesson?" rows={3}
+                  style={{...inputStyle,resize:'vertical',lineHeight:1.5}}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:4}}>Big Question</div>
+                <textarea value={form.bigQ} onChange={e=>setForm(f=>({...f,bigQ:e.target.value}))}
+                  placeholder="What is the central question for this lesson?" rows={2}
+                  style={{...inputStyle,resize:'vertical',lineHeight:1.5}}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:4}}>Keywords (comma separated)</div>
+                <input value={form.keywords} onChange={e=>setForm(f=>({...f,keywords:e.target.value}))}
+                  placeholder="e.g. Texture, Collage, Observation" style={inputStyle}/>
+              </div>
+
+              <div>
+                <div style={{fontSize:10,fontWeight:700,color:'var(--tx3)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Activity Steps</div>
+                {form.steps.map((step,i)=>(
+                  <div key={i} style={{display:'flex',gap:6,marginBottom:8,alignItems:'flex-start'}}>
+                    <div style={{width:22,height:22,borderRadius:'50%',background:pm.s,color:pm.l,
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      fontSize:10,fontWeight:700,flexShrink:0,marginTop:8}}>{i+1}</div>
+                    <div style={{flex:1,display:'flex',flexDirection:'column',gap:4}}>
+                      <input value={step.t} onChange={e=>setStep(i,'t',e.target.value)}
+                        placeholder="Step title" style={{...inputStyle,fontSize:11}}/>
+                      <textarea value={step.s} onChange={e=>setStep(i,'s',e.target.value)}
+                        placeholder="Step description" rows={2}
+                        style={{...inputStyle,fontSize:11,resize:'none',lineHeight:1.4}}/>
+                    </div>
+                    <button onClick={()=>removeStep(i)}
+                      style={{background:'none',border:'none',color:'var(--coral)',fontSize:16,
+                        cursor:'pointer',padding:'6px 4px',flexShrink:0,lineHeight:1}}>
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button onClick={addStep}
+                  style={{fontSize:11,fontWeight:600,padding:'5px 12px',borderRadius:8,
+                    border:'1px dashed rgba(91,174,232,0.4)',background:'rgba(91,174,232,0.06)',
+                    color:'#5BAEE8',cursor:'pointer',fontFamily:F,marginTop:2}}>
+                  + Add Step
+                </button>
+              </div>
+
+              <div style={{display:'flex',gap:8,marginTop:4,alignItems:'center'}}>
+                <button onClick={handleSave} disabled={!form.title.trim()||saving}
+                  style={{fontSize:12,fontWeight:700,padding:'6px 18px',borderRadius:8,border:'none',
+                    background:form.title.trim()?pm.l:'var(--glass-bg2)',
+                    color:form.title.trim()?'#fff':'var(--tx3)',
+                    cursor:form.title.trim()?'pointer':'default',fontFamily:F,opacity:saving?0.6:1}}>
+                  {saving?'Saving…':'Save'}
+                </button>
+                <button onClick={closeEdit}
+                  style={{fontSize:12,padding:'6px 14px',borderRadius:8,
+                    border:'1px solid var(--glass-border)',background:'transparent',
+                    color:'var(--tx3)',cursor:'pointer',fontFamily:F}}>Cancel</button>
+                <button onClick={handleDelete}
+                  style={{marginLeft:'auto',fontSize:11,fontWeight:600,padding:'5px 12px',
+                    borderRadius:8,border:'1px solid rgba(220,80,60,0.3)',background:'transparent',
+                    color:'var(--coral)',cursor:'pointer',fontFamily:F}}>Delete</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+// ── CustomPhaseDetail — the full "My Lessons" phase view ─────────────────────
+function CustomPhaseDetail({onBack,isVisitor}){
+  const {teacherMode}=React.useContext(KWContext);
+  const lessons=useCustomLessons();
+  const meta=useCustomPhaseMeta();
+  const pm=PM[meta.color||'sky']||PM.violet;
+  const [editingName,setEditingName]=React.useState(false);
+  const [nameDraft,setNameDraft]=React.useState('');
+  const [adding,setAdding]=React.useState(false);
+  const [newForm,setNewForm]=React.useState({title:'',overview:'',keywords:''});
+  const [saving,setSaving]=React.useState(false);
+  const F="'DM Sans',sans-serif";
+
+  async function saveName(){
+    if(nameDraft.trim()) await updateCustomPhaseMeta({name:nameDraft.trim()});
+    setEditingName(false);
+  }
+
+  async function handleAdd(){
+    if(!newForm.title.trim()) return;
+    setSaving(true);
+    const kws=newForm.keywords.split(',').map(k=>k.trim()).filter(Boolean);
+    try{
+      await addCustomLesson({title:newForm.title,overview:newForm.overview,keywords:kws});
+      setNewForm({title:'',overview:'',keywords:''});
+      setAdding(false);
+    }catch(e){console.error(e);}
+    setSaving(false);
+  }
+
+  const inputStyle={width:'100%',fontSize:12,padding:'7px 10px',borderRadius:8,
+    border:'1px solid var(--glass-border2)',background:'var(--glass-bg2)',
+    color:'var(--tx)',fontFamily:F,outline:'none',boxSizing:'border-box'};
+
+  return(
+    <div className="detail-view">
+      <div className="dh" style={{borderBottom:'1px solid var(--glass-border)'}}>
+        <button className="back-btn" onClick={onBack}>{'←'} Unit Overview</button>
+        <div className="dh-flex">
+          <div>
+            <div className="dh-title" style={{display:'flex',alignItems:'center',gap:8}}>
+              {IC.p4}
+              {editingName&&teacherMode&&!isVisitor?(
+                <input value={nameDraft} autoFocus
+                  onChange={e=>setNameDraft(e.target.value)}
+                  onBlur={saveName}
+                  onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();saveName();}if(e.key==='Escape')setEditingName(false);}}
+                  style={{fontSize:'inherit',fontWeight:'inherit',fontFamily:"'Fraunces',serif",
+                    background:'transparent',border:'none',borderBottom:'2px solid #5BAEE8',
+                    color:'var(--tx)',outline:'none',width:200,padding:'2px 0'}}/>
+              ):(
+                <span
+                  onClick={teacherMode&&!isVisitor?()=>{setEditingName(true);setNameDraft(meta.name||'My Lessons');}:undefined}
+                  title={teacherMode&&!isVisitor?'Click to rename':''}
+                  style={{cursor:teacherMode&&!isVisitor?'text':'default'}}>
+                  {meta.name||'My Lessons'}
+                </span>
+              )}
+            </div>
+            <div className="dh-sub">
+              {teacherMode&&!isVisitor?'Your own lessons — add anything that doesn't fit the curriculum phases.':'Custom lessons added by the teacher.'}
+            </div>
+          </div>
+          <div className="dh-badge" style={{background:pm.s,borderColor:pm.b,color:pm.l}}>
+            {lessons.length} {lessons.length===1?'lesson':'lessons'}
+          </div>
+        </div>
+      </div>
+
+      <div className="detail-sessions">
+        {lessons.length===0&&(
+          <div style={{padding:'32px 24px',textAlign:'center',color:'var(--tx3)',fontSize:13,fontStyle:'italic'}}>
+            {teacherMode&&!isVisitor?'No lessons yet. Add one below.':'No custom lessons have been added.'}
+          </div>
+        )}
+
+        {lessons.map((l,i)=>(
+          <CustomSessionCard key={l.id} lesson={l} n={i+1} teacherMode={teacherMode&&!isVisitor}/>
+        ))}
+
+        {/* Add new lesson form */}
+        {adding&&teacherMode&&!isVisitor&&(
+          <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border2)',
+            borderRadius:12,padding:'16px',marginTop:8,display:'flex',flexDirection:'column',gap:8}}>
+            <div style={{fontSize:12,fontWeight:700,color:'var(--tx2)',fontFamily:F}}>New Lesson</div>
+            <input autoFocus value={newForm.title} onChange={e=>setNewForm(f=>({...f,title:e.target.value}))}
+              placeholder="Lesson title (e.g. Field Trip, Guest Artist…)"
+              onKeyDown={e=>{if(e.key==='Enter')handleAdd();}}
+              style={inputStyle}/>
+            <textarea value={newForm.overview} onChange={e=>setNewForm(f=>({...f,overview:e.target.value}))}
+              placeholder="Overview — what happens in this lesson? (optional)" rows={3}
+              style={{...inputStyle,resize:'vertical',lineHeight:1.5}}/>
+            <input value={newForm.keywords} onChange={e=>setNewForm(f=>({...f,keywords:e.target.value}))}
+              placeholder="Keywords, comma separated (optional)"
+              style={inputStyle}/>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={handleAdd} disabled={!newForm.title.trim()||saving}
+                style={{fontSize:12,fontWeight:700,padding:'6px 18px',borderRadius:8,border:'none',
+                  background:newForm.title.trim()?pm.l:'var(--glass-bg2)',
+                  color:newForm.title.trim()?'#fff':'var(--tx3)',
+                  cursor:newForm.title.trim()?'pointer':'default',fontFamily:F,opacity:saving?0.6:1}}>
+                {saving?'Saving…':'Save'}
+              </button>
+              <button onClick={()=>{setAdding(false);setNewForm({title:'',overview:'',keywords:''});}}
+                style={{fontSize:12,padding:'6px 14px',borderRadius:8,
+                  border:'1px solid var(--glass-border)',background:'transparent',
+                  color:'var(--tx3)',cursor:'pointer',fontFamily:F}}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {/* + Add Lesson button */}
+        {teacherMode&&!isVisitor&&!adding&&(
+          <button onClick={()=>setAdding(true)}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+              width:'100%',padding:'14px 16px',marginTop:4,
+              borderRadius:12,border:'1px dashed rgba(91,174,232,0.35)',
+              background:'rgba(91,174,232,0.05)',color:'rgba(91,174,232,0.65)',
+              cursor:'pointer',fontSize:13,fontWeight:600,fontFamily:F,
+              transition:'border-color .15s,color .15s,background .15s'}}>
+            <span style={{fontSize:20,lineHeight:1,marginTop:-1}}>+</span>
+            Add a Lesson
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 function PhaseDetail({phase,onBack,progress,toggle,classView,isVisitor}){
   const pm=PM[phase.color];
@@ -6289,7 +6548,7 @@ function PhaseDetail({phase,onBack,progress,toggle,classView,isVisitor}){
           <SessionCard key={s.n} s={s} color={phase.color} phaseId={phase.id} progress={progress} toggle={toggle} classView={classView} openSession={openSession} setOpenSession={setOpenSession} isVisitor={isVisitor}/>
         ))}
       </div>
-      {phase.id==='p1'&&<CustomLessonsPanel teacherMode={!isVisitor&&teacherMode}/>}
+      
     </div>
   );
 }
@@ -13853,21 +14112,22 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
     const str=String(raw).trim();
     if(!str||str==='null'||str==='undefined'||str==='[object Object]') return null;
     const key=str.startsWith('L')&&str.length>1&&str[1]!==':'?str.slice(1):str;
-    if(key.includes(':')&&!key.startsWith('custom:')){
+    // Custom lesson — return synthetic session object so info panel works uniformly
+    if(key.startsWith('custom:')){
+      const cl=customLessons.find(c=>'custom:'+c.id===key||c.id===key.replace('custom:',''));
+      if(!cl) return null;
+      return {n:null,title:cl.title||'',overview:cl.overview||'',kws:Array.isArray(cl.keywords)?cl.keywords:[],bigQ:Array.isArray(cl.bigQ)?cl.bigQ:[]};
+    }
+    if(key.includes(':')){
       const [phaseId,sessN]=key.split(':');
       const ph=PHASES.find(p=>p.id===phaseId);
       return (ph&&ph.sessions.find(s=>String(s.n)===sessN))||null;
     }
     return null;
-  },[photo.lessons]);
-  const customLessonOverview=React.useMemo(()=>{
-    if(!rawLesson) return null;
-    const str=String(rawLesson).trim();
-    if(!str.startsWith('custom:')) return null;
-    const cl=customLessons.find(c=>'custom:'+c.id===str||c.id===str.replace('custom:',''));
-    return cl?(cl.overview||null):null;
-  },[rawLesson,customLessons]);
-  const lessonOverview=(lessonSession?lessonSession.overview:null)||customLessonOverview||null;
+  },[photo.lessons,customLessons]);
+  // customLessonOverview memo kept for backward compat but lessonSession now covers it
+  const customLessonOverview=null;
+  const lessonOverview=(lessonSession?lessonSession.overview:null)||null;
   const lessonKws=lessonSession?lessonSession.kws||[]:[];
   const lessonN=lessonSession?lessonSession.n:null;
 
@@ -14504,6 +14764,7 @@ function GalleryView({isVisitor}){
   const [filterType,setFilterType]=React.useState('all');
   // Visitors can only see artworks — force filter
   const effectiveFilterType=isVisitor?'artwork':filterType;
+  const galleryCustomLessons=useCustomLessons();
 
   // ── Gallery edit mode ──
   const [galleryEditMode,setGalleryEditMode]=React.useState(false);
@@ -14681,7 +14942,10 @@ function GalleryView({isVisitor}){
   const artworkTags=getArtworkTags();
   const tagColors={green:'var(--teal)',yellow:'var(--yellow)',red:'var(--coral)'};
   const phaseColors={coral:'var(--coral)',yellow:'var(--yellow)',teal:'var(--teal)',violet:'var(--violet)'};
-  const allLessons=React.useMemo(()=>PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color,phaseId:ph.id}))),[]);
+  const allLessons=React.useMemo(()=>[
+    ...PHASES.flatMap(ph=>ph.sessions.map(s=>({n:s.n,title:s.title,color:ph.color,phaseId:ph.id,key:ph.id+':'+s.n}))),
+    ...galleryCustomLessons.map(cl=>({n:null,title:cl.title,color:'sky',phaseId:'custom',key:'custom:'+cl.id}))
+  ],[galleryCustomLessons]);
 
   React.useEffect(()=>{
     let unsubs=[];
@@ -14977,20 +15241,20 @@ function GalleryView({isVisitor}){
                       <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:8}}>Lesson</div>
                       <div style={{display:'flex',flexWrap:'wrap',gap:4,maxHeight:90,overflowY:'auto'}}>
                         {allLessons.map(l=>{
-                          const key=l.phaseId+':'+l.n;
+                          const key=l.key||(l.phaseId+':'+l.n);
                           const on=filterLessons.has(key);
+                          const chipLabel=l.phaseId==='custom'?(l.title||'Custom'):'S'+l.n;
                           return(
                             <button key={key} onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);on?n.delete(key):n.add(key);return n;})}
                               style={{fontSize:10,fontWeight:on?700:400,padding:'4px 10px',borderRadius:100,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
                                 border:'none',
-                                background:on?'var(--sky)':'rgba(255,255,255,0.07)',
-                                color:on?'#000':'rgba(255,255,255,0.5)',
+                                background:on?(l.color==='sky'?'rgba(91,174,232,0.35)':'var(--sky)'):'rgba(255,255,255,0.07)',
+                                color:on?(l.color==='sky'?'#fff':'#000'):'rgba(255,255,255,0.5)',
                                 transition:'all .15s',flexShrink:0}}>
-                              S{l.n}
+                              {chipLabel}
                             </button>
                           );
                         })}
-                      </div>
                     </div>
                     {filterType!=='documentation'&&!isVisitor&&(
                       <>
@@ -15803,7 +16067,8 @@ function App(){
           {view==='annual'&&<AnnualPlan onPhase={handlePhase} getPhaseProgress={getPhaseProgress} totalDone={totalDone} totalSessions={totalSessions} isVisitor={isVisitor} onExportData={handleExportData} onImportData={handleImportData}/>}
           {view==='months'&&<MonthsView/>}
           {view==='gallery'&&<GalleryView isVisitor={isVisitor}/>}
-          {view==='phase'&&phase&&<PhaseDetail phase={phase} onBack={handleBack} progress={progress} toggle={toggle} classView={classView} isVisitor={isVisitor}/>}
+          {view==='phase'&&phase&&phase.id!=='custom'&&<PhaseDetail phase={phase} onBack={handleBack} progress={progress} toggle={toggle} classView={classView} isVisitor={isVisitor}/>}
+          {view==='phase'&&phase&&phase.id==='custom'&&<CustomPhaseDetail onBack={handleBack} isVisitor={isVisitor}/>}
           {view==='notes'&&(isVisitor?<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--tx3)',fontSize:13}}>Sign in to access Unit Notes.</div>:<GlobalNotes/>)}
           {view==='section'&&section&&<SectionView section={section} phases={PHASES} onOpenLinkedSession={handleOpenLinkedSession} teacherMode={teacherMode} subSectionId={subSectionId} setSubSectionId={setSubSectionId} userId={userId} onSignIn={()=>setShowSignIn(true)}/>}
         </div>
