@@ -15148,8 +15148,19 @@ function GalleryView({isVisitor}){
       return next||prev;
     });
   },[]);
+  const tileCols=[
+    'repeat(2,1fr)',
+    'repeat(4,1fr)',
+    'repeat(6,1fr)',
+    'repeat(8,1fr)',
+    'repeat(10,1fr)',
+  ];
 
-  // displayRef — keeps the reversed order the grid shows, for correct nav
+  // Gallery-local search/filter state
+  const [localQuery,setLocalQuery]=React.useState('');
+  const localInputRef=React.useRef(null);
+
+  // displayRef — reversed order the grid renders, used by lightbox nav
   const displayRef=React.useRef([]);
   const displayPhotos=React.useMemo(()=>{
     if(!localQuery.trim()) return filtered;
@@ -15162,22 +15173,11 @@ function GalleryView({isVisitor}){
     });
   },[filtered,localQuery]);
 
-  // Keep displayRef in sync with the reversed order the grid renders
+  // Keep displayRef in sync — filteredRef used by lightbox navigate callback
   React.useEffect(()=>{
     displayRef.current=[...displayPhotos].reverse();
     filteredRef.current=displayRef.current;
   },[displayPhotos]);
-  const tileCols=[
-    'repeat(2,1fr)',
-    'repeat(4,1fr)',
-    'repeat(6,1fr)',
-    'repeat(8,1fr)',
-    'repeat(10,1fr)',
-  ];
-
-  // Gallery-local search/filter state
-  const [localQuery,setLocalQuery]=React.useState('');
-  const localInputRef=React.useRef(null);
 
   // Scrollbar blue-on-scroll
   const gridScrollRef=React.useRef(null);
