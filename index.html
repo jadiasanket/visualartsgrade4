@@ -15405,8 +15405,8 @@ function GalleryView({isVisitor}){
   return(
     <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',background:'transparent',position:'relative'}}>
 
-      {/* Floating toolbar — absolute over grid, photos always behind it */}
-      <div style={{position:'absolute',top:0,left:0,right:0,zIndex:100}}>
+      {/* Sticky toolbar — blur fades downward */}
+      <div style={{position:'sticky',top:0,zIndex:100,flexShrink:0}}>
         {/* Pure blur layer — no background so photos show through blurred */}
         <div style={{
           position:'absolute',inset:0,bottom:'-28px',
@@ -15691,7 +15691,7 @@ function GalleryView({isVisitor}){
       {showUpload&&<GalleryUpload onClose={()=>setShowUpload(false)} onDone={()=>setShowUpload(false)}/>}
 
       {/* Scrollable grid — reverse order (newest at bottom, scroll up for more) */}
-      <div ref={gridScrollRef} className="gallery-scroll" style={{flex:1,overflowY:'auto',paddingRight:6,paddingTop:72}}>
+      <div ref={gridScrollRef} className="gallery-scroll" style={{flex:1,overflowY:'auto',paddingRight:6}}>
         {loading?(
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.2)',fontSize:13,height:'100%',minHeight:200}}>Loading&#8230;</div>
         ):displayPhotos.length===0?(
