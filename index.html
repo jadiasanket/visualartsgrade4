@@ -15341,6 +15341,8 @@ function GalleryView({isVisitor}){
       scrollTimerRef.current=setTimeout(()=>el.classList.remove('scroll-active'),1000);
     }
     el.addEventListener('scroll',onScroll,{passive:true});
+    // Start scrolled to bottom so newest photos show first
+    el.scrollTop=el.scrollHeight;
     return()=>{el.removeEventListener('scroll',onScroll);clearTimeout(scrollTimerRef.current);};
   },[]);
 
