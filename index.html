@@ -5920,49 +5920,7 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
         </button>
       </div>
 
-      {/* Settings popup */}
-      {showSettingsPopup&&(
-        <div style={{position:'fixed',bottom:14,left:6+(collapsed?52:260)+6,zIndex:600,
-          background:'rgba(18,18,18,0.98)',backdropFilter:'blur(20px)',
-          border:'1px solid rgba(255,255,255,0.09)',borderRadius:14,
-          boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:'10px',width:220,
-          display:'flex',flexDirection:'column',gap:6}}>
-          <div style={{display:'flex',background:'rgba(255,255,255,0.05)',borderRadius:8,padding:3,gap:3}}>
-            {[['dark',IC.moon,'Dark'],['light',IC.sun,'Light']].map(([t,icon,label])=>(
-              <button key={t} onClick={()=>setTheme(t)}
-                style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,
-                  height:28,borderRadius:6,border:'none',cursor:'pointer',
-                  fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,
-                  background:theme===t?'rgba(91,174,232,0.2)':'transparent',
-                  color:theme===t?'var(--sky)':'rgba(255,255,255,0.35)',transition:'all .15s'}}>
-                {icon}<span>{label}</span>
-              </button>
-            ))}
-          </div>
-          <button onClick={()=>{handleTeacherToggle();setShowSettingsPopup(false);}}
-            style={{display:'flex',alignItems:'center',gap:8,height:34,borderRadius:8,
-              border:'1px solid rgba(255,255,255,0.07)',
-              background:teacherMode?'rgba(59,191,160,0.1)':'rgba(255,255,255,0.03)',
-              color:teacherMode?'var(--teal)':'rgba(255,255,255,0.55)',
-              cursor:'pointer',padding:'0 10px',fontFamily:"'DM Sans',sans-serif",
-              fontSize:12,fontWeight:600,transition:'all .15s'}}>
-            {teacherMode?IC.unlock:IC.lock}
-            <span>{teacherMode?'Teacher mode \u00b7 Lock':'Read-only \u00b7 Unlock'}</span>
-          </button>
-          {!isVisitor&&(
-            <button onClick={()=>{setClassView(v=>!v);setShowSettingsPopup(false);}}
-              style={{display:'flex',alignItems:'center',gap:8,height:34,borderRadius:8,
-                border:'1px solid rgba(255,255,255,0.07)',
-                background:classView?'rgba(232,112,90,0.1)':'rgba(255,255,255,0.03)',
-                color:classView?'var(--coral)':'rgba(255,255,255,0.55)',
-                cursor:'pointer',padding:'0 10px',fontFamily:"'DM Sans',sans-serif",
-                fontSize:12,fontWeight:600,transition:'all .15s'}}>
-            {IC.projector}<span>{classView?'Exit Class View':'Class View'}</span>
-            </button>
-          )}
-        </div>
-      )}
-      {showSettingsPopup&&<div style={{position:'fixed',inset:0,zIndex:599}} onClick={()=>setShowSettingsPopup(false)}/>}
+      
 
       {/* Profile popup */}
       {showProfilePopup&&(
@@ -6021,6 +5979,51 @@ function Sidebar({view,phase,section,onNav,onPhase,onSection,getPhaseProgress,to
       )}
 
     </div>
+
+      {/* Settings popup — lifted outside sidebar overflow:hidden */}
+      {showSettingsPopup&&(
+        <div style={{position:'fixed',bottom:14,left:6+(collapsed?52:260)+6,zIndex:600,
+          background:'rgba(18,18,18,0.98)',backdropFilter:'blur(20px)',
+          border:'1px solid rgba(255,255,255,0.09)',borderRadius:14,
+          boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:'10px',width:220,
+          display:'flex',flexDirection:'column',gap:6}}>
+          <div style={{display:'flex',background:'rgba(255,255,255,0.05)',borderRadius:8,padding:3,gap:3}}>
+            {[['dark',IC.moon,'Dark'],['light',IC.sun,'Light']].map(([t,icon,label])=>(
+              <button key={t} onClick={()=>setTheme(t)}
+                style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,
+                  height:28,borderRadius:6,border:'none',cursor:'pointer',
+                  fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,
+                  background:theme===t?'rgba(91,174,232,0.2)':'transparent',
+                  color:theme===t?'var(--sky)':'rgba(255,255,255,0.35)',transition:'all .15s'}}>
+                {icon}<span>{label}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={()=>{handleTeacherToggle();setShowSettingsPopup(false);}}
+            style={{display:'flex',alignItems:'center',gap:8,height:34,borderRadius:8,
+              border:'1px solid rgba(255,255,255,0.07)',
+              background:teacherMode?'rgba(59,191,160,0.1)':'rgba(255,255,255,0.03)',
+              color:teacherMode?'var(--teal)':'rgba(255,255,255,0.55)',
+              cursor:'pointer',padding:'0 10px',fontFamily:"'DM Sans',sans-serif",
+              fontSize:12,fontWeight:600,transition:'all .15s'}}>
+            {teacherMode?IC.unlock:IC.lock}
+            <span>{teacherMode?'Teacher mode \u00b7 Lock':'Read-only \u00b7 Unlock'}</span>
+          </button>
+          {!isVisitor&&(
+            <button onClick={()=>{setClassView(v=>!v);setShowSettingsPopup(false);}}
+              style={{display:'flex',alignItems:'center',gap:8,height:34,borderRadius:8,
+                border:'1px solid rgba(255,255,255,0.07)',
+                background:classView?'rgba(232,112,90,0.1)':'rgba(255,255,255,0.03)',
+                color:classView?'var(--coral)':'rgba(255,255,255,0.55)',
+                cursor:'pointer',padding:'0 10px',fontFamily:"'DM Sans',sans-serif",
+                fontSize:12,fontWeight:600,transition:'all .15s'}}>
+            {IC.projector}<span>{classView?'Exit Class View':'Class View'}</span>
+            </button>
+          )}
+        </div>
+      )}
+      {showSettingsPopup&&<div style={{position:'fixed',inset:0,zIndex:599}} onClick={()=>setShowSettingsPopup(false)}/>}
+
     </React.Fragment>
   );
 }
