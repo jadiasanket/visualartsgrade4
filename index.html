@@ -3409,7 +3409,7 @@ function LiquidPillBar(props) {
                       ref={function (el) { btnEls.current[g.id + ':' + c.id] = el; }}
                       style={c.label || label
                         ? { padding: '0 19px', height: height }
-                        : { width: c.w || 50, height: height }}>
+                        : { width: c.w || 100, height: height }}>
                       {label
                         ? <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>{label}</span>
                         : c.render}
