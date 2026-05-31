@@ -14344,20 +14344,30 @@ function CropOverlay({imgSrc,onCommit}){
           {/* Main pill — LiquidPillBar (replaces CropToolPill). Buttons: FlipH, FlipV, Rotate90, Straighten, Keystone, Reset.
               Keystone is CONTROLLED by ksCorners (crop tool owns the state). lb-glass-panel kept for the sheen overlay. */}
           <LiquidPillBar
-            key={ksCorners?'ks-on':'ks-off'}
+            key={(ksCorners?'ks-on':'ks-off')+(cropActive?'-ca':'-ci')}
             className="lb-glass-panel"
             surface="toolbar"
             height={38}
+            gap={10}
             select="none"
             morph={false}
-            groups={[{ id:'crop', cells:[
-              { id:'flipH',      w:44, render:<_IcoFlipH/> },
-              { id:'flipV',      w:44, render:<_IcoFlipV/> },
-              { id:'cw',         w:44, render:<svg width="20" height="20" viewBox="0 0 95 95" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"><rect x="10.5" y="38.6" width="53.6" height="53.6" rx="6.3"/><path d="M43.5,2.4l-6.2,16.7,16.7,6.2"/><path d="M83.1,48.9c5.2-13.8-1.8-29.2-15.6-34.3-6.1-2.3-12.9-2.2-19,.1l-11.1,4.4"/></svg> },
-              { id:'straighten', w:44, render:<_IcoStraighten/> },
-              { id:'keystone',   w:44, render:<_IcoKeystone/>, toggle:true, defaultActive:!!ksCorners },
-              { id:'reset',      w:96, render:<span style={{display:'flex',alignItems:'center',justifyContent:'center'}}><_IcoReset/><span style={{fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",marginLeft:5}}>Reset</span></span> },
-            ]}]}
+            bridge="both"
+            groups={[
+              { id:'crop', cells:[
+                { id:'flipH',      w:44, render:<_IcoFlipH/> },
+                { id:'flipV',      w:44, render:<_IcoFlipV/> },
+                { id:'cw',         w:44, render:<svg width="20" height="20" viewBox="0 0 95 95" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"><rect x="10.5" y="38.6" width="53.6" height="53.6" rx="6.3"/><path d="M43.5,2.4l-6.2,16.7,16.7,6.2"/><path d="M83.1,48.9c5.2-13.8-1.8-29.2-15.6-34.3-6.1-2.3-12.9-2.2-19,.1l-11.1,4.4"/></svg> },
+                { id:'straighten', w:44, render:<_IcoStraighten/> },
+                { id:'keystone',   w:44, render:<_IcoKeystone/>, toggle:true, defaultActive:!!ksCorners },
+                { id:'reset',      w:96, render:<span style={{display:'flex',alignItems:'center',justifyContent:'center'}}><_IcoReset/><span style={{fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",marginLeft:5}}>Reset</span></span> },
+              ]},
+              { id:'commit', cells:[
+                { id:'apply', w:44, color:cropActive?'40,180,99':'0,116,240',
+                  render:cropActive
+                    ?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    :<_IcoCropIcon/> },
+              ]},
+            ]}
             onAction={(groupId,cellId)=>{
               if(cellId==='flipH'){ flipHRef.current*=-1; raf(()=>applyTransform()); }
               else if(cellId==='flipV'){ flipVRef.current*=-1; raf(()=>applyTransform()); }
@@ -14365,20 +14375,9 @@ function CropOverlay({imgSrc,onCommit}){
               else if(cellId==='straighten'){ setKsCorners(null); autoStraighten(); }
               else if(cellId==='keystone'){ if(ksCorners){ applyKS(); } else { startKS(); } }
               else if(cellId==='reset'){ handleReset(); }
+              else if(cellId==='apply'){ handleCommit(); }
             }}
           />
-
-          {/* Apply / Crop */}
-          <button onClick={handleCommit}
-            style={{width:38,height:38,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.15)',padding:0,
-              background:cropActive?'rgb(34,197,94)':'rgb(0,116,240)',
-              cursor:'pointer',
-              color:'#fff',boxShadow:cropActive?'0 4px 16px rgba(34,197,94,0.4)':'0 4px 16px rgba(0,116,240,0.4)',
-              transition:'background .15s',display:'flex',alignItems:'center',justifyContent:'center'}}
-            onMouseEnter={e=>e.currentTarget.style.background=cropActive?'rgb(22,163,74)':'rgb(0,100,220)'}
-            onMouseLeave={e=>e.currentTarget.style.background=cropActive?'rgb(34,197,94)':'rgb(0,116,240)'}>
-            {cropActive?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>:<_IcoCropIcon/>}
-          </button>
 
         </div>
       </div>
