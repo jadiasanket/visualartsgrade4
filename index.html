@@ -2994,6 +2994,22 @@ function LiquidPillBar(props) {
         }
       }
 
+      /* resting bubble: a cell flagged rest keeps a parked blob at a low alpha
+       * even with no cursor. If the cursor logic already gave this cell a
+       * stronger target, that wins — so the blob brightens to full on bridge. */
+      for (var ri = 0; ri < pill.buttons.length; ri++) {
+        var rbtn = pill.buttons[ri];
+        var rdef = cellById(rbtn.id);
+        if (rdef && rdef.rest) {
+          var REST_CH = rdef.restCh != null ? rdef.restCh : 0.5;
+          if (!t.anchor || t.ch < REST_CH) {
+            t.anchor = rbtn; t.color = rbtn.color;
+            t.eL = rbtn.left; t.eR = rbtn.right;
+            t.ch = REST_CH; t.hot = 0;
+          }
+        }
+      }
+
       if (!morph) return;
       var liveG = liveNow[ki];
       var parent = mitParentCell();
@@ -3193,18 +3209,6 @@ function LiquidPillBar(props) {
           var on = ch > 0.3 && coverv > 0.35;
           el.classList.toggle('lqd-charged', on);
 
-          var bgRaw = el.getAttribute('data-lqd-bg');
-          if (bgRaw) {
-            var bgKey = key + ':' + btn.id + ':bg';
-            var prev = stRef.current[bgKey] != null ? stRef.current[bgKey] : 0;
-            var bgTgt = lqClamp(coverv * lqClamp(ch, 0, 1), 0, 1);
-            prev += (bgTgt - prev) * 0.3;
-            if (prev < 0.0015) prev = 0;
-            stRef.current[bgKey] = prev;
-            var bgA = 0.5 + 0.45 * prev;
-            el.style.background = 'rgba(' + bgRaw + ',' + bgA.toFixed(3) + ')';
-          }
-
           var settledToggle = activeRef.current[btn.id] && ch > 0.9 && hot < 0.2;
           if (settledToggle) { el.style.transform = 'scale(1.08)'; el.classList.add('lqd-charged'); continue; }
 
@@ -3402,13 +3406,10 @@ function LiquidPillBar(props) {
                     {i > 0 ? <div className="lqd-div"></div> : null}
                     <div className={'lqd-btn' + (isActive ? ' lqd-charged' : '')}
                       data-lqd-btn={c.id} data-lqd-color={c.color || undefined}
-                      data-lqd-bg={c.bg || undefined}
                       ref={function (el) { btnEls.current[g.id + ':' + c.id] = el; }}
-                      style={Object.assign(
-                        c.label || label
-                          ? { padding: '0 19px', height: height }
-                          : { width: c.w || 50, height: height },
-                        c.bg ? { borderRadius: '50%', background: 'rgba(' + c.bg + ',0.5)' } : null)}>
+                      style={c.label || label
+                        ? { padding: '0 19px', height: height }
+                        : { width: c.w || 50, height: height }}>
                       {label
                         ? <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>{label}</span>
                         : c.render}
@@ -14377,7 +14378,7 @@ function CropOverlay({imgSrc,onCommit}){
                 { id:'reset',      w:96, render:<span style={{display:'flex',alignItems:'center',justifyContent:'center'}}><_IcoReset/><span style={{fontSize:13,fontWeight:400,fontFamily:"'DM Sans',sans-serif",marginLeft:5}}>Reset</span></span> },
               ]},
               { id:'commit', cells:[
-                { id:'apply', w:44, color:'40,180,99', bg:'40,180,99',
+                { id:'apply', w:44, color:'40,180,99', rest:true, restCh:0.5,
                   render:cropActive
                     ?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     :<_IcoCropIcon/> },
