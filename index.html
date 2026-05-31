@@ -14351,12 +14351,12 @@ function CropOverlay({imgSrc,onCommit}){
             select="none"
             morph={false}
             groups={[{ id:'crop', cells:[
-              { id:'flipH',      w:38, render:<_IcoFlipH/> },
-              { id:'flipV',      w:38, render:<_IcoFlipV/> },
-              { id:'cw',         w:38, render:<svg width="20" height="20" viewBox="0 0 95 95" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"><rect x="10.5" y="38.6" width="53.6" height="53.6" rx="6.3"/><path d="M43.5,2.4l-6.2,16.7,16.7,6.2"/><path d="M83.1,48.9c5.2-13.8-1.8-29.2-15.6-34.3-6.1-2.3-12.9-2.2-19,.1l-11.1,4.4"/></svg> },
-              { id:'straighten', w:38, render:<_IcoStraighten/> },
-              { id:'keystone',   w:38, render:<_IcoKeystone/>, toggle:true, defaultActive:!!ksCorners },
-              { id:'reset',      render:<span style={{display:'flex',alignItems:'center'}}><_IcoReset/><span style={{fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",marginLeft:5}}>Reset</span></span> },
+              { id:'flipH',      w:44, render:<_IcoFlipH/> },
+              { id:'flipV',      w:44, render:<_IcoFlipV/> },
+              { id:'cw',         w:44, render:<svg width="20" height="20" viewBox="0 0 95 95" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"><rect x="10.5" y="38.6" width="53.6" height="53.6" rx="6.3"/><path d="M43.5,2.4l-6.2,16.7,16.7,6.2"/><path d="M83.1,48.9c5.2-13.8-1.8-29.2-15.6-34.3-6.1-2.3-12.9-2.2-19,.1l-11.1,4.4"/></svg> },
+              { id:'straighten', w:44, render:<_IcoStraighten/> },
+              { id:'keystone',   w:44, render:<_IcoKeystone/>, toggle:true, defaultActive:!!ksCorners },
+              { id:'reset',      w:96, render:<span style={{display:'flex',alignItems:'center',justifyContent:'center'}}><_IcoReset/><span style={{fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",marginLeft:5}}>Reset</span></span> },
             ]}]}
             onAction={(groupId,cellId)=>{
               if(cellId==='flipH'){ flipHRef.current*=-1; raf(()=>applyTransform()); }
