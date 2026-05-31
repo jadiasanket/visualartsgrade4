@@ -2437,6 +2437,1085 @@ body, [data-theme="dark"] body, [data-theme="light"] body {
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
 <script type="text/babel">
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ *  LIQUID INTERACTION ENGINE — added for toolbar migration
+ *  Load order: icons → pill → search → (configs live at call sites)
+ *  All globals uniquely prefixed (LQ* / lq* / LQIC / LQD_SURFACES) — no collisions.
+ *  Backtick-free, hooks-first, useRef-only. See INTEGRATION_CONTRACT.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ============================================================================
+ *  liquid-pill-icons.jsx — icon set + shared math for the LiquidPillBar engine
+ *  ----------------------------------------------------------------------------
+ *  Integration-ready rules obeyed here:
+ *   - NO backticks anywhere (string concatenation only).
+ *   - All globals are uniquely prefixed (LQIC / lq*) so they cannot collide
+ *     with the main app's flat namespace.
+ *  Loads BEFORE liquid-pill.jsx. Exports everything onto window.
+ * ========================================================================== */
+
+var LQ_STROKE = {
+  fill: 'none', stroke: 'currentColor',
+  strokeWidth: 2.4, strokeLinecap: 'round', strokeLinejoin: 'round',
+};
+
+var LQIC = {
+  x: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+      <path d="M18 6L6 18M6 6l12 12"/>
+    </svg>
+  ),
+  minus: <span style={{ fontSize:23, fontWeight:300, lineHeight:1, color:'inherit' }}>{'\u2212'}</span>,
+  plus:  <span style={{ fontSize:23, fontWeight:300, lineHeight:1, color:'inherit' }}>{'\u002B'}</span>,
+  pencil: (
+    <svg width="18" height="18" viewBox="0 0 48 48" {...LQ_STROKE} strokeWidth="3">
+      <path d="M33.5 8.5l6 6L18 36l-7.5 1.5L12 30z"/>
+      <path d="M30 12l6 6"/>
+    </svg>
+  ),
+  search: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+      stroke="rgba(255,255,255,0.45)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+  ),
+  crop: (
+    <svg width="18" height="18" viewBox="0 0 24 24" {...LQ_STROKE}>
+      <path d="M6 2v16a1 1 0 0 0 1 1h16"/>
+      <path d="M2 6h16a1 1 0 0 1 1 1v16"/>
+    </svg>
+  ),
+  rotate: (
+    <svg width="18" height="18" viewBox="0 0 24 24" {...LQ_STROKE}>
+      <path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/>
+    </svg>
+  ),
+  trash: (
+    <svg width="17" height="17" viewBox="0 0 24 24" {...LQ_STROKE}>
+      <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+      <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>
+    </svg>
+  ),
+  check: (
+    <svg width="17" height="17" viewBox="0 0 24 24" {...LQ_STROKE} strokeWidth="3">
+      <path d="M20 6L9 17l-5-5"/>
+    </svg>
+  ),
+  star: (
+    <svg width="18" height="18" viewBox="0 0 24 24" {...LQ_STROKE}>
+      <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>
+    </svg>
+  ),
+  share: (
+    <svg width="17" height="17" viewBox="0 0 24 24" {...LQ_STROKE}>
+      <circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/>
+      <path d="M8.3 10.8l7.4-4.3M8.3 13.2l7.4 4.3"/>
+    </svg>
+  ),
+  layers: (
+    <svg width="18" height="18" viewBox="0 0 24 24" {...LQ_STROKE}>
+      <path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>
+    </svg>
+  ),
+  image: (
+    <svg width="18" height="18" viewBox="0 0 24 24" {...LQ_STROKE}>
+      <rect x="3" y="4" width="18" height="16" rx="2"/>
+      <circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5L5 20"/>
+    </svg>
+  ),
+  grid: (
+    <svg width="17" height="17" viewBox="0 0 24 24" {...LQ_STROKE}>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.4"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.4"/>
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.4"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.4"/>
+    </svg>
+  ),
+  download: (
+    <svg width="17" height="17" viewBox="0 0 24 24" {...LQ_STROKE}>
+      <path d="M12 4v11M8 11l4 4 4-4"/><path d="M5 19h14"/>
+    </svg>
+  ),
+  copy: (
+    <svg width="17" height="17" viewBox="0 0 24 24" {...LQ_STROKE}>
+      <rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/>
+    </svg>
+  ),
+};
+
+/* ─── shared math (uniquely prefixed) ──────────────────────────────────── */
+var lqClamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+
+function lqSmoothstep(e0, e1, x) {
+  var t = lqClamp((x - e0) / (e1 - e0), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function lqParseRgb(str) {
+  if (!str) return null;
+  var m = String(str).match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  return m ? [+m[1], +m[2], +m[3]] : null;
+}
+
+/* SVG path: a capsule whose left edge sits at eL, right edge at eR, centred on
+ * cy with height h. Edges past (anchorL, anchorR) taper to a teardrop tip;
+ * the body thins slightly for volume conservation. (No backticks.) */
+function lqBubblePath(eL, eR, cy, h, anchorL, anchorR) {
+  var oL = Math.max(0, anchorL - eL);
+  var oR = Math.max(0, eR - anchorR);
+  var fullR = h / 2;
+  var tipMin = 5;
+  var TAPER = 34;
+  var rL = fullR - (fullR - tipMin) * lqClamp(oL / TAPER, 0, 1);
+  var rR = fullR - (fullR - tipMin) * lqClamp(oR / TAPER, 0, 1);
+  var bodyR = fullR * (1 - 0.16 * lqClamp((oL + oR) / TAPER, 0, 1));
+  var cxL = eL + rL, cxR = eR - rR;
+  if (cxR - cxL < 0.5) {
+    var cx = (eL + eR) / 2, rx = Math.max(0.5, (eR - eL) / 2), ry = Math.min(rx, fullR);
+    return 'M ' + (cx - rx) + ' ' + cy + ' a ' + rx + ' ' + ry + ' 0 1 0 ' + (rx * 2) + ' 0 a ' +
+      rx + ' ' + ry + ' 0 1 0 ' + (-rx * 2) + ' 0 Z';
+  }
+  var span = cxR - cxL, ctrl = span * 0.32;
+  return (
+    'M ' + cxL.toFixed(2) + ' ' + (cy - rL).toFixed(2) + ' ' +
+    'C ' + (cxL + ctrl).toFixed(2) + ' ' + (cy - bodyR).toFixed(2) + ', ' +
+           (cxR - ctrl).toFixed(2) + ' ' + (cy - bodyR).toFixed(2) + ', ' +
+           cxR.toFixed(2) + ' ' + (cy - rR).toFixed(2) + ' ' +
+    'A ' + rR.toFixed(2) + ' ' + rR.toFixed(2) + ' 0 0 1 ' + cxR.toFixed(2) + ' ' + (cy + rR).toFixed(2) + ' ' +
+    'C ' + (cxR - ctrl).toFixed(2) + ' ' + (cy + bodyR).toFixed(2) + ', ' +
+           (cxL + ctrl).toFixed(2) + ' ' + (cy + bodyR).toFixed(2) + ', ' +
+           cxL.toFixed(2) + ' ' + (cy + rL).toFixed(2) + ' ' +
+    'A ' + rL.toFixed(2) + ' ' + rL.toFixed(2) + ' 0 0 1 ' + cxL.toFixed(2) + ' ' + (cy - rL).toFixed(2) + ' Z'
+  );
+}
+
+Object.assign(window, { LQIC: LQIC, lqClamp: lqClamp, lqSmoothstep: lqSmoothstep, lqParseRgb: lqParseRgb, lqBubblePath: lqBubblePath });
+
+
+/* ============================================================================
+ *  liquid-pill.jsx — <LiquidPillBar>  (integration-ready interaction primitive)
+ *  ----------------------------------------------------------------------------
+ *  ONE headless engine. It knows nothing about what your buttons mean — only
+ *  geometry + a set of declarative, INDEPENDENTLY TOGGLEABLE behaviours. Drive
+ *  it with 'groups'; it reports clicks via onAction. Multiple instances are
+ *  self-contained (scoped .lqd- CSS, per-instance SVG filter ids).
+ *
+ *  ── Integration contract (obeyed here) ────────────────────────────────────
+ *   • NO backticks. String concatenation only (Babel-standalone safe).
+ *   • Hooks first. useRef only. No top-level name collisions (one primitive
+ *     'LiquidPillBar' + lq* helpers; every internal fn lives INSIDE the
+ *     component, never on the global scope).
+ *   • Motion is IMPERATIVE rAF writes on refs — never routed through React
+ *     state (matches the app's ToolbarPill; avoids dropped frames).
+ *   • Behaviour is separated from CHROME: colours/surface/radius/shadow come
+ *     from CSS vars that map onto the app's --glass-* tokens (see SURFACES).
+ *
+ *  ── The two canonical springs (same integrator as the app: v += (-k(x-t) -
+ *     d v) dt, dt=0.016, 4 sub-steps). Constants port DIRECTLY: ───────────────
+ *     SOFT PILL : head 520/26 (right edge) + tail 220/16 (left edge) + shake
+ *                 280/18 (velocity wobble).  → travel + stretch + wobble
+ *     STIFF NAV : 1400/58, no bounce.        → morph (dynamic-island)
+ *
+ *  ── Behaviour → spring map (per the handover) ─────────────────────────────
+ *     travel/bridge/snap .... headK/headD          (pill 520/26)
+ *     stretch ............... tailK/tailD           (pill 220/16, slow edge)
+ *     wobble ................ shakeK/shakeD          (pill 280/18, velocity)
+ *     morph ................. headK/headD on the morph instance = 1400/58
+ *
+ *  PROPS
+ *    groups   [{ id, cells:[ cell ] }]
+ *    -- behaviour toggles (each independent on/off) --
+ *    travel   bool   blob follows the cursor between cells          (def true)
+ *    bridge   'both'|'forward'|'backward'|'none'  gap-fuse direction(def both)
+ *    stretch  bool   two-spring asymmetry → axial stretch on travel (def true)
+ *    wobble   bool   velocity spring → stretch in the cursor's dir   (def true)
+ *    magnetic bool   active cell glows toward the cursor             (def true)
+ *    morph    bool   mitosis (dynamic-island birth/burst) enabled    (def true)
+ *    select   'single'|'multi'|'none'                                (def single)
+ *    groupFuse bool  adjacent ACTIVE pills fuse                      (def false)
+ *    -- springs (named; default to the canonical constants) --
+ *    headK/headD, tailK/tailD, shakeK/shakeD, speed
+ *    -- chrome (re-skinned from tokens on arrival) --
+ *    surface  'toolbar'|'glass'|'glass2'   surface recipe            (def toolbar)
+ *    accent   'r,g,b'   default blob colour (#0074F0 = '0,116,240')
+ *    pointerMode 'hover'|'tap'   touch fallback                      (def hover)
+ *    gap, height
+ *    -- the single hook point for the app to wire popups later --
+ *    onAction (groupId, cellId, info) => {}
+ *
+ *  CELL { id, render|label, w?, color?, toggle?, activeColor?, defaultActive?,
+ *         mitosis?:{ mode?, spawn:[cell], openColor?, openRender? } }
+ * ========================================================================== */
+
+/* surface recipes — chrome, NOT behaviour. Maps onto the app's tokens; the
+ * fallbacks let the demo render standalone. The toolbar recipe is the app's
+ * near-opaque dark panel (floats over photos), NOT the lighter --glass-bg. */
+var LQD_SURFACES = {
+  toolbar: {
+    '--lqd-surface': 'rgba(7,7,8,0.87)',
+    '--lqd-blur': 'blur(6px) saturate(200%)',
+    '--lqd-border': 'var(--glass-border, rgba(255,255,255,0.10))',
+    '--lqd-shadow': 'var(--glass-shadow, 0 4px 20px rgba(0,0,0,0.35))',
+    '--lqd-divider': 'rgba(255,255,255,0.12)',
+  },
+  glass: {
+    '--lqd-surface': 'var(--glass-bg, rgba(255,255,255,0.08))',
+    '--lqd-blur': 'var(--glass-blur, blur(24px) saturate(180%))',
+    '--lqd-border': 'var(--glass-border, rgba(255,255,255,0.18))',
+    '--lqd-shadow': 'var(--glass-shadow, 0 8px 32px rgba(0,0,0,0.5))',
+    '--lqd-divider': 'rgba(255,255,255,0.18)',
+  },
+  glass2: {
+    '--lqd-surface': 'var(--glass-bg2, rgba(255,255,255,0.13))',
+    '--lqd-blur': 'var(--glass-blur, blur(24px) saturate(180%))',
+    '--lqd-border': 'var(--glass-border2, rgba(255,255,255,0.30))',
+    '--lqd-shadow': 'var(--glass-shadow2, 0 16px 48px rgba(0,0,0,0.6))',
+    '--lqd-divider': 'rgba(255,255,255,0.22)',
+  },
+};
+
+/* one-time scoped stylesheet (prefix .lqd-, distinct from the app's lb-*) */
+(function injectLQStyles() {
+  if (document.getElementById('lqd-styles')) return;
+  var s = document.createElement('style');
+  s.id = 'lqd-styles';
+  s.textContent = ''
+    + '.lqd-root{position:relative;display:flex;align-items:center;z-index:0;touch-action:none;}'
+    + '.lqd-pill{position:relative;display:flex;align-items:center;background:transparent;}'
+    + '.lqd-pill-bg{position:absolute;inset:0;z-index:1;'
+    + 'background:var(--lqd-surface,rgba(7,7,8,0.87));'
+    + 'border:1px solid var(--lqd-border,rgba(255,255,255,0.10));'
+    + 'border-radius:var(--lqd-radius,999px);'
+    + 'box-shadow:var(--lqd-shadow,0 4px 20px rgba(0,0,0,0.35));'
+    + '-webkit-backdrop-filter:var(--lqd-blur,blur(6px) saturate(200%));'
+    + 'backdrop-filter:var(--lqd-blur,blur(6px) saturate(200%));'
+    + 'transform-origin:left center;will-change:transform,opacity;}'
+    + '.lqd-row{display:flex;align-items:center;height:100%;position:relative;z-index:3;will-change:opacity;}'
+    + '.lqd-btn{display:flex;align-items:center;justify-content:center;'
+    + 'color:var(--lqd-ink,rgba(255,255,255,0.55));transition:color .14s ease;'
+    + 'flex-shrink:0;pointer-events:none;transform-origin:center center;will-change:transform;}'
+    + '.lqd-btn.lqd-charged{color:var(--lqd-ink-hot,#fff);}'
+    + '.lqd-div{width:1px;height:16px;background:var(--lqd-divider,rgba(255,255,255,0.12));flex-shrink:0;}'
+    + '.lqd-bubble-svg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;'
+    + 'overflow:visible;z-index:2;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5)) drop-shadow(0 1px 14px rgba(34,122,255,0.25));}';
+  document.head.appendChild(s);
+})();
+
+/* mitosis timings (ms at speed=1) */
+var LQ_FORM_MS = 600;
+var LQ_MERGE_COVER_MS = 260;
+var LQ_MERGE_RETRACT_MS = 480;
+var LQ_MERGE_TAIL_MS = 200;
+var LQ_MERGE_MS = LQ_MERGE_COVER_MS + LQ_MERGE_RETRACT_MS + LQ_MERGE_TAIL_MS;
+
+function LiquidPillBar(props) {
+  /* ── hooks FIRST (rule) ─────────────────────────────────────────────── */
+  var useRef = React.useRef, useEffect = React.useEffect, useState = React.useState, useId = React.useId;
+
+  var rootRef = useRef(null);
+  var bubRefs = useRef({});
+  var btnEls = useRef({});
+  var bgEls = useRef({});
+  var rowEls = useRef({});
+  var pillEls = useRef({});
+  var childWRef = useRef({});
+  var pressRef = useRef({});
+  var stRef = useRef({});
+  var pillGeo = useRef({});
+  var cursorRef = useRef(null);
+  var cursorTgt = useRef(null);
+  var tgtRef = useRef({});
+  var rafId = useRef(null);
+  var remeasureUntil = useRef(0);
+  var mouseVelRef = useRef(0);
+  var lastXRef = useRef(null);
+  var shakeRef = useRef({ x: 0, v: 0 });
+  var pressedAnyRef = useRef(false);
+
+  var uidRaw = useId();
+  var uid = uidRaw.replace(/[^a-zA-Z0-9]/g, '');
+  var GOO = 'lqd-goo-' + uid, GRAD = 'lqd-grad-' + uid, GLOW = 'lqd-glow-' + uid;
+
+  var stateInit = function () {
+    var init = {};
+    props.groups.forEach(function (g) { g.cells.forEach(function (c) { if (c.defaultActive) init[c.id] = true; }); });
+    return init;
+  };
+  var activePair = useState(stateInit);
+  var active = activePair[0], setActive = activePair[1];
+  var activeRef = useRef(active);
+  activeRef.current = active;
+
+  var mitPair = useState({});
+  var mit = mitPair[0], setMit = mitPair[1];
+  var mitRef = useRef({});
+  mitRef.current = mit;
+  var birthRef = useRef({});
+  var mergeRef = useRef({});
+
+  var sizePair = useState({ w: 600, h: 44 });
+  var size = sizePair[0], setSize = sizePair[1];
+
+  /* ── resolved props (behaviour toggles + springs + chrome) ──────────── */
+  var groups = props.groups;
+  var travel = props.travel !== false;
+  var bridge = props.bridge != null ? props.bridge : (props.bridges != null ? props.bridges : 'both');
+  var stretch = props.stretch !== false;
+  var wobble = props.wobble !== false;
+  var magnetic = props.magnetic !== false;
+  var morph = props.morph !== false;
+  var select = props.select != null ? props.select : 'single';
+  var groupFuse = props.groupFuse != null ? props.groupFuse : (props.bridgeActive || false);
+  var headK = props.headK != null ? props.headK : 520;
+  var headD = props.headD != null ? props.headD : 26;
+  var tailK = props.tailK != null ? props.tailK : 220;
+  var tailD = props.tailD != null ? props.tailD : 16;
+  var shakeK = props.shakeK != null ? props.shakeK : 280;
+  var shakeD = props.shakeD != null ? props.shakeD : 18;
+  var speed = props.speed != null ? props.speed : 1;
+  var surface = props.surface != null ? props.surface : 'toolbar';
+  var pointerMode = props.pointerMode != null ? props.pointerMode : 'hover';
+  var accent = props.accent != null ? props.accent : '0,116,240';
+  var onAction = props.onAction;
+  var gap = props.gap != null ? props.gap : 20;
+  var height = props.height != null ? props.height : 44;
+
+  var accentRgb = lqParseRgb(accent) || [0, 116, 240];
+
+  /* ── derive the live pill list (base groups + spawned mitosis children) ─ */
+  function buildLive() {
+    var out = [];
+    groups.forEach(function (g) {
+      out.push({ id: g.id, cells: g.cells, _base: true });
+      g.cells.forEach(function (c) {
+        var ph = mitRef.current[c.id];
+        if (c.mitosis && (ph === 'open' || ph === 'closing')) {
+          var mode = c.mitosis.mode || 'merged';
+          if (mode === 'merged') {
+            out.push({ id: c.id + '__burst', cells: c.mitosis.spawn,
+              _mit: { parent: c.id, merged: true, openColor: c.mitosis.openColor } });
+          } else {
+            c.mitosis.spawn.forEach(function (child) {
+              out.push({ id: c.id + '__' + child.id, cells: [child],
+                _mit: { parent: c.id, def: child, openColor: c.mitosis.openColor } });
+            });
+          }
+        }
+      });
+    });
+    return out;
+  }
+  var live = buildLive();
+  var liveKeys = live.map(function (g) { return g.id; });
+  var liveRef = useRef(live);
+  liveRef.current = live;
+
+  function ensureState(key) {
+    if (!stRef.current[key]) {
+      stRef.current[key] = {
+        eL: { x: 0, v: 0 }, eR: { x: 0, v: 0 },
+        ch: 0, hot: 0, flat: 0, flash: 0, anchor: null, colorRgb: accentRgb.slice(),
+      };
+    }
+    return stRef.current[key];
+  }
+  liveKeys.forEach(ensureState);
+
+  function cellById(id) {
+    for (var gi = 0; gi < groups.length; gi++) {
+      var g = groups[gi];
+      for (var ci = 0; ci < g.cells.length; ci++) {
+        var c = g.cells[ci];
+        if (c.id === id) return c;
+        if (c.mitosis) for (var si = 0; si < c.mitosis.spawn.length; si++) if (c.mitosis.spawn[si].id === id) return c.mitosis.spawn[si];
+      }
+    }
+    return null;
+  }
+  function mitParentCell() {
+    for (var gi = 0; gi < groups.length; gi++) for (var ci = 0; ci < groups[gi].cells.length; ci++) if (groups[gi].cells[ci].mitosis) return groups[gi].cells[ci];
+    return null;
+  }
+  function cellIsToggle(id) { var c = cellById(id); return c && c.toggle; }
+  function parentGroupOf(id) {
+    for (var gi = 0; gi < groups.length; gi++) {
+      var g = groups[gi];
+      for (var ci = 0; ci < g.cells.length; ci++) {
+        var c = g.cells[ci];
+        if (c.id === id) return g.id;
+        if (c.mitosis) for (var si = 0; si < c.mitosis.spawn.length; si++) if (c.mitosis.spawn[si].id === id) return g.id;
+      }
+    }
+    return null;
+  }
+  function parentPillKey(cellId) {
+    for (var gi = 0; gi < groups.length; gi++) {
+      var g = groups[gi];
+      for (var ci = 0; ci < g.cells.length; ci++) if (g.cells[ci].id === cellId) return g.id;
+    }
+    return null;
+  }
+
+  /* ── geometry ──────────────────────────────────────────────────────── */
+  function measure() {
+    var rootEl = rootRef.current;
+    if (!rootEl) return;
+    var root = rootEl.getBoundingClientRect();
+    var out = {};
+    var pills = rootEl.querySelectorAll('[data-lqd-pill]');
+    Array.prototype.forEach.call(pills, function (el) {
+      var r = el.getBoundingClientRect();
+      var buttons = Array.prototype.map.call(el.querySelectorAll('[data-lqd-btn]'), function (b) {
+        var tf = b.style.transform;
+        if (tf) b.style.transform = 'none';
+        var br = b.getBoundingClientRect();
+        if (tf) b.style.transform = tf;
+        return {
+          id: b.dataset.lqdBtn, color: b.dataset.lqdColor || null,
+          left: br.left - root.left, right: br.right - root.left,
+          cx: (br.left + br.right) / 2 - root.left, w: br.width,
+        };
+      });
+      out[el.dataset.lqdPill] = {
+        left: r.left - root.left, right: r.right - root.left,
+        cy: (r.top + r.bottom) / 2 - root.top, h: r.height, buttons: buttons,
+      };
+    });
+    pillGeo.current = out;
+  }
+
+  /* ── targets ───────────────────────────────────────────────────────── */
+  function updateTargets() {
+    var geo = pillGeo.current;
+    var liveNow = liveRef.current;
+    var keys = liveNow.map(function (g) { return g.id; });
+    var cx = cursorRef.current;
+    var tgt = {};
+
+    var first = keys[0], last = keys[keys.length - 1];
+    var spanL = geo[first] ? geo[first].left : -Infinity;
+    var spanR = geo[last] ? geo[last].right : Infinity;
+
+    var insideKey = null;
+    for (var ik = 0; ik < keys.length; ik++) {
+      var pk = geo[keys[ik]];
+      if (pk && cx != null && cx >= pk.left && cx <= pk.right) { insideKey = keys[ik]; break; }
+    }
+    var gapL = null, gapR = null, gapProg = 0;
+    if (!insideKey && cx != null) {
+      for (var i = 0; i < keys.length - 1; i++) {
+        var pL = geo[keys[i]], pR = geo[keys[i + 1]];
+        if (pL && pR && cx > pL.right && cx < pR.left) {
+          gapL = keys[i]; gapR = keys[i + 1];
+          var gW = pR.left - pL.right;
+          gapProg = gW > 0 ? lqClamp((cx - pL.right) / gW, 0, 1) : 0.5;
+          break;
+        }
+      }
+    }
+    var allowFwd = bridge === 'both' || bridge === 'forward';
+    var allowBack = bridge === 'both' || bridge === 'backward';
+    var REACH = 22, PRE = 16, FADE = 46;
+
+    keys.forEach(function (key) {
+      var pill = geo[key];
+      if (!pill) return;
+      var t = { eL: 0, eR: 0, ch: 0, hot: 0, anchor: null, color: null };
+      if (cx == null || !travel) { tgt[key] = t; return; }
+      if (insideKey && insideKey !== key && gapL !== key && gapR !== key) { tgt[key] = t; return; }
+
+      if (insideKey === key) {
+        var best = pill.buttons[0], bd = Infinity;
+        for (var bi = 0; bi < pill.buttons.length; bi++) { var d0 = Math.abs(pill.buttons[bi].cx - cx); if (d0 < bd) { bd = d0; best = pill.buttons[bi]; } }
+        if (activeRef.current[best.id]) {
+          t.anchor = best; t.color = best.color; t.ch = 1;
+          t.eL = best.left; t.eR = best.right;
+        } else {
+          var cellW = pill.buttons.length > 1 ? best.w : pill.right - pill.left;
+          var bias = lqClamp((cx - best.cx) * 0.16, -cellW * 0.12, cellW * 0.12);
+          t.anchor = best; t.color = best.color; t.ch = 1;
+          t.eL = best.left + bias; t.eR = best.right + bias;
+          var rd = pill.right - cx;
+          if (rd < PRE) t.eR = Math.max(t.eR, best.right + (1 - rd / PRE) * REACH * 0.4);
+          var ld = cx - pill.left;
+          if (ld < PRE) t.eL = Math.min(t.eL, best.left - (1 - ld / PRE) * REACH * 0.4);
+        }
+      } else if (gapL === key && allowFwd) {
+        var rb0 = pill.buttons[pill.buttons.length - 1];
+        var reachF = REACH * lqSmoothstep(0, 0.9, gapProg);
+        t.anchor = rb0; t.color = rb0.color; t.eL = rb0.left; t.eR = rb0.right + reachF;
+        t.ch = 1 - lqSmoothstep(0.5, 1.0, gapProg);
+      } else if (gapR === key && allowBack) {
+        var lb0 = pill.buttons[0];
+        var reachB = REACH * lqSmoothstep(0, 0.9, 1 - gapProg);
+        t.anchor = lb0; t.color = lb0.color; t.eL = lb0.left - reachB; t.eR = lb0.right;
+        t.ch = 1 - lqSmoothstep(0.5, 1.0, 1 - gapProg);
+      } else if (gapL === key || gapR === key) {
+        var bb = gapL === key ? pill.buttons[pill.buttons.length - 1] : pill.buttons[0];
+        t.anchor = bb; t.color = bb.color; t.eL = bb.left; t.eR = bb.right; t.ch = 0.35;
+      } else if (cx < pill.left) {
+        var lb1 = pill.buttons[0]; var dist0 = pill.left - cx;
+        t.anchor = lb1; t.color = lb1.color;
+        t.eL = lb1.left - Math.min(REACH, dist0); t.eR = lb1.right; t.ch = lqClamp(1 - dist0 / FADE, 0, 1);
+      } else {
+        var rb1 = pill.buttons[pill.buttons.length - 1]; var dist1 = cx - pill.right;
+        t.anchor = rb1; t.color = rb1.color;
+        t.eL = rb1.left; t.eR = rb1.right + Math.min(REACH, dist1); t.ch = lqClamp(1 - dist1 / FADE, 0, 1);
+      }
+
+      var RUBBER = 13;
+      var resist = function (over) { return (RUBBER * over) / (over + RUBBER * 1.5); };
+      t.eL = t.eL < spanL ? spanL - resist(spanL - t.eL) : lqClamp(t.eL, spanL, spanR);
+      t.eR = t.eR > spanR ? spanR + resist(t.eR - spanR) : lqClamp(t.eR, spanL, spanR);
+      t.hot = t.ch;
+      tgt[key] = t;
+    });
+
+    /* ── parked states: toggles, active-fuse grouping, mitosis ── */
+    var now = performance.now();
+    keys.forEach(function (key, ki) {
+      var pill = geo[key];
+      if (!pill) return;
+      var t = tgt[key];
+
+      var aBtn = null;
+      for (var ai = 0; ai < pill.buttons.length; ai++) if (activeRef.current[pill.buttons[ai].id]) { aBtn = pill.buttons[ai]; break; }
+      if (aBtn && t.ch < 0.999) {
+        var def0 = cellById(aBtn.id);
+        t.anchor = aBtn; t.color = (def0 && def0.activeColor) || aBtn.color;
+        t.eL = aBtn.left; t.eR = aBtn.right; t.ch = 1;
+        if (groupFuse) {
+          var rk = keys[ki + 1], lk = keys[ki - 1];
+          var rPill = geo[rk], lPill = geo[lk];
+          if (rPill && rPill.buttons.some(function (b) { return activeRef.current[b.id]; }))
+            t.eR = aBtn.right + Math.max(0, (rPill.left - aBtn.right - 10) / 2);
+          if (lPill && lPill.buttons.some(function (b) { return activeRef.current[b.id]; }))
+            t.eL = aBtn.left - Math.max(0, (aBtn.left - lPill.right - 10) / 2);
+        }
+      }
+
+      if (!morph) return;
+      var liveG = liveNow[ki];
+      var parent = mitParentCell();
+      if (parent) {
+        var ph = mitRef.current[parent.id];
+        var on = ph === 'open' || ph === 'closing';
+        var closing = ph === 'closing';
+        var openCol = lqParseRgb(parent.mitosis.openColor) || accentRgb;
+
+        var prog, born = false, mergeCover = false, mt = 0;
+        if (!closing) {
+          var bp = lqClamp((now - (birthRef.current[parent.id] || 0)) / (LQ_FORM_MS / speed), 0, 1);
+          prog = bp; born = bp >= 1;
+        } else {
+          mt = now - (mergeRef.current[parent.id] || 0);
+          var cover = LQ_MERGE_COVER_MS / speed, retract = LQ_MERGE_RETRACT_MS / speed;
+          if (mt < cover) { prog = 1; mergeCover = true; }
+          else prog = 1 - lqClamp((mt - cover) / retract, 0, 1);
+        }
+
+        if (on && pill.buttons.some(function (b) { return b.id === parent.id; }) && t.ch < 0.999) {
+          var pb = null;
+          for (var pi = 0; pi < pill.buttons.length; pi++) if (pill.buttons[pi].id === parent.id) { pb = pill.buttons[pi]; break; }
+          var neck = 14 * Math.sin(Math.PI * lqClamp(prog, 0, 1));
+          t.anchor = Object.assign({}, pb, { left: pill.left, right: pill.right, cx: (pill.left + pill.right) / 2 });
+          t.color = parent.mitosis.openColor; t.eL = pill.left; t.ch = 1;
+          t.eR = pill.right + neck;
+        }
+
+        if (on && liveG && liveG._mit) {
+          t.birthW = { prog: lqClamp(prog, 0, 1), stage: closing ? 'merge' : (born ? 'settle' : 'cover') };
+          if (!born) {
+            var cb = pill.buttons[0];
+            var childCol = lqParseRgb(liveG._mit.merged ? cb.color : liveG._mit.def.color) || accentRgb;
+            var ce = lqSmoothstep(0, 1, prog);
+            var col = openCol.map(function (c, idx) { return Math.round(c + (childCol[idx] - c) * ce); }).join(',');
+            var alpha;
+            if (!closing) alpha = lqSmoothstep(0.0, 0.4, prog);
+            else if (mergeCover) alpha = lqSmoothstep(0, (LQ_MERGE_COVER_MS / speed) * 0.9, mt);
+            else alpha = lqSmoothstep(0.0, 0.4, prog);
+            var childNeck = 12 * (1 - lqSmoothstep(0.42, 0.96, prog));
+            t.anchor = Object.assign({}, cb, { left: pill.left, right: pill.right, cx: (pill.left + pill.right) / 2, color: col });
+            t.color = col;
+            t.eL = pill.left - childNeck;
+            t.eR = pill.right + 3;
+            t.ch = alpha;
+            t.hot = 0;
+          }
+        }
+      }
+    });
+
+    tgtRef.current = tgt;
+  }
+
+  /* ── animation loop (imperative; never touches React state) ─────────── */
+  function tick() {
+    var dt = 0.016, STEPS = 4, ddt = dt / STEPS;
+    var geo = pillGeo.current;
+    var keysNow = liveRef.current.map(function (g) { return g.id; });
+    try {
+      var raw = cursorTgt.current;
+      if (raw == null) cursorRef.current = null;
+      else if (cursorRef.current == null) cursorRef.current = raw;
+      else { cursorRef.current += (raw - cursorRef.current) * 0.32; if (Math.abs(raw - cursorRef.current) < 0.4) cursorRef.current = raw; }
+      if (performance.now() < remeasureUntil.current) measure();
+
+      /* velocity wobble — one global shake spring (280/18 by default), driven
+       * by cursor speed; applied as a directional stretch on the leading edge. */
+      mouseVelRef.current *= 0.82;
+      var shv = 0;
+      if (wobble) {
+        var shakeTarget = lqClamp(mouseVelRef.current * 1.4, -18, 18);
+        for (var sj = 0; sj < STEPS; sj++) {
+          shakeRef.current.v += (-shakeK * (shakeRef.current.x - shakeTarget) - shakeD * shakeRef.current.v) * ddt;
+          shakeRef.current.x += shakeRef.current.v * ddt;
+        }
+        shv = shakeRef.current.x;
+      } else { shakeRef.current.x = 0; shakeRef.current.v = 0; }
+
+      updateTargets();
+
+      var hK = headK * speed * speed, hD = headD * speed;
+      var tK = (stretch ? tailK : headK) * speed * speed, tD = (stretch ? tailD : headD) * speed;
+
+      var renderBubble = function (key) {
+        var s = stRef.current[key], t = tgtRef.current[key], pathEl = bubRefs.current[key];
+        if (!s || !t) return;
+        if (s.ch < 0.015 && t.ch > 0 && t.anchor) {
+          var cxv = cursorRef.current != null ? cursorRef.current : t.anchor.cx;
+          var seed = lqClamp(cxv, t.anchor.left, t.anchor.right);
+          s.eL.x = seed; s.eR.x = seed; s.eL.v = 0; s.eR.v = 0;
+        }
+        if (t.anchor) {
+          s.anchor = t.anchor;
+          var rgb = lqParseRgb(t.color) || accentRgb;
+          s.colorRgb = s.colorRgb.map(function (c, i) { return c + (rgb[i] - c) * 0.18; });
+        }
+        var tEL = t.anchor ? t.eL : s.eL.x;
+        var tER = t.anchor ? t.eR : s.eR.x;
+        var stv = (t.anchor ? shv : 0) * lqClamp(s.ch, 0, 1);
+        var tELw = tEL + Math.min(0, stv);
+        var tERw = tER + Math.max(0, stv);
+        var sq = pressRef.current[key] ? 7 : 0;
+        for (var i = 0; i < STEPS; i++) {
+          s.eL.v += (-tK * (s.eL.x - (tELw + sq)) - tD * s.eL.v) * ddt; s.eL.x += s.eL.v * ddt;
+          s.eR.v += (-hK * (s.eR.x - (tERw - sq)) - hD * s.eR.v) * ddt; s.eR.x += s.eR.v * ddt;
+        }
+        var chRate = t.ch >= s.ch ? 0.55 : 0.12;
+        s.ch += (t.ch - s.ch) * chRate; if (s.ch < 0.0015) s.ch = 0;
+        var th = t.hot || 0;
+        s.hot = (s.hot || 0) + (th - (s.hot || 0)) * (th >= s.hot ? 0.42 : 0.16);
+        if (s.hot < 0.002) s.hot = 0;
+
+        var activeHere0 = geo[key] && geo[key].buttons.some(function (b) { return activeRef.current[b.id]; });
+        var pf = (pressRef.current[key] || activeHere0) ? 1 : 0;
+        s.flat = (s.flat || 0) + (pf - (s.flat || 0)) * 0.32;
+        s.flash = (s.flash || 0) * 0.85;
+
+        var alpha = lqClamp(s.ch, 0, 1);
+        var pill = geo[key];
+        if (!pathEl || alpha < 0.01 || !s.anchor || !pill) { if (pathEl) pathEl.setAttribute('opacity', '0'); return; }
+        var d = lqBubblePath(s.eL.x, s.eR.x, pill.cy, pill.h, s.anchor.left, s.anchor.right);
+        pathEl.setAttribute('d', d);
+        pathEl.setAttribute('opacity', alpha.toFixed(3));
+        if (s.anchor.color) {
+          var r = s.colorRgb[0], g = s.colorRgb[1], b = s.colorRgb[2];
+          var hv = lqClamp(s.hot || 0, 0, 1);
+          var activeHere = geo[key] && geo[key].buttons.some(function (b2) { return activeRef.current[b2.id]; });
+          if (magnetic && activeHere && hv > 0.04 && cursorRef.current != null) {
+            var g0 = bubRefs.current.glow0, g1 = bubRefs.current.glow1, g2 = bubRefs.current.glow2;
+            var lit = [r, g, b].map(function (v) { return Math.round(v + (255 - v) * 0.5 * hv); });
+            var basec = 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (b | 0) + ')';
+            if (g0) g0.setAttribute('stop-color', 'rgb(' + lit[0] + ',' + lit[1] + ',' + lit[2] + ')');
+            if (g1) g1.setAttribute('stop-color', 'rgb(' + Math.round((lit[0] + r) / 2) + ',' + Math.round((lit[1] + g) / 2) + ',' + Math.round((lit[2] + b) / 2) + ')');
+            if (g2) g2.setAttribute('stop-color', basec);
+            var gl = bubRefs.current.glowGrad;
+            if (gl) { gl.setAttribute('cx', cursorRef.current); gl.setAttribute('cy', pill.cy); }
+            pathEl.setAttribute('fill', 'url(#' + GLOW + ')');
+          } else {
+            pathEl.setAttribute('fill', 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (b | 0) + ')');
+          }
+        } else {
+          pathEl.setAttribute('fill', 'url(#' + GRAD + ')');
+        }
+
+        var outVel = Math.max(s.eR.v, -s.eL.v, 0);
+        var bri = 1 + lqClamp(outVel / 320, 0, 1) * 3.5 + (s.flash || 0) * 1.1;
+        pathEl.style.filter = (bri > 1.02) ? 'brightness(' + bri.toFixed(2) + ')' : '';
+      };
+
+      keysNow.forEach(function (key) {
+        renderBubble(key);
+
+        var tt = tgtRef.current[key];
+        var pillEl = pillEls.current[key];
+        if (tt && tt.birthW && pillEl) {
+          var natW = childWRef.current[key];
+          if (!natW || natW < 2) {
+            natW = pillEl.scrollWidth || (rowEls.current[key] && rowEls.current[key].scrollWidth) || 0;
+            if (natW > 2) childWRef.current[key] = natW;
+          }
+          var pr = lqClamp(tt.birthW.prog, 0, 1);
+          var wp = lqClamp(pr / 0.62, 0, 1), eo = wp * wp * (3 - 2 * wp);
+          pillEl.style.overflow = 'hidden';
+          pillEl.style.width = (natW * eo).toFixed(2) + 'px';
+          pillEl.style.marginLeft = (-gap * (1 - eo)).toFixed(2) + 'px';
+
+          var bgEl = bgEls.current[key], rowEl = rowEls.current[key], sObj = stRef.current[key];
+          if (rowEl) rowEl.style.opacity = '1';
+          if (bgEl && sObj) {
+            var st = tt.birthW.stage;
+            if (st === 'cover') sObj.rev = 0;
+            else if (st === 'settle') sObj.rev = (sObj.rev || 0) + (1 - (sObj.rev || 0)) * 0.12;
+            else sObj.rev = (sObj.rev || 0) + (0 - (sObj.rev || 0)) * 0.22;
+            bgEl.style.opacity = lqClamp(sObj.rev, 0, 1).toFixed(3);
+          }
+        }
+
+        var s = stRef.current[key], pill = geo[key];
+        if (!pill || !s.anchor) return;
+        var eL = s.eL.x, eR = s.eR.x;
+        var bubCx = (eL + eR) / 2, bubW = Math.max(1, eR - eL);
+        var ch = lqClamp(s.ch, 0, 1), hot = lqClamp(s.hot || 0, 0, 1);
+        var glass = ch * hot;
+        var roundW = pill.h, bridgeAmt = lqClamp((bubW - roundW) / roundW, 0, 1.3);
+
+        for (var bi2 = 0; bi2 < pill.buttons.length; bi2++) {
+          var btn = pill.buttons[bi2];
+          var el = btnEls.current[key + ':' + btn.id];
+          if (!el) continue;
+          var half = bubW / 2;
+          var u = lqClamp((btn.cx - bubCx) / half, -1.4, 1.4);
+          var centro = lqClamp(1 - Math.abs(u), 0, 1);
+          var ov = Math.min(eR, btn.right) - Math.max(eL, btn.left);
+          var coverv = lqClamp(ov / btn.w, 0, 1);
+          var on = ch > 0.3 && coverv > 0.35;
+          el.classList.toggle('lqd-charged', on);
+
+          var settledToggle = activeRef.current[btn.id] && ch > 0.9 && hot < 0.2;
+          if (settledToggle) { el.style.transform = 'scale(1.08)'; el.classList.add('lqd-charged'); continue; }
+
+          var mag = 1 + 0.24 * coverv * lqSmoothstep(0.12, 1, centro) * glass;
+          var edgeCross = lqClamp(coverv * (1 - coverv) * 4, 0, 1);
+          var rimOff = lqClamp(1 - centro, 0, 1) * coverv;
+          var distort = Math.max(edgeCross, rimOff * 0.85) * glass;
+          distort = lqClamp(distort * (1 + bridgeAmt * 0.9), 0, 1.15);
+          var pop = 1 + 0.16 * (s.flash || 0) * coverv;
+          var sx = mag * (1 + 0.34 * distort) * pop;
+          var sy = mag * (1 - 0.20 * distort) * pop;
+          var skew = -7 * u * distort;
+          var lift = -1.0 * coverv * glass;
+          el.style.transform =
+            (Math.abs(sx - 1) > 0.003 || Math.abs(skew) > 0.2 || Math.abs(lift) > 0.2)
+              ? 'translateY(' + lift.toFixed(2) + 'px) scaleX(' + sx.toFixed(3) + ') scaleY(' + sy.toFixed(3) + ') skewX(' + skew.toFixed(2) + 'deg)' : '';
+        }
+      });
+
+      var grad = bubRefs.current.grad;
+      if (grad && cursorRef.current != null) {
+        var cy0 = (geo[keysNow[0]] && geo[keysNow[0]].cy) || 19;
+        grad.setAttribute('cx', cursorRef.current); grad.setAttribute('cy', cy0);
+      }
+    } catch (err) { if (!window.__lqdErr) { window.__lqdErr = 1; console.error('LiquidPillBar tick error:', (err && err.stack) || err); } }
+    rafId.current = requestAnimationFrame(tick);
+  }
+
+  /* ── interaction (Pointer Events → mouse + touch + pen) ─────────────── */
+  function handlePointerDown(e, key) {
+    pressRef.current[key] = true; pressedAnyRef.current = true;
+    var s = stRef.current[key]; if (s) s.flash = 1;
+    if (pointerMode === 'tap' && rootRef.current) {
+      var r = rootRef.current.getBoundingClientRect();
+      cursorTgt.current = e.clientX - r.left; lastXRef.current = cursorTgt.current; measure();
+    }
+  }
+  function handlePointerUp(e, key) {
+    if (!pressRef.current[key]) return;
+    pressRef.current[key] = false;
+  }
+  function handleClick(e, key) {
+    var pill = pillGeo.current[key], cx = cursorRef.current;
+    if (!pill || cx == null) return;
+    var best = pill.buttons[0], bd = Infinity;
+    for (var bi = 0; bi < pill.buttons.length; bi++) { var d = Math.abs(pill.buttons[bi].cx - cx); if (d < bd) { bd = d; best = pill.buttons[bi]; } }
+    var def = cellById(best.id);
+    if (!def) return;
+    remeasureUntil.current = performance.now() + 800 / speed;
+
+    if (def.mitosis && morph) { toggleMitosis(def); return; }
+    if (def.toggle) {
+      var next = !activeRef.current[best.id];
+      setActive(function (a) {
+        var n = Object.assign({}, a);
+        if (select === 'single' && next) Object.keys(n).forEach(function (k) { if (cellIsToggle(k)) n[k] = false; });
+        n[best.id] = next;
+        return n;
+      });
+      onAction && onAction(parentGroupOf(best.id), best.id, { active: next });
+    } else {
+      onAction && onAction(parentGroupOf(best.id), best.id, { active: false });
+    }
+  }
+  function toggleMitosis(parent) {
+    var ph = mitRef.current[parent.id];
+    if (ph === 'closing') return;
+    if (ph === 'open') {
+      mergeRef.current[parent.id] = performance.now();
+      setMit(function (m) { var n = Object.assign({}, m); n[parent.id] = 'closing'; return n; });
+      setTimeout(function () {
+        setMit(function (m) { var n = Object.assign({}, m); delete n[parent.id]; return n; });
+        parent.mitosis.spawn.forEach(function (child) {
+          var k = parent.id + '__' + child.id;
+          var s = stRef.current[k];
+          if (s) { s.ch = 0; s.anchor = null; s.eL.x = s.eR.x = 0; s.eL.v = s.eR.v = 0; }
+        });
+        var ps = stRef.current[parentPillKey(parent.id)];
+        if (ps) ps.colorRgb = accentRgb.slice();
+      }, LQ_MERGE_MS / speed);
+      onAction && onAction(parentGroupOf(parent.id), parent.id, { open: false });
+    } else {
+      birthRef.current[parent.id] = performance.now();
+      setMit(function (m) { var n = Object.assign({}, m); n[parent.id] = 'open'; return n; });
+      onAction && onAction(parentGroupOf(parent.id), parent.id, { open: true });
+    }
+  }
+
+  /* ── pointer move / leave ──────────────────────────────────────────── */
+  function onPointerMove(e) {
+    if (!rootRef.current) return;
+    var r = rootRef.current.getBoundingClientRect();
+    var x = e.clientX - r.left;
+    if (pointerMode === 'hover' || pressedAnyRef.current) {
+      if (lastXRef.current != null) mouseVelRef.current = x - lastXRef.current;
+      lastXRef.current = x;
+      cursorTgt.current = x;
+    }
+    if (!Object.keys(pillGeo.current).length) measure();
+  }
+  function onPointerLeave() {
+    if (pointerMode === 'hover') { cursorTgt.current = null; lastXRef.current = null; }
+  }
+
+  /* ── mount ─────────────────────────────────────────────────────────── */
+  useEffect(function () {
+    measure();
+    var ro = new ResizeObserver(function () { measure(); });
+    if (rootRef.current) ro.observe(rootRef.current);
+    rafId.current = requestAnimationFrame(tick);
+    var onWinUp = function () {
+      pressedAnyRef.current = false;
+      liveKeys.forEach(function (k) { if (pressRef.current[k]) pressRef.current[k] = false; });
+      if (pointerMode === 'tap') setTimeout(function () { cursorTgt.current = null; lastXRef.current = null; }, 600);
+    };
+    window.addEventListener('pointerup', onWinUp);
+    return function () { ro.disconnect(); cancelAnimationFrame(rafId.current); window.removeEventListener('pointerup', onWinUp); };
+    // eslint-disable-next-line
+  }, []);
+  useEffect(function () { var id = requestAnimationFrame(function () { measure(); }); return function () { cancelAnimationFrame(id); }; }, [active, mit]);
+  useEffect(function () {
+    var update = function () { if (!rootRef.current) return; var r = rootRef.current.getBoundingClientRect(); setSize({ w: r.width, h: r.height }); };
+    update();
+    var ro = new ResizeObserver(update);
+    if (rootRef.current) ro.observe(rootRef.current);
+    return function () { ro.disconnect(); };
+  }, [mit]);
+
+  /* ── gradient stops derived from accent ────────────────────────────── */
+  var lighten = function (c, f) { return c.map(function (v) { return Math.round(v + (255 - v) * f); }); };
+  var darken = function (c, f) { return c.map(function (v) { return Math.round(v * (1 - f)); }); };
+  var gLight = lighten(accentRgb, 0.42).join(',');
+  var gMid = accentRgb.join(',');
+  var gDark = darken(accentRgb, 0.5).join(',');
+
+  var rootStyle = Object.assign({ gap: gap }, LQD_SURFACES[surface] || LQD_SURFACES.toolbar);
+
+  return (
+    <div ref={rootRef} className={'lqd-root' + (props.className ? ' ' + props.className : '')} style={rootStyle}
+      onPointerMove={onPointerMove} onPointerLeave={onPointerLeave}>
+      <svg className="lqd-bubble-svg" width={size.w} height={size.h} viewBox={'0 0 ' + size.w + ' ' + size.h} preserveAspectRatio="none">
+        <defs>
+          <filter id={GOO} x="-20%" y="-120%" width="140%" height="340%" colorInterpolationFilters="sRGB">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8" result="goo"/>
+            <feMorphology in="goo" operator="erode" radius="2.2" result="eroded"/>
+            <feComposite in="goo" in2="eroded" operator="out" result="rim"/>
+            <feGaussianBlur in="goo" stdDeviation="3" result="bump"/>
+            <feSpecularLighting in="bump" surfaceScale="6" specularConstant="0.9" specularExponent="16" lightingColor="#ffffff" result="spec">
+              <feDistantLight azimuth="235" elevation="55"/>
+            </feSpecularLighting>
+            <feComposite in="spec" in2="rim" operator="in" result="shine"/>
+            <feComponentTransfer in="shine" result="shineDim"><feFuncA type="linear" slope="0.7"/></feComponentTransfer>
+            <feMerge><feMergeNode in="goo"/><feMergeNode in="shineDim"/></feMerge>
+          </filter>
+          <radialGradient id={GRAD} ref={function (el) { bubRefs.current.grad = el; }} gradientUnits="userSpaceOnUse" cx="0" cy="0" r="110">
+            <stop offset="0%" stopColor={'rgb(' + gLight + ')'}/>
+            <stop offset="42%" stopColor={'rgb(' + gMid + ')'}/>
+            <stop offset="100%" stopColor={'rgb(' + gDark + ')'}/>
+          </radialGradient>
+          <radialGradient id={GLOW} ref={function (el) { bubRefs.current.glowGrad = el; }} gradientUnits="userSpaceOnUse" cx="0" cy="0" r="26">
+            <stop offset="0%" ref={function (el) { bubRefs.current.glow0 = el; }} stopColor="rgb(120,150,255)"/>
+            <stop offset="42%" ref={function (el) { bubRefs.current.glow1 = el; }} stopColor="rgb(60,90,200)"/>
+            <stop offset="100%" ref={function (el) { bubRefs.current.glow2 = el; }} stopColor="rgb(60,90,200)"/>
+          </radialGradient>
+        </defs>
+        <g filter={'url(#' + GOO + ')'}>
+          {liveKeys.map(function (key) {
+            return <path key={key} ref={function (el) { bubRefs.current[key] = el; }} fill={'url(#' + GRAD + ')'} opacity="0"/>;
+          })}
+        </g>
+      </svg>
+
+      {live.map(function (g) {
+        var isChild = !!g._mit;
+        return (
+          <div key={g.id} className="lqd-pill" data-lqd-pill={g.id}
+            ref={function (el) { pillEls.current[g.id] = el; }}
+            style={isChild
+              ? { height: height, width: 0, marginLeft: -gap, overflow: 'hidden' }
+              : { height: height }}
+            onPointerDown={function (e) { handlePointerDown(e, g.id); }}
+            onPointerUp={function (e) { handlePointerUp(e, g.id); }}
+            onClick={function (e) { handleClick(e, g.id); }}>
+            <div className="lqd-pill-bg" ref={function (el) { bgEls.current[g.id] = el; }}></div>
+            <div className="lqd-row" ref={function (el) { rowEls.current[g.id] = el; }}>
+              {g.cells.map(function (c, i) {
+                var isActive = activeRef.current[c.id];
+                var isOpen = c.mitosis && (mitRef.current[c.id] === 'open' || mitRef.current[c.id] === 'closing');
+                var label = c.label && isActive && c.activeLabel ? c.activeLabel
+                  : (c.mitosis && isOpen && c.mitosis.openRender) ? c.mitosis.openRender
+                    : (c.label || null);
+                return (
+                  <React.Fragment key={c.id}>
+                    {i > 0 ? <div className="lqd-div"></div> : null}
+                    <div className={'lqd-btn' + (isActive ? ' lqd-charged' : '')}
+                      data-lqd-btn={c.id} data-lqd-color={c.color || undefined}
+                      ref={function (el) { btnEls.current[g.id + ':' + c.id] = el; }}
+                      style={c.label || label
+                        ? { padding: '0 19px', height: height }
+                        : { width: c.w || 50, height: height }}>
+                      {label
+                        ? <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>{label}</span>
+                        : c.render}
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+window.LiquidPillBar = LiquidPillBar;
+window.LQD_SURFACES = LQD_SURFACES;
+
+
+/* ============================================================================
+ *  liquid-search.jsx — <LiquidSearchField>  (independent companion element)
+ *  ----------------------------------------------------------------------------
+ *  Ported from the v2 demo. This is deliberately NOT part of LiquidPillBar — it
+ *  carries NO liquid/spring behaviour. It's a self-contained search field with
+ *  three pure-CSS states, kept beside the pill bars in a toolbar:
+ *     idle   → normal surface border
+ *     hover  → soft blue glow that gently breathes (ready to type)
+ *     active → glow dissolves into a thin light-blue focus border (typing)
+ *
+ *  Contract-obeying: no backticks, hooks-first, namespaced (.lqs- / LQS / LQIC),
+ *  chrome on the same surface recipe + tokens as the pill bar, glow = #0074F0.
+ *  pointermode: hover-driven for pointer devices; on touch a tap focuses it.
+ *
+ *  PROPS  { placeholder, surface:'toolbar'|'glass'|'glass2', accent:'r,g,b',
+ *           width, height, onFocus, onBlur, onChange(value) }
+ * ========================================================================== */
+
+(function injectLQSStyles() {
+  if (document.getElementById('lqs-styles')) return;
+  var s = document.createElement('style');
+  s.id = 'lqs-styles';
+  s.textContent = ''
+    + '.lqs-field{position:relative;display:flex;align-items:center;height:var(--lqs-h,44px);'
+    + 'background:var(--lqd-surface,rgba(7,7,8,0.87));'
+    + 'border:1px solid var(--lqd-border,rgba(255,255,255,0.10));border-radius:999px;'
+    + 'box-shadow:var(--lqd-shadow,0 4px 20px rgba(0,0,0,0.35));'
+    + '-webkit-backdrop-filter:var(--lqd-blur,blur(6px) saturate(200%));backdrop-filter:var(--lqd-blur,blur(6px) saturate(200%));'
+    + 'padding:0 16px 0 40px;cursor:text;transition:border-color .4s ease;}'
+    + '.lqs-field::before{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;'
+    + 'opacity:0;transition:opacity .42s ease;'
+    + 'box-shadow:-11px 0 28px -4px rgba(var(--lqs-glow,0,116,240),0.40),'
+    + '0 0 22px 1px rgba(var(--lqs-glow,0,116,240),0.28),'
+    + '0 0 0 1px rgba(var(--lqs-glow,0,116,240),0.34);}'
+    + '.lqs-ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);display:flex;'
+    + 'pointer-events:none;color:rgba(255,255,255,0.5);transition:color .2s ease;}'
+    + '.lqs-input{background:transparent;border:none;outline:none;color:rgba(255,255,255,0.6);'
+    + 'font:500 13px/1 inherit;width:100%;pointer-events:none;}'
+    + '.lqs-input::placeholder{color:rgba(255,255,255,0.4);}'
+    + '.lqs-field.is-hover{border-color:rgba(var(--lqs-glow,0,116,240),0.40);}'
+    + '.lqs-field.is-hover::before{opacity:1;animation:lqsPulse 1.8s ease-in-out infinite;}'
+    + '.lqs-field.is-hover .lqs-ico{color:rgba(110,170,255,0.95);}'
+    + '@keyframes lqsPulse{0%,100%{opacity:0.70;}50%{opacity:1;}}'
+    + '.lqs-field.is-active{border-color:rgba(128,182,255,0.62);}'
+    + '.lqs-field.is-active::before{opacity:0;animation:none;}'
+    + '.lqs-field.is-active .lqs-ico{color:rgba(150,195,255,0.95);}'
+    + '.lqs-field.is-active .lqs-input{pointer-events:auto;color:rgba(255,255,255,0.92);}';
+  document.head.appendChild(s);
+})();
+
+function LiquidSearchField(props) {
+  var useState = React.useState, useRef = React.useRef, useEffect = React.useEffect;
+
+  var stPair = useState('idle');
+  var state = stPair[0], setState = stPair[1];
+  var stateRef = useRef('idle');
+  stateRef.current = state;
+  var inputRef = useRef(null);
+  var fieldRef = useRef(null);
+
+  var surface = props.surface != null ? props.surface : 'toolbar';
+  var accent = props.accent != null ? props.accent : '0,116,240';
+  var width = props.width != null ? props.width : 280;
+  var height = props.height != null ? props.height : 44;
+  var placeholder = props.placeholder != null ? props.placeholder : 'Search\u2026';
+
+  function setS(v) {
+    if (stateRef.current === v) return;
+    stateRef.current = v;
+    setState(v);
+    if (v === 'active') { if (inputRef.current) inputRef.current.focus(); if (props.onFocus) props.onFocus(); }
+    else { if (inputRef.current) inputRef.current.blur(); if (v === 'idle' && props.onBlur) props.onBlur(); }
+  }
+
+  useEffect(function () {
+    var onDocDown = function (e) { if (fieldRef.current && !fieldRef.current.contains(e.target)) setS('idle'); };
+    document.addEventListener('pointerdown', onDocDown);
+    return function () { document.removeEventListener('pointerdown', onDocDown); };
+    // eslint-disable-next-line
+  }, []);
+
+  var lqSurf = (typeof LQD_SURFACES !== 'undefined' ? LQD_SURFACES : (window.LQD_SURFACES || {}));
+  var cls = 'lqs-field' + (state === 'hover' ? ' is-hover' : state === 'active' ? ' is-active' : '');
+  var style = Object.assign({ width: width, '--lqs-h': height + 'px', '--lqs-glow': accent }, lqSurf[surface] || lqSurf.toolbar || {});
+
+  return (
+    <div ref={fieldRef} className={cls} style={style}
+      onPointerEnter={function () { if (stateRef.current !== 'active') setS('hover'); }}
+      onPointerLeave={function () { if (stateRef.current === 'hover') setS('idle'); }}
+      onPointerDown={function () { setS('active'); }}>
+      <span className="lqs-ico">{LQIC.search}</span>
+      <input ref={inputRef} className="lqs-input" placeholder={placeholder}
+        onChange={function (e) { if (props.onChange) props.onChange(e.target.value); }}/>
+    </div>
+  );
+}
+
+window.LiquidSearchField = LiquidSearchField;
+
+
+/* ── end liquid engine ── */
+
+
 /* ─────────────────────────────── DATA ─────────────────────────────── */
 
 const KWS=[
@@ -13262,16 +14341,31 @@ function CropOverlay({imgSrc,onCommit}){
         onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
         <div style={{display:'flex',alignItems:'center',gap:8,pointerEvents:'all'}}>
 
-          {/* Main pill — CCW, CW, Straighten, Keystone, Reset */}
-          <CropToolPill
-            ksCorners={ksCorners}
-            onFlipH={()=>{flipHRef.current*=-1;raf(()=>applyTransform());}}
-            onFlipV={()=>{flipVRef.current*=-1;raf(()=>applyTransform());}}
-            onCCW={()=>{setKsCorners(null);rotate90('ccw');}}
-            onCW={()=>{setKsCorners(null);rotate90('cw');}}
-            onStraighten={()=>{setKsCorners(null);autoStraighten();}}
-            onKeystone={ksCorners?applyKS:startKS}
-            onReset={handleReset}
+          {/* Main pill — LiquidPillBar (replaces CropToolPill). Buttons: FlipH, FlipV, Rotate90, Straighten, Keystone, Reset.
+              Keystone is CONTROLLED by ksCorners (crop tool owns the state). lb-glass-panel kept for the sheen overlay. */}
+          <LiquidPillBar
+            key={ksCorners?'ks-on':'ks-off'}
+            className="lb-glass-panel"
+            surface="toolbar"
+            height={38}
+            select="none"
+            morph={false}
+            groups={[{ id:'crop', cells:[
+              { id:'flipH',      w:38, render:<_IcoFlipH/> },
+              { id:'flipV',      w:38, render:<_IcoFlipV/> },
+              { id:'cw',         w:38, render:<svg width="20" height="20" viewBox="0 0 95 95" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"><rect x="10.5" y="38.6" width="53.6" height="53.6" rx="6.3"/><path d="M43.5,2.4l-6.2,16.7,16.7,6.2"/><path d="M83.1,48.9c5.2-13.8-1.8-29.2-15.6-34.3-6.1-2.3-12.9-2.2-19,.1l-11.1,4.4"/></svg> },
+              { id:'straighten', w:38, render:<_IcoStraighten/> },
+              { id:'keystone',   w:38, render:<_IcoKeystone/>, toggle:true, defaultActive:!!ksCorners },
+              { id:'reset',      render:<span style={{display:'flex',alignItems:'center'}}><_IcoReset/><span style={{fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",marginLeft:5}}>Reset</span></span> },
+            ]}]}
+            onAction={(groupId,cellId)=>{
+              if(cellId==='flipH'){ flipHRef.current*=-1; raf(()=>applyTransform()); }
+              else if(cellId==='flipV'){ flipVRef.current*=-1; raf(()=>applyTransform()); }
+              else if(cellId==='cw'){ setKsCorners(null); rotate90('cw'); }
+              else if(cellId==='straighten'){ setKsCorners(null); autoStraighten(); }
+              else if(cellId==='keystone'){ if(ksCorners){ applyKS(); } else { startKS(); } }
+              else if(cellId==='reset'){ handleReset(); }
+            }}
           />
 
           {/* Apply / Crop */}
