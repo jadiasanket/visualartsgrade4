@@ -3006,6 +3006,8 @@ function LiquidPillBar(props) {
             t.anchor = rbtn; t.color = rbtn.color;
             t.eL = rbtn.left; t.eR = rbtn.right;
             t.ch = REST_CH; t.hot = 0;
+            var rs = stRef.current[key];
+            if (rs && rs.ch < 0.015) { rs.eL.x = rbtn.left; rs.eR.x = rbtn.right; rs.eL.v = 0; rs.eR.v = 0; }
           }
         }
       }
@@ -3316,6 +3318,7 @@ function LiquidPillBar(props) {
   /* ── mount ─────────────────────────────────────────────────────────── */
   useEffect(function () {
     measure();
+    remeasureUntil.current = performance.now() + 600 / speed;
     var ro = new ResizeObserver(function () { measure(); });
     if (rootRef.current) ro.observe(rootRef.current);
     rafId.current = requestAnimationFrame(tick);
