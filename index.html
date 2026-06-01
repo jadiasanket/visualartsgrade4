@@ -3169,7 +3169,7 @@ function LiquidPillBar(props) {
         }
 
         var outVel = Math.max(s.eR.v, -s.eL.v, 0);
-        var bri = 1 + lqClamp(outVel / 320, 0, 1) * 0.6 + (s.flash || 0) * 0.5;
+        var bri = 1 + lqClamp(outVel / 320, 0, 1) * 0.15 + (s.flash || 0) * 0.4;
         pathEl.style.filter = (bri > 1.02) ? 'brightness(' + bri.toFixed(2) + ')' : '';
       };
 
