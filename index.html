@@ -3143,9 +3143,12 @@ function LiquidPillBar(props) {
         if (!pathEl || alpha < 0.01 || !s.anchor || !pill) { if (pathEl) pathEl.setAttribute('opacity', '0'); return; }
         var d = lqBubblePath(s.eL.x, s.eR.x, pill.cy, pill.h, s.anchor.left, s.anchor.right);
         pathEl.setAttribute('d', d);
-        pathEl.setAttribute('opacity', alpha.toFixed(3));
+        var restCell = geo[key] && geo[key].buttons.some(function (rb) { var rd = cellById(rb.id); return rd && rd.rest; });
+        var pOpacity = restCell ? 1 : alpha;
+        var restDim = restCell ? lqClamp(alpha, 0, 1) : 1;
+        pathEl.setAttribute('opacity', pOpacity.toFixed(3));
         if (s.anchor.color) {
-          var r = s.colorRgb[0], g = s.colorRgb[1], b = s.colorRgb[2];
+          var r = s.colorRgb[0] * restDim, g = s.colorRgb[1] * restDim, b = s.colorRgb[2] * restDim;
           var hv = lqClamp(s.hot || 0, 0, 1);
           var activeHere = geo[key] && geo[key].buttons.some(function (b2) { return activeRef.current[b2.id]; });
           if (magnetic && activeHere && hv > 0.04 && cursorRef.current != null) {
