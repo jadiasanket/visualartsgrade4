@@ -3478,7 +3478,7 @@ window.LQD_SURFACES = LQD_SURFACES;
     + 'border:1px solid var(--lqd-border,rgba(255,255,255,0.10));border-radius:999px;'
     + 'box-shadow:var(--lqd-shadow,0 4px 20px rgba(0,0,0,0.35));'
     + '-webkit-backdrop-filter:var(--lqd-blur,blur(6px) saturate(200%));backdrop-filter:var(--lqd-blur,blur(6px) saturate(200%));'
-    + 'padding:0 16px 0 40px;cursor:text;transition:border-color .4s ease;}'
+    + 'padding:0 16px 0 40px;cursor:text;transition:border-color .4s ease,width .2s ease;}'
     + '.lqs-field::before{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;'
     + 'opacity:0;transition:opacity .42s ease;'
     + 'box-shadow:-11px 0 28px -4px rgba(var(--lqs-glow,0,116,240),0.40),'
@@ -3513,6 +3513,7 @@ function LiquidSearchField(props) {
   var surface = props.surface != null ? props.surface : 'toolbar';
   var accent = props.accent != null ? props.accent : '0,116,240';
   var width = props.width != null ? props.width : 280;
+  var focusWidth = props.focusWidth != null ? props.focusWidth : width + 62;
   var height = props.height != null ? props.height : 44;
   var placeholder = props.placeholder != null ? props.placeholder : 'Search\u2026';
 
@@ -3533,7 +3534,7 @@ function LiquidSearchField(props) {
 
   var lqSurf = (typeof LQD_SURFACES !== 'undefined' ? LQD_SURFACES : (window.LQD_SURFACES || {}));
   var cls = 'lqs-field' + (state === 'hover' ? ' is-hover' : state === 'active' ? ' is-active' : '');
-  var style = Object.assign({ width: width, '--lqs-h': height + 'px', '--lqs-glow': accent }, lqSurf[surface] || lqSurf.toolbar || {});
+  var style = Object.assign({ width: state === 'active' ? focusWidth : width, '--lqs-h': height + 'px', '--lqs-glow': accent }, lqSurf[surface] || lqSurf.toolbar || {});
 
   return (
     <div ref={fieldRef} className={cls} style={style}
@@ -16570,175 +16571,210 @@ function GalleryView({isVisitor}){
             </div>
           </div>
 
-          {/* Toolbar pills */}
+          {/* Toolbar pills — migrated to LiquidPillBar (glass + dispersion + goo via 'toolbar' surface) */}
           <div style={{display:'flex',alignItems:'center',gap:6}}>
 
             {/* Zoom pill */}
-            <GalleryToolbarPill>
-              <GalleryPillBtn onClick={()=>setTileSize(s=>Math.min(4,s+1))} title="Zoom out" width={34}>
-                <span style={{fontSize:20,fontWeight:300,lineHeight:1}}>&#8722;</span>
-              </GalleryPillBtn>
-              <div style={{width:1,height:14,background:'rgba(255,255,255,0.12)',flexShrink:0,zIndex:3,position:'relative'}}/>
-              <GalleryPillBtn onClick={()=>setTileSize(s=>Math.max(0,s-1))} title="Zoom in" width={34}>
-                <span style={{fontSize:20,fontWeight:300,lineHeight:1}}>&#43;</span>
-              </GalleryPillBtn>
-            </GalleryToolbarPill>
+            <LiquidPillBar
+              surface="toolbar"
+              height={38}
+              gap={10}
+              select="none"
+              morph={false}
+              bridge="both"
+              groups={[
+                { id:'zoom', cells:[
+                  { id:'out', w:44, render:<span style={{fontSize:23,fontWeight:300,lineHeight:1}}>{'\u2212'}</span> },
+                  { id:'in',  w:44, render:<span style={{fontSize:23,fontWeight:300,lineHeight:1}}>{'\u002B'}</span> },
+                ]},
+              ]}
+              onAction={(groupId,cellId)=>{
+                if(cellId==='out'){ setTileSize(s=>Math.min(4,s+1)); }
+                else if(cellId==='in'){ setTileSize(s=>Math.max(0,s-1)); }
+              }}
+            />
 
             {/* Actions pill: rotate, upload, filter */}
-            <GalleryToolbarPill>
-              {teacherMode&&!isVisitor&&(
-                <>
-                  <GalleryPillBtn title="Rotate CCW" width={40}>
-                    <svg width="17" height="17" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9.4" y="21.8" width="20.3" height="20.3" rx="2.1" ry="2.1"/>
-                      <path d="M23,5.9l-2.4,6.3,6.3,2.4"/><path d="M38,23.5c2.3-6-1.6-12.9-8.6-13.6-1.6-.2-3.2.1-4.7.7l-4.1,1.6"/>
-                    </svg>
-                  </GalleryPillBtn>
-                  <div style={{width:1,height:14,background:'rgba(255,255,255,0.12)',flexShrink:0,zIndex:3,position:'relative'}}/>
-                  <GalleryPillBtn onClick={()=>setShowUpload(true)} title="Upload" width={40}>
-                    <svg width="17" height="17" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M24,10.5v18"/><path d="M31.5,18l-7.5-7.5-7.5,7.5"/>
-                      <path d="M37.5,28.5v6c0,1.7-1.3,3-3,3H13.5c-1.7,0-3-1.3-3-3v-6"/>
-                    </svg>
-                  </GalleryPillBtn>
-                  <div style={{width:1,height:14,background:'rgba(255,255,255,0.12)',flexShrink:0,zIndex:3,position:'relative'}}/>
-                </>
-              )}
-              {/* Filter — wrapper needed so dropdown escapes overflow */}
-              <div style={{position:'relative'}}>
-                <GalleryPillBtn onClick={()=>setShowFilter(v=>!v)} title="Filter" active={showFilter} width={40}>
-                  {IC.filter}
-                  {activeFilterCount>0&&(
-                    <span style={{position:'absolute',top:5,right:7,width:6,height:6,borderRadius:'50%',background:'rgb(0,116,240)',border:'2px solid rgba(7,7,8,0.87)'}}/>
-                  )}
-                </GalleryPillBtn>
-                {showFilter&&(
-                  <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'calc(100% + 8px)',right:0,zIndex:600,
-                    width:300,background:'rgba(12,12,16,0.98)',backdropFilter:'blur(28px)',WebkitBackdropFilter:'blur(28px)',
-                    border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,
-                    boxShadow:'0 20px 60px rgba(0,0,0,0.8)',overflow:'hidden'}}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 14px 9px'}}>
-                      <span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.85)',letterSpacing:'.02em'}}>Filter &amp; Arrange</span>
-                      <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                        {activeFilterCount>0&&<button onClick={clearFilters} style={{fontSize:10,fontWeight:700,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",padding:0}}>Clear all</button>}
-                        <button onClick={()=>setShowFilter(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:14,cursor:'pointer',padding:'0 2px',lineHeight:1}}>&#10005;</button>
-                      </div>
-                    </div>
-                    {/* Type */}
-                    <div style={{padding:'6px 14px 8px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Type</div>
-                      <div style={{display:'flex',gap:4}}>
-                        {[['all','All'],['artwork','Artwork'],...(isVisitor?[]:[['documentation','Docs']])].map(([v,l])=>(
-                          <button key={v} onClick={()=>setFilterType(v)}
-                            style={{flex:1,fontSize:11,fontWeight:filterType===v?700:400,height:28,borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                              border:'1px solid',borderColor:filterType===v?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
-                              background:filterType===v?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
-                              color:filterType===v?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
-                            {l}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
-                    {/* Section */}
-                    <div style={{padding:'8px 14px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Section</div>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                        {G4_SECTIONS.map(sec=>{
-                          const on=filterSections.has(sec.id);
-                          return(
-                            <button key={sec.id} onClick={()=>setFilterSections(prev=>{const n=new Set(prev);on?n.delete(sec.id):n.add(sec.id);return n;})}
-                              style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                                display:'flex',alignItems:'center',gap:5,
-                                border:'1px solid',borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
-                                background:on?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
-                                color:on?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
-                              <SectionDot sectionId={sec.id} size={5}/>{sec.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
-                    {/* Lesson */}
-                    <div style={{padding:'8px 14px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:4,maxHeight:90,overflowY:'auto'}}>
-                        {allLessons.map(l=>{
-                          const key=l.key||(l.phaseId+':'+l.n);
-                          const on=filterLessons.has(key);
-                          const chipLabel=l.phaseId==='custom'?(l.title||'Custom'):'S'+l.n;
-                          return(
-                            <button key={key} onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);on?n.delete(key):n.add(key);return n;})}
-                              style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                                border:'1px solid',borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
-                                background:on?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
-                                color:on?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s',flexShrink:0}}>
-                              {chipLabel}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
-                    {/* Arrange */}
-                    <div style={{padding:'8px 14px 12px'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Arrange</div>
-                      <div style={{display:'flex',gap:4}}>
-                        {[['default','Default'],['az','A → Z'],['za','Z → A'],['section','By Section']].map(([v,l])=>(
-                          <button key={v} onClick={()=>setArrange(v)}
-                            style={{flex:1,fontSize:10,fontWeight:arrange===v?700:400,padding:'5px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-                              border:'1px solid',borderColor:arrange===v?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
-                              background:arrange===v?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
-                              color:arrange===v?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
-                            {l}
-                          </button>
-                        ))}
-                      </div>
+            <div style={{position:'relative'}}>
+              <LiquidPillBar
+                surface="toolbar"
+                height={38}
+                gap={10}
+                select="none"
+                morph={false}
+                bridge="both"
+                groups={(teacherMode&&!isVisitor?[
+                  { id:'edit', cells:[
+                    { id:'rotate', w:50, render:<svg width="20" height="20" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="9.4" y="21.8" width="20.3" height="20.3" rx="2.1" ry="2.1"/><path d="M23,5.9l-2.4,6.3,6.3,2.4"/><path d="M38,23.5c2.3-6-1.6-12.9-8.6-13.6-1.6-.2-3.2.1-4.7.7l-4.1,1.6"/></svg> },
+                    { id:'upload', w:50, render:<svg width="20" height="20" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M24,10.5v18"/><path d="M31.5,18l-7.5-7.5-7.5,7.5"/><path d="M37.5,28.5v6c0,1.7-1.3,3-3,3H13.5c-1.7,0-3-1.3-3-3v-6"/></svg> },
+                  ]},
+                ]:[]).concat([
+                  { id:'filt', cells:[
+                    { id:'filter', w:50, toggle:true, defaultActive:!!showFilter,
+                      render:<span style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'center'}}>{IC.filter}{activeFilterCount>0&&(<span style={{position:'absolute',top:-3,right:1,width:6,height:6,borderRadius:'50%',background:'rgb(0,116,240)',border:'2px solid rgba(7,7,8,0.87)'}}/>)}</span> },
+                  ]},
+                ])}
+                onAction={(groupId,cellId)=>{
+                  if(cellId==='rotate'){ /* bulk rotate CCW — handler pending (see handoff §9 #4) */ }
+                  else if(cellId==='upload'){ setShowUpload(true); }
+                  else if(cellId==='filter'){ setShowFilter(v=>!v); }
+                }}
+              />
+              {showFilter&&(
+                <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'calc(100% + 8px)',right:0,zIndex:600,
+                  width:300,background:'rgba(12,12,16,0.98)',backdropFilter:'blur(28px)',WebkitBackdropFilter:'blur(28px)',
+                  border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,
+                  boxShadow:'0 20px 60px rgba(0,0,0,0.8)',overflow:'hidden'}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 14px 9px'}}>
+                    <span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.85)',letterSpacing:'.02em'}}>Filter &amp; Arrange</span>
+                    <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                      {activeFilterCount>0&&<button onClick={clearFilters} style={{fontSize:10,fontWeight:700,color:'var(--coral)',background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",padding:0}}>Clear all</button>}
+                      <button onClick={()=>setShowFilter(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:14,cursor:'pointer',padding:'0 2px',lineHeight:1}}>&#10005;</button>
                     </div>
                   </div>
-                )}
-              </div>
-            </GalleryToolbarPill>
+                  {/* Type */}
+                  <div style={{padding:'6px 14px 8px'}}>
+                    <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Type</div>
+                    <div style={{display:'flex',gap:4}}>
+                      {[['all','All'],['artwork','Artwork'],...(isVisitor?[]:[['documentation','Docs']])].map(([v,l])=>(
+                        <button key={v} onClick={()=>setFilterType(v)}
+                          style={{flex:1,fontSize:11,fontWeight:filterType===v?700:400,height:28,borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                            border:'1px solid',borderColor:filterType===v?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                            background:filterType===v?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
+                            color:filterType===v?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
+                  {/* Section */}
+                  <div style={{padding:'8px 14px'}}>
+                    <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Section</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                      {G4_SECTIONS.map(sec=>{
+                        const on=filterSections.has(sec.id);
+                        return(
+                          <button key={sec.id} onClick={()=>setFilterSections(prev=>{const n=new Set(prev);on?n.delete(sec.id):n.add(sec.id);return n;})}
+                            style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                              display:'flex',alignItems:'center',gap:5,
+                              border:'1px solid',borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                              background:on?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
+                              color:on?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
+                            <SectionDot sectionId={sec.id} size={5}/>{sec.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
+                  {/* Lesson */}
+                  <div style={{padding:'8px 14px'}}>
+                    <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Lesson</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:4,maxHeight:90,overflowY:'auto'}}>
+                      {allLessons.map(l=>{
+                        const key=l.key||(l.phaseId+':'+l.n);
+                        const on=filterLessons.has(key);
+                        const chipLabel=l.phaseId==='custom'?(l.title||'Custom'):'S'+l.n;
+                        return(
+                          <button key={key} onClick={()=>setFilterLessons(prev=>{const n=new Set(prev);on?n.delete(key):n.add(key);return n;})}
+                            style={{fontSize:11,fontWeight:on?700:400,padding:'4px 10px',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                              border:'1px solid',borderColor:on?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                              background:on?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
+                              color:on?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s',flexShrink:0}}>
+                            {chipLabel}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'0 14px'}}/>
+                  {/* Arrange */}
+                  <div style={{padding:'8px 14px 12px'}}>
+                    <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6}}>Arrange</div>
+                    <div style={{display:'flex',gap:4}}>
+                      {[['default','Default'],['az','A → Z'],['za','Z → A'],['section','By Section']].map(([v,l])=>(
+                        <button key={v} onClick={()=>setArrange(v)}
+                          style={{flex:1,fontSize:10,fontWeight:arrange===v?700:400,padding:'5px 0',borderRadius:8,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
+                            border:'1px solid',borderColor:arrange===v?'rgba(91,174,232,0.5)':'rgba(255,255,255,0.08)',
+                            background:arrange===v?'rgba(91,174,232,0.18)':'rgba(255,255,255,0.04)',
+                            color:arrange===v?'var(--sky)':'rgba(255,255,255,0.45)',transition:'all .12s'}}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
-            {/* Select — standalone pill */}
+            {/* Select / bulk-actions — default shows 'Select'; select-mode swaps to [delete | pencil] + standalone tick */}
             {teacherMode&&!isVisitor&&(
-              <GalleryToolbarPill style={{
-                borderColor:galleryEditMode?'rgba(0,116,240,0.45)':'rgba(255,255,255,0.13)',
-              }}>
-                <GalleryPillBtn
-                  onClick={()=>{setGalleryEditMode(v=>!v);setSelectedPhotos(new Set());}}
-                  active={galleryEditMode}
-                  title="Select mode"
-                  width={72}>
-                  <span style={{fontSize:11,fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>
-                    {galleryEditMode?'Done':'Select'}
-                  </span>
-                </GalleryPillBtn>
-              </GalleryToolbarPill>
+              !galleryEditMode?(
+                <LiquidPillBar
+                  surface="toolbar"
+                  height={38}
+                  gap={10}
+                  select="none"
+                  morph={false}
+                  bridge="both"
+                  groups={[
+                    { id:'sel', cells:[
+                      { id:'select', w:72, render:<span style={{fontSize:11,fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>Select</span> },
+                    ]},
+                  ]}
+                  onAction={(groupId,cellId)=>{ if(cellId==='select'){ setGalleryEditMode(true); setSelectedPhotos(new Set()); } }}
+                />
+              ):(
+                <React.Fragment>
+                  <div style={{opacity:selectedPhotos.size>0?1:0.4,transition:'opacity .15s'}}>
+                    <LiquidPillBar
+                      surface="toolbar"
+                      height={38}
+                      gap={10}
+                      select="none"
+                      morph={false}
+                      bridge="both"
+                      groups={[
+                        { id:'bulk', cells:[
+                          { id:'delete', w:50, color:'232,112,90', render:<svg width="20" height="20" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="39.7 12.2 17.7 12.2 8.3 12.2"/><path d="M36.5,12.2l-2.2,27.3c0,1.2-1.1,2.2-2.4,2.2h-15.9c-1.3,0-2.3-1-2.4-2.2l-2.2-27.3"/><line x1="18.2" y1="6.9" x2="29.8" y2="6.9"/><line x1="18.2" y1="17.3" x2="19.1" y2="36.9"/><line x1="24" y1="17.3" x2="24" y2="36.9"/><line x1="29.8" y1="17.3" x2="28.9" y2="36.9"/></svg> },
+                          { id:'pencil', w:50, render:<svg width="18" height="18" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M33.5 8.5l6 6L18 36l-7.5 1.5L12 30z"/><path d="M30 12l6 6"/></svg> },
+                        ]},
+                      ]}
+                      onAction={(groupId,cellId)=>{
+                        if(selectedPhotos.size===0) return;
+                        if(cellId==='delete'){ setConfirmDelete(true); }
+                        else if(cellId==='pencil'){ setBulkEditType('');setBulkEditLesson('');setBulkEditSection('');setBulkEditOpen(true); }
+                      }}
+                    />
+                  </div>
+                  <LiquidPillBar
+                    surface="toolbar"
+                    height={38}
+                    gap={10}
+                    select="none"
+                    morph={false}
+                    bridge="both"
+                    groups={[
+                      { id:'done', cells:[
+                        { id:'done', w:38, color:'40,180,99', rest:true, restCh:0.5,
+                          render:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> },
+                      ]},
+                    ]}
+                    onAction={(groupId,cellId)=>{ if(cellId==='done'){ exitEditMode(); } }}
+                  />
+                </React.Fragment>
+              )
             )}
 
-
             {/* Search */}
-            <div style={{position:'relative',display:'flex',alignItems:'center'}}>
-              <input
-                ref={localInputRef}
-                value={localQuery}
-                onChange={e=>setLocalQuery(e.target.value)}
-                placeholder="Search gallery..."
-                style={{height:34,padding:'0 12px 0 32px',borderRadius:100,
-                  background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px)',WebkitBackdropFilter:'blur(6px)',
-                  border:'1px solid rgba(255,255,255,0.13)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',
-                  color:'rgba(255,255,255,0.8)',fontFamily:"'DM Sans',sans-serif",
-                  fontSize:11,outline:'none',width:148,transition:'width .2s,border-color .15s'}}
-                onFocus={e=>{e.target.style.width='210px';e.target.style.borderColor='rgba(0,116,240,0.4)';}}
-                onBlur={e=>{e.target.style.width='148px';e.target.style.borderColor='rgba(255,255,255,0.13)';}}
-              />
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)"
-                strokeWidth="2.5" strokeLinecap="round" style={{position:'absolute',left:10,pointerEvents:'none'}}>
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-              </svg>
-            </div>
+            <LiquidSearchField
+              surface="toolbar"
+              placeholder="Search gallery..."
+              width={148}
+              height={38}
+              onChange={v=>setLocalQuery(v)}
+            />
           </div>
         </div>
       </div>
@@ -16798,30 +16834,6 @@ function GalleryView({isVisitor}){
 
       {showFilter&&<div style={{position:'fixed',inset:0,zIndex:499}} onClick={()=>setShowFilter(false)}/>}
 
-      {/* Selection bar */}
-      {galleryEditMode&&(
-        <div style={{display:'flex',alignItems:'center',gap:10,
-          padding:'0 16px',background:'rgba(255,255,255,0.04)',
-          height:38,flexShrink:0}}>
-          <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',flex:1,fontWeight:500}}>
-            {selectedPhotos.size===0
-              ?'Single click to select · Double click to open'
-              :''+selectedPhotos.size+' selected · Double click any to open'}
-          </div>
-          <div style={{display:'flex',gap:6,alignItems:'center',opacity:selectedPhotos.size>0?1:0,pointerEvents:selectedPhotos.size>0?'auto':'none',transition:'opacity .15s'}}>
-            <button onClick={()=>{setBulkEditType('');setBulkEditLesson('');setBulkEditSection('');setBulkEditOpen(true);}}
-              style={{fontSize:11,fontWeight:700,padding:'4px 12px',borderRadius:8,
-                border:'1px solid rgba(212,168,67,0.3)',background:'rgba(212,168,67,0.1)',
-                color:'var(--yellow)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
-            <button onClick={()=>setConfirmDelete(true)}
-              style={{fontSize:11,fontWeight:700,padding:'4px 12px',borderRadius:8,
-                border:'1px solid rgba(232,112,90,0.3)',background:'rgba(232,112,90,0.1)',
-                color:'var(--coral)',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Delete</button>
-            <button onClick={()=>setSelectedPhotos(new Set())}
-              style={{fontSize:10,color:'rgba(255,255,255,0.3)',background:'none',border:'none',cursor:'pointer',padding:'4px 4px'}}>Clear</button>
-          </div>
-        </div>
-      )}
 
       {showUpload&&<GalleryUpload onClose={()=>setShowUpload(false)} onDone={()=>setShowUpload(false)}/>}
 
