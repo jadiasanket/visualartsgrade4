@@ -2653,10 +2653,11 @@ Object.assign(window, { LQIC: LQIC, lqClamp: lqClamp, lqSmoothstep: lqSmoothstep
 var LQD_SURFACES = {
   toolbar: {
     '--lqd-surface': 'rgba(7,7,8,0.87)',
-    '--lqd-blur': 'blur(6px) saturate(200%)',
-    '--lqd-border': 'var(--glass-border, rgba(255,255,255,0.10))',
+    '--lqd-blur': 'blur(5px) saturate(200%)',
+    '--lqd-border': 'rgba(255,255,255,0.55)',
     '--lqd-shadow': 'var(--glass-shadow, 0 4px 20px rgba(0,0,0,0.35))',
     '--lqd-divider': 'rgba(255,255,255,0.12)',
+    '--lqd-sheen': 'linear-gradient(-33deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.07) 100%)',
   },
   glass: {
     '--lqd-surface': 'var(--glass-bg, rgba(255,255,255,0.08))',
@@ -2683,7 +2684,7 @@ var LQD_SURFACES = {
     + '.lqd-root{position:relative;display:flex;align-items:center;z-index:0;touch-action:none;}'
     + '.lqd-pill{position:relative;display:flex;align-items:center;background:transparent;}'
     + '.lqd-pill-bg{position:absolute;inset:0;z-index:1;'
-    + 'background:var(--lqd-surface,rgba(7,7,8,0.87));'
+    + 'background:var(--lqd-sheen,none),var(--lqd-surface,rgba(7,7,8,0.87));'
     + 'border:1px solid var(--lqd-border,rgba(255,255,255,0.10));'
     + 'border-radius:var(--lqd-radius,999px);'
     + 'box-shadow:var(--lqd-shadow,0 4px 20px rgba(0,0,0,0.35));'
