@@ -3149,7 +3149,7 @@ function LiquidPillBar(props) {
         var alpha = lqClamp(s.ch, 0, 1);
         var pill = geo[key];
         if (!pathEl || alpha < 0.01 || !s.anchor || !pill) { if (pathEl) pathEl.setAttribute('opacity', '0'); return; }
-        var d = lqBubblePath(s.eL.x, s.eR.x, pill.cy, pill.h - 8, s.anchor.left, s.anchor.right);
+        var d = lqBubblePath(s.eL.x, s.eR.x, pill.cy, pill.h, s.anchor.left, s.anchor.right);
         pathEl.setAttribute('d', d);
         var restCell = geo[key] && geo[key].buttons.some(function (rb) { var rd = cellById(rb.id); return rd && rd.rest; });
         var pOpacity = restCell ? 1 : alpha;
