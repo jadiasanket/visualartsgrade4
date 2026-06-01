@@ -2658,6 +2658,7 @@ var LQD_SURFACES = {
     '--lqd-shadow': 'var(--glass-shadow, 0 4px 20px rgba(0,0,0,0.35))',
     '--lqd-divider': 'rgba(255,255,255,0.12)',
     '--lqd-sheen': 'linear-gradient(-33deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.07) 100%)',
+    '--lqd-fringe': 'inset 1.5px 1px 1.5px -1px rgba(120,210,255,0.5), inset -1.5px -1px 1.5px -1px rgba(255,120,170,0.45)',
   },
   glass: {
     '--lqd-surface': 'var(--glass-bg, rgba(255,255,255,0.08))',
@@ -2687,7 +2688,7 @@ var LQD_SURFACES = {
     + 'background:var(--lqd-sheen,none),var(--lqd-surface,rgba(7,7,8,0.87));'
     + 'border:1px solid var(--lqd-border,rgba(255,255,255,0.10));'
     + 'border-radius:var(--lqd-radius,999px);'
-    + 'box-shadow:var(--lqd-shadow,0 4px 20px rgba(0,0,0,0.35));'
+    + 'box-shadow:var(--lqd-shadow,0 4px 20px rgba(0,0,0,0.35)),var(--lqd-fringe,0 0 0 transparent);'
     + '-webkit-backdrop-filter:var(--lqd-blur,blur(6px) saturate(200%));'
     + 'backdrop-filter:var(--lqd-blur,blur(6px) saturate(200%));'
     + 'transform-origin:left center;will-change:transform,opacity;}'
