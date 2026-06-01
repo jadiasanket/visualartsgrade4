@@ -3169,7 +3169,7 @@ function LiquidPillBar(props) {
         }
 
         var outVel = Math.max(s.eR.v, -s.eL.v, 0);
-        var bri = 1 + lqClamp(outVel / 320, 0, 1) * 3.5 + (s.flash || 0) * 1.1;
+        var bri = 1 + lqClamp(outVel / 320, 0, 1) * 0.6 + (s.flash || 0) * 0.5;
         pathEl.style.filter = (bri > 1.02) ? 'brightness(' + bri.toFixed(2) + ')' : '';
       };
 
@@ -3370,7 +3370,7 @@ function LiquidPillBar(props) {
             <feMorphology in="goo" operator="erode" radius="2.2" result="eroded"/>
             <feComposite in="goo" in2="eroded" operator="out" result="rim"/>
             <feGaussianBlur in="goo" stdDeviation="3" result="bump"/>
-            <feSpecularLighting in="bump" surfaceScale="6" specularConstant="0.9" specularExponent="16" lightingColor="#ffffff" result="spec">
+            <feSpecularLighting in="bump" surfaceScale="3.5" specularConstant="0.6" specularExponent="16" lightingColor="#d8e2f0" result="spec">
               <feDistantLight azimuth="235" elevation="55"/>
             </feSpecularLighting>
             <feComposite in="spec" in2="rim" operator="in" result="shine"/>
