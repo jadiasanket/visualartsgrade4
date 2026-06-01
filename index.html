@@ -3174,10 +3174,14 @@ function LiquidPillBar(props) {
         var d = lqBubblePath(s.eL.x, s.eR.x, pill.cy, pill.h, s.anchor.left, s.anchor.right);
         pathEl.setAttribute('d', d);
         var restCell = geo[key] && geo[key].buttons.some(function (rb) { var rd = cellById(rb.id); return rd && rd.rest; });
-        var pOpacity = restCell ? 1 : alpha;
+        var anchorDef = s.anchor && cellById(s.anchor.id);
+        var ghostCell = !!(anchorDef && anchorDef.ghost);
+        var pOpacity = ghostCell ? alpha * 0.22 : (restCell ? 1 : alpha);
         var restDim = restCell ? lqClamp(alpha, 0, 1) : 1;
         pathEl.setAttribute('opacity', pOpacity.toFixed(3));
-        if (s.anchor.color) {
+        if (ghostCell) {
+          pathEl.setAttribute('fill', 'url(#' + GRAD + ')');
+        } else if (s.anchor.color) {
           var r = s.colorRgb[0] * restDim, g = s.colorRgb[1] * restDim, b = s.colorRgb[2] * restDim;
           var hv = lqClamp(s.hot || 0, 0, 1);
           var activeHere = geo[key] && geo[key].buttons.some(function (b2) { return activeRef.current[b2.id]; });
