@@ -14724,7 +14724,7 @@ function ZoomSlider({value,active,onChange,onActiveChange}){
 }
 
 // ── EditPanel ────────────────────────────────────────────────────────────────
-function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg}){
+function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg,epApiRef,onHistChange}){
   const bg=panelBg||'rgba(7,7,8,0.87)';
   const panelRef  = React.useRef(null);
   const filtersRef= React.useRef(initialFilters||{brightness:50,contrast:50,saturation:50,sharpness:50,warmth:50,vertical:50,horizontal:50});
@@ -14839,6 +14839,7 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
     const u=document.querySelector('#ep-undo'),r=document.querySelector('#ep-redo');
     if(u) u.style.opacity=histIdxRef.current>0?'1':'0.4';
     if(r){const canRedo=histIdxRef.current<histRef.current.length-1;r.style.opacity=canRedo?'1':'0.4';}
+    if(onHistChange) onHistChange({canUndo:histIdxRef.current>0,canRedo:histIdxRef.current<histRef.current.length-1});
   }
 
   // Slider — centre-zero, blue fill from 50%, white thumb line, value label
@@ -14963,10 +14964,10 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
     btn('#ep-flipV',    ()=>{flipYRef.current*=-1;saveHist();applyTransformImg();});
     // External buttons (pill lives outside panel DOM)
     const gbtn=(id,fn)=>{const el=document.querySelector(id);if(el)el.addEventListener('click',fn);};
-    gbtn('#ep-undo',()=>{if(histIdxRef.current<=0)return;histIdxRef.current--;const h=histRef.current[histIdxRef.current];rotRef.current=h.rotation;flipXRef.current=h.flipX;flipYRef.current=h.flipY;if(h.filters){Object.assign(filtersRef.current,h.filters);restoreSliders(h.filters);applyFilters();}updateUndoBtns();applyTransformImg();});
-    gbtn('#ep-redo',()=>{if(histIdxRef.current>=histRef.current.length-1)return;histIdxRef.current++;const h=histRef.current[histIdxRef.current];rotRef.current=h.rotation;flipXRef.current=h.flipX;flipYRef.current=h.flipY;if(h.filters){Object.assign(filtersRef.current,h.filters);restoreSliders(h.filters);applyFilters();}updateUndoBtns();applyTransformImg();});
-    gbtn('#ep-apply',()=>{if(onApply){onApply(buildFilterStr());}else if(onClose)onClose();});
-    gbtn('#ep-resetAll',()=>{
+    const doUndo=()=>{if(histIdxRef.current<=0)return;histIdxRef.current--;const h=histRef.current[histIdxRef.current];rotRef.current=h.rotation;flipXRef.current=h.flipX;flipYRef.current=h.flipY;if(h.filters){Object.assign(filtersRef.current,h.filters);restoreSliders(h.filters);applyFilters();}updateUndoBtns();applyTransformImg();};
+    const doRedo=()=>{if(histIdxRef.current>=histRef.current.length-1)return;histIdxRef.current++;const h=histRef.current[histIdxRef.current];rotRef.current=h.rotation;flipXRef.current=h.flipX;flipYRef.current=h.flipY;if(h.filters){Object.assign(filtersRef.current,h.filters);restoreSliders(h.filters);applyFilters();}updateUndoBtns();applyTransformImg();};
+    const doApply=()=>{if(onApply){onApply(buildFilterStr());}else if(onClose)onClose();};
+    const doResetAll=()=>{
       Object.assign(filtersRef.current,{brightness:50,contrast:50,saturation:50,sharpness:50,warmth:50,vertical:50,horizontal:50});
       rotRef.current=0;flipXRef.current=1;flipYRef.current=1;
       ['brightness','contrast','saturation','sharpness','warmth'].forEach(k=>{
@@ -14980,8 +14981,8 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
       if(imgRef&&imgRef.current){imgRef.current.style.filter='';}
       if(onFilterChange) onFilterChange({brightness:50,contrast:50,saturation:50,sharpness:50,warmth:50,vertical:50,horizontal:50},'');
       histRef.current=[{rotation:0,flipX:1,flipY:1}];histIdxRef.current=0;updateUndoBtns();
-    });
-    gbtn('#ep-auto',()=>{
+    };
+    const doAuto=()=>{
       const vals={brightness:62,contrast:60,saturation:65,sharpness:60,warmth:54,vertical:50,horizontal:50};
       Object.assign(filtersRef.current,vals);
       ['brightness','contrast','saturation','sharpness','warmth'].forEach(k=>{
@@ -14994,7 +14995,14 @@ function EditPanel({imgRef,onClose,onApply,initialFilters,onFilterChange,panelBg
         if(val) val.textContent=(((v-50)/50)>=0?'+':'')+((v-50)/50).toFixed(2);
       });
       applyFilters();
-    });
+    };
+    gbtn('#ep-undo',doUndo);
+    gbtn('#ep-redo',doRedo);
+    gbtn('#ep-apply',doApply);
+    gbtn('#ep-resetAll',doResetAll);
+    gbtn('#ep-auto',doAuto);
+    // Publish actions outward so a LiquidPillBar in the lightbox can drive them
+    if(epApiRef) epApiRef.current={undo:doUndo,redo:doRedo,apply:doApply,resetAll:doResetAll,auto:doAuto};
   },[]);
 
   return (
@@ -15257,6 +15265,9 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   const photoFiltersRef=React.useRef({});
   const photoFilterStrRef=React.useRef({});
   const infoPanelRef=React.useRef(null);
+  // Adjust-bar bridge: EditPanel publishes its actions + history flags here; epHist re-keys the pill so undo/redo ghost<->solid tracks history
+  const epApiRef=React.useRef({});
+  const [epHist,setEpHist]=React.useState({canUndo:false,canRedo:false});
   const [panelBg,setPanelBg]=React.useState('rgba(7,7,8,0.87)');
   // E: inline reassign state
   const [infoEditMode,setInfoEditMode]=React.useState(false); // pencil toggle
@@ -15899,26 +15910,37 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
       {/* EDIT PANEL BOTTOM PILL */}
       {activeControl==='edit'&&<div id="ep-bot-outer" onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
         style={{position:'fixed',top:'calc(8vh + 196px + 6px)',right:'2.5vw',display:'flex',alignItems:'center',gap:8,zIndex:21}}>
-        <div id="ep-pill" style={{display:'flex',alignItems:'center',height:34,position:'relative',background:'rgba(7,7,8,0.87)',backdropFilter:'blur(6px) saturate(200%)',WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:100,border:'1px solid rgba(255,255,255,0.15)',boxShadow:'0 4px 20px rgba(0,0,0,0.35)',overflow:'hidden'}}>
-          <div id="ep-pill-bubble" style={{position:'absolute',top:0,bottom:0,borderRadius:100,pointerEvents:'none',zIndex:1,opacity:0,background:'rgb(0,116,240)',willChange:'left,width,opacity,transform',transformOrigin:'center'}}/>
-          <button id="ep-undo" style={{flex:1,minWidth:46,height:34,background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center',justifyContent:'center',position:'relative',zIndex:2,padding:'0 14px'}} title="Undo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
-          <div style={{width:1,height:14,background:'rgba(255,255,255,0.10)',flexShrink:0,zIndex:2}}/>
-          <button id="ep-redo" style={{flex:1,minWidth:46,height:34,background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center',justifyContent:'center',position:'relative',zIndex:2,padding:'0 14px'}} title="Redo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg></button>
-          <div style={{width:1,height:14,background:'rgba(255,255,255,0.10)',flexShrink:0,zIndex:2}}/>
-          <button id="ep-auto" style={{flex:1,minWidth:46,height:34,background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center',justifyContent:'center',position:'relative',zIndex:2,padding:'0 14px'}} title="Auto Enhance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg></button>
-          <div style={{width:1,height:14,background:'rgba(255,255,255,0.10)',flexShrink:0,zIndex:2}}/>
-          <button id="ep-resetAll" style={{flex:1,minWidth:46,height:34,background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center',justifyContent:'center',position:'relative',zIndex:2,padding:'0 14px'}} title="Reset all"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg></button>
-        </div>
-        <button id="ep-apply"
-          onMouseEnter={e=>{e.currentTarget.style.background='rgb(22,163,74)';}}
-          onMouseLeave={e=>{e.currentTarget.style.background='rgb(34,197,94)';}}
-          style={{width:38,height:38,borderRadius:'50%',border:'none',cursor:'pointer',background:'rgb(34,197,94)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 12px rgba(34,197,94,0.35)'}}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </button>
+        <LiquidPillBar
+          key={'eptb-'+(epHist.canUndo?'u':'')+(epHist.canRedo?'r':'')}
+          className="lb-glass-panel"
+          surface="toolbar"
+          height={38}
+          gap={10}
+          select="none"
+          morph={false}
+          stretch={true}
+          wobble={true}
+          magnetic={true}
+          bridge="both"
+          groups={[
+            { id:'edit', cells:[
+              { id:'undo', w:46, color:epHist.canUndo?'0,116,240':undefined, ghost:!epHist.canUndo, render:<span style={{display:'flex',alignItems:'center',justifyContent:'center',width:20,height:20,opacity:epHist.canUndo?1:0.5}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></span> },
+              { id:'redo', w:46, color:epHist.canRedo?'0,116,240':undefined, ghost:!epHist.canRedo, render:<span style={{display:'flex',alignItems:'center',justifyContent:'center',width:20,height:20,opacity:epHist.canRedo?1:0.5}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg></span> },
+              { id:'auto', w:46, color:'0,116,240', render:<span style={{display:'flex',alignItems:'center',justifyContent:'center',width:20,height:20}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg></span> },
+              { id:'resetAll', w:46, color:'0,116,240', render:<span style={{display:'flex',alignItems:'center',justifyContent:'center',width:20,height:20}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg></span> },
+            ]},
+            { id:'apply', cells:[
+              { id:'apply', w:46, color:'34,197,94', render:<span style={{display:'flex',alignItems:'center',justifyContent:'center',width:20,height:20}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> },
+            ]},
+          ]}
+          onAction={(groupId,cellId)=>{ const a=epApiRef.current||{}; if(cellId==='undo'&&a.undo)a.undo(); else if(cellId==='redo'&&a.redo)a.redo(); else if(cellId==='auto'&&a.auto)a.auto(); else if(cellId==='resetAll'&&a.resetAll)a.resetAll(); else if(cellId==='apply'&&a.apply)a.apply(); }}
+        />
       </div>}
 
       {/* EDIT PANEL */}
       {activeControl==='edit'&&<EditPanel imgRef={imgRef} panelBg={panelBg}
+        epApiRef={epApiRef}
+        onHistChange={(h)=>setEpHist(h)}
         initialFilters={photoFiltersRef.current[photo.url]}
         onFilterChange={(filters,filterStr)=>{
           photoFiltersRef.current[photo.url]=filters;
