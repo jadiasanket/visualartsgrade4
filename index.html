@@ -3012,8 +3012,6 @@ function LiquidPillBar(props) {
             t.anchor = rbtn; t.color = rbtn.color;
             t.eL = rbtn.left; t.eR = rbtn.right;
             t.ch = REST_CH; t.hot = 0;
-            var rs = stRef.current[key];
-            if (rs && rs.ch < 0.015) { rs.eL.x = rbtn.left; rs.eR.x = rbtn.right; rs.eL.v = 0; rs.eR.v = 0; }
           }
         }
       }
@@ -3107,9 +3105,12 @@ function LiquidPillBar(props) {
         var s = stRef.current[key], t = tgtRef.current[key], pathEl = bubRefs.current[key];
         if (!s || !t) return;
         if (s.ch < 0.015 && t.ch > 0 && t.anchor) {
-          var cxv = cursorRef.current != null ? cursorRef.current : t.anchor.cx;
-          var seed = lqClamp(cxv, t.anchor.left, t.anchor.right);
-          s.eL.x = seed; s.eR.x = seed; s.eL.v = 0; s.eR.v = 0;
+          if (cursorRef.current == null) {
+            s.eL.x = t.anchor.left; s.eR.x = t.anchor.right; s.eL.v = 0; s.eR.v = 0;
+          } else {
+            var seed = lqClamp(cursorRef.current, t.anchor.left, t.anchor.right);
+            s.eL.x = seed; s.eR.x = seed; s.eL.v = 0; s.eR.v = 0;
+          }
         }
         if (t.anchor) {
           s.anchor = t.anchor;
