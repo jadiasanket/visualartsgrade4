@@ -3052,7 +3052,7 @@ function LiquidPillBar(props) {
           var pOpenW = parent.mitosis.openW;
           var pL = pill.left, pR = pill.right;
           if (pOpenW != null) { pL = pCx - pOpenW / 2; pR = pCx + pOpenW / 2; }
-          t.anchor = Object.assign({}, pb, { left: pL, right: pR, cx: pCx });
+          t.anchor = Object.assign({}, pb, { left: pL, right: pR, cx: pCx, color: parent.mitosis.openColor });
           t.color = parent.mitosis.openColor; t.eL = pL; t.ch = 1;
           t.eR = pR + neck;
         }
@@ -3198,9 +3198,13 @@ function LiquidPillBar(props) {
           }
           var pr = lqClamp(tt.birthW.prog, 0, 1);
           var wp = lqClamp(pr / 0.62, 0, 1), eo = wp * wp * (3 - 2 * wp);
-          pillEl.style.overflow = 'hidden';
-          pillEl.style.width = (natW * eo).toFixed(2) + 'px';
-          pillEl.style.marginLeft = (-gap * (1 - eo)).toFixed(2) + 'px';
+          if (tt.birthW.stage === 'settle' && eo > 0.999) {
+            if (pillEl.style.width !== '' ) { pillEl.style.overflow = ''; pillEl.style.width = ''; pillEl.style.marginLeft = ''; remeasureUntil.current = performance.now() + 120; }
+          } else {
+            pillEl.style.overflow = 'hidden';
+            pillEl.style.width = (natW * eo).toFixed(2) + 'px';
+            pillEl.style.marginLeft = (-gap * (1 - eo)).toFixed(2) + 'px';
+          }
 
           var bgEl = bgEls.current[key], rowEl = rowEls.current[key], sObj = stRef.current[key];
           if (rowEl) rowEl.style.opacity = '1';
@@ -16599,7 +16603,7 @@ function GalleryView({isVisitor}){
                   { id:'rotate', w:50, render:<svg width="24" height="24" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="9.4" y="21.8" width="20.3" height="20.3" rx="2.1" ry="2.1"/><path d="M23,5.9l-2.4,6.3,6.3,2.4"/><path d="M38,23.5c2.3-6-1.6-12.9-8.6-13.6-1.6-.2-3.2.1-4.7.7l-4.1,1.6"/></svg> },
                   { id:'upload', w:50, render:<svg width="24" height="24" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M24,10.5v18"/><path d="M31.5,18l-7.5-7.5-7.5,7.5"/><path d="M37.5,28.5v6c0,1.7-1.3,3-3,3H13.5c-1.7,0-3-1.3-3-3v-6"/></svg> },
                 ]:[]).concat([
-                  { id:'filter', w:50, render:<span style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'center',color:showFilter?'rgb(91,174,232)':'inherit'}}><svg width="24" height="24" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M8 12h32M14 24h20M20 36h8"/></svg>{activeFilterCount>0&&(<span style={{position:'absolute',top:-2,right:2,width:6,height:6,borderRadius:'50%',background:'rgb(0,116,240)',border:'2px solid rgba(7,7,8,0.87)'}}/>)}</span> },
+                  { id:'filter', w:50, rest:!!showFilter, restCh:0.62, render:<span style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'center',color:showFilter?'rgb(91,174,232)':'inherit'}}><svg width="24" height="24" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M8 12h32M14 24h20M20 36h8"/></svg>{activeFilterCount>0&&(<span style={{position:'absolute',top:-2,right:2,width:6,height:6,borderRadius:'50%',background:'rgb(0,116,240)',border:'2px solid rgba(7,7,8,0.87)'}}/>)}</span> },
                 ]) },
               ].concat(teacherMode&&!isVisitor?[
                 { id:'sel', cells:[
