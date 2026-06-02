@@ -3176,11 +3176,11 @@ function LiquidPillBar(props) {
         var restCell = geo[key] && geo[key].buttons.some(function (rb) { var rd = cellById(rb.id); return rd && rd.rest; });
         var anchorDef = s.anchor && cellById(s.anchor.id);
         var ghostCell = !!(anchorDef && anchorDef.ghost);
-        var pOpacity = ghostCell ? lqClamp(alpha * 0.7 + 0.12, 0, 0.62) : (restCell ? 1 : alpha);
+        var pOpacity = ghostCell ? alpha : (restCell ? 1 : alpha);
         var restDim = restCell ? lqClamp(alpha, 0, 1) : 1;
         pathEl.setAttribute('opacity', pOpacity.toFixed(3));
         if (ghostCell) {
-          pathEl.setAttribute('fill', 'rgb(200,212,232)');
+          pathEl.setAttribute('fill', 'rgb(28,29,32)');
         } else if (s.anchor.color) {
           var r = s.colorRgb[0] * restDim, g = s.colorRgb[1] * restDim, b = s.colorRgb[2] * restDim;
           var hv = lqClamp(s.hot || 0, 0, 1);
