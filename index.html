@@ -3180,7 +3180,7 @@ function LiquidPillBar(props) {
         var restDim = restCell ? lqClamp(alpha, 0, 1) : 1;
         pathEl.setAttribute('opacity', pOpacity.toFixed(3));
         if (ghostCell) {
-          pathEl.setAttribute('fill', 'rgb(28,29,32)');
+          pathEl.setAttribute('fill', 'rgb(51,53,59)');
         } else if (s.anchor.color) {
           var r = s.colorRgb[0] * restDim, g = s.colorRgb[1] * restDim, b = s.colorRgb[2] * restDim;
           var hv = lqClamp(s.hot || 0, 0, 1);
