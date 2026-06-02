@@ -14830,7 +14830,7 @@ function PopupBirth(props){
     return { cx: cx, seedCy: r.bottom - seedR + 1, seedR: seedR,
       L: rect.left, R: rect.left + rect.width, T: rect.top, B: rect.top + rect.height };
   }
-  function collapsed(g){ var pcx=(g.L+g.R)/2; return { L: pcx - g.seedR, R: pcx + g.seedR, T: g.seedCy - g.seedR, B: g.seedCy + g.seedR }; }
+  function collapsed(g){ var pcx=(g.L+g.R)/2, pcy=(g.T+g.B)/2; return { L: pcx - g.seedR, R: pcx + g.seedR, T: pcy - g.seedR, B: pcy + g.seedR }; }
 
   function doOpen(){
     if (panelRef.current) panelRef.current.style.display = 'block';
@@ -14861,7 +14861,7 @@ function PopupBirth(props){
 
     function step(edge, kd){ var k = kd[0]*cs*cs, d = kd[1]*cs, t = tgt[edge], o = st[edge];
       for (var i=0;i<STEPS;i++){ o.v += (-k*(o.x-t) - d*o.v)*ddt; o.x += o.v*ddt; } }
-    step('B', sp.B); step('T', sp.T); step('L', sp.S); step('R', sp.S);
+    var uni = [440, 19]; step('B', uni); step('T', uni); step('L', uni); step('R', uni);
     pulseRef.current *= Math.pow(0.86, dt/0.016);
 
     var L = st.L.x, R = st.R.x, T = st.T.x, B = st.B.x;
