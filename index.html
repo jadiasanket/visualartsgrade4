@@ -14831,7 +14831,7 @@ function PopupBirth(props){
     return { cx: cx, seedCy: r.bottom - seedR + 1, seedR: seedR,
       L: rect.left, R: rect.left + rect.width, T: rect.top, B: rect.top + rect.height };
   }
-  function collapsed(g){ return { L: g.cx - g.seedR, R: g.cx + g.seedR, T: g.seedCy - g.seedR, B: g.seedCy + g.seedR }; }
+  function collapsed(g){ var pcx=(g.L+g.R)/2; return { L: pcx - g.seedR, R: pcx + g.seedR, T: g.seedCy - g.seedR, B: g.seedCy + g.seedR }; }
 
   function doOpen(){
     if (panelRef.current) panelRef.current.style.display = 'block';
@@ -15843,7 +15843,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
         width={280}
         panelClassName="lb-glass-panel"
         tint="7,7,8"
-        rest={(a,vp,size)=>({ left: Math.max(12, a.right - size.W), top: vp.h*0.08, width: size.W, height: size.H })}
+        rest={(a,vp,size)=>{ var x=document.querySelector('[data-lqd-btn="close"]'); var rightEdge=x?x.getBoundingClientRect().right:a.right; return { left: Math.max(12, rightEdge - size.W), top: vp.h*0.08, width: size.W, height: size.H }; }}
         onClosed={()=>setInfoMounted(false)}
         bottomBar={null}
       >
