@@ -15505,6 +15505,8 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
   // Keep adjust content mounted through PopupBirth's close animation; unmount on onClosed.
   const [editMounted,setEditMounted]=React.useState(false);
   React.useEffect(()=>{ if(activeControl==='edit') setEditMounted(true); },[activeControl]);
+  const [infoMounted,setInfoMounted]=React.useState(false);
+  React.useEffect(()=>{ if(activeControl==='info'&&infoVisible) setInfoMounted(true); },[activeControl,infoVisible]);
   const [panelBg,setPanelBg]=React.useState('rgba(7,7,8,0.87)');
   // E: inline reassign state
   const [infoEditMode,setInfoEditMode]=React.useState(false); // pencil toggle
@@ -15826,16 +15828,22 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
         </div>
       )}
 
-      {/* INFO PANEL */}
-      {activeControl==='info'&&infoVisible&&(
-        <div className="lb-glass-panel" ref={infoPanelRef}
-          style={{...infoPanelStyle,zIndex:20,width:'clamp(220px,20vw,280px)',
-            background:panelBg,backdropFilter:'blur(6px) saturate(200%)',
-            WebkitBackdropFilter:'blur(6px) saturate(200%)',borderRadius:15,
-            border:'1px solid rgba(255,255,255,0.15)',overflow:'visible',
-            boxShadow:'0 12px 40px rgba(0,0,0,0.65)',
-            animation:'panel-in .22s cubic-bezier(0.34,1.56,0.64,1) forwards',
-            transition:'border-color .2s'}}
+      {/* INFO PANEL — born from the Info toolbar button via PopupBirth (drag temporarily off) */}
+      <PopupBirth
+        open={activeControl==='info'&&infoVisible}
+        getAnchor={()=>document.querySelector('[data-lqd-btn="info"]')}
+        spring="soft"
+        goo={11}
+        width={280}
+        panelClassName="lb-glass-panel"
+        tint="7,7,8"
+        rest={(a,vp,size)=>({ left: Math.max(12, a.right - size.W), top: vp.h*0.08, width: size.W, height: size.H })}
+        onClosed={()=>setInfoMounted(false)}
+        bottomBar={null}
+      >
+      {infoMounted&&(
+        <div ref={infoPanelRef}
+          style={{width:'100%',overflow:'visible'}}
           onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
 
           {/* Header: name + section dot + edit/tick button */}
@@ -16110,6 +16118,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
           )}
         </div>
       )}
+      </PopupBirth>
 
       {/* LESSON OVERLAY — opens full SessionCard when lesson title tapped in info card */}
       {lessonOverlayOpen&&lessonSession&&ReactDOM.createPortal(
