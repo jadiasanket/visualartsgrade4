@@ -14771,13 +14771,15 @@ function ZoomSlider({value,active,onChange,onActiveChange}){
     /* the flying liquid skin — full-viewport, behind the real panel */
     ".pbx-svg{position:fixed;inset:0;z-index:18;pointer-events:none;overflow:visible;}"+
     /* the real popup surface. Default look ≈ the toolbar pill; override via panelClassName */
-    ".pbx-panel{position:fixed;z-index:20;background:rgba(7,7,8,0.87);"+
-      "-webkit-backdrop-filter:blur(6px) saturate(200%);backdrop-filter:blur(6px) saturate(200%);"+
+    ".pbx-panel{position:fixed;z-index:20;background:rgba(7,7,8,0.55);"+
+      "-webkit-backdrop-filter:blur(7px) saturate(200%);backdrop-filter:blur(7px) saturate(200%);"+
       "border:1px solid rgba(255,255,255,0.12);box-shadow:0 14px 44px rgba(0,0,0,0.6);"+
       "border-radius:18px;overflow:hidden;will-change:left,top,width,height,opacity;}"+
-    /* the bottom bar slides out from behind the panel (z below it) */
+    /* the bottom bar slides out from behind the panel (z below it). Blur lives here because
+       the imperative transform on this element breaks backdrop-filter on the child pills. */
     ".pbx-botbar{position:fixed;z-index:19;display:flex;align-items:center;gap:10px;"+
-      "white-space:nowrap;will-change:transform,opacity;}";
+      "white-space:nowrap;will-change:transform,opacity;"+
+      "-webkit-backdrop-filter:blur(7px) saturate(200%);backdrop-filter:blur(7px) saturate(200%);border-radius:100px;}";
   document.head.appendChild(s);
 })();
 
@@ -16148,7 +16150,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
       {/* EDIT PANEL (Adjust) — wrapped in PopupBirth */}
       <PopupBirth
         open={activeControl==='edit'}
-        getAnchor={()=>document.querySelector('[data-lqd-btn="edit"]')}
+        getAnchor={()=>document.querySelector('[data-lqd-btn="close"]')}
         spring="soft"
         goo={11}
         width={288}
