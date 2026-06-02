@@ -14775,11 +14775,10 @@ function ZoomSlider({value,active,onChange,onActiveChange}){
       "-webkit-backdrop-filter:blur(7px) saturate(200%);backdrop-filter:blur(7px) saturate(200%);"+
       "border:1px solid rgba(255,255,255,0.12);box-shadow:0 14px 44px rgba(0,0,0,0.6);"+
       "border-radius:18px;overflow:hidden;will-change:left,top,width,height,opacity;}"+
-    /* the bottom bar slides out from behind the panel (z below it). Blur lives here because
-       the imperative transform on this element breaks backdrop-filter on the child pills. */
-    ".pbx-botbar{position:fixed;z-index:19;display:flex;align-items:center;gap:10px;"+
-      "white-space:nowrap;will-change:transform,opacity;"+
-      "-webkit-backdrop-filter:blur(7px) saturate(200%);backdrop-filter:blur(7px) saturate(200%);border-radius:100px;}";
+    /* bottom bar wrapper stays transparent + UNtransformed so child pill backdrop-filters survive;
+       the slide is done via top/left math (no transform anywhere in the bar ancestry). */
+    ".pbx-botbar{position:fixed;z-index:19;will-change:opacity;}"+
+    ".pbx-botbar-inner{display:flex;align-items:center;gap:10px;white-space:nowrap;}";
   document.head.appendChild(s);
 })();
 
@@ -14788,14 +14787,14 @@ function pbxSmooth(e0,e1,x){ var t = pbxClamp((x-e0)/(e1-e0),0,1); return t*t*(3
 function pbxSprings(p){
   if (p === 'stiff')  return { B:[1400,58], T:[1400,58], S:[1400,58] };
   if (p === 'bouncy') return { B:[540,17],  T:[430,18],  S:[245,12]  };
-  return { B:[520,26], T:[380,24], S:[230,17] }; /* soft pill (default) */
+  return { B:[520,21], T:[380,19], S:[230,14] }; /* soft pill (default) — lower damping = bouncier */
 }
 
 function PopupBirth(props){
   var useRef = React.useRef, useEffect = React.useEffect, useId = React.useId;
 
   var svgRef = useRef(null), twinRef = useRef(null), seedRef = useRef(null), neckRef = useRef(null);
-  var gRef = useRef(null), panelRef = useRef(null), contentRef = useRef(null), botBarRef = useRef(null);
+  var gRef = useRef(null), panelRef = useRef(null), contentRef = useRef(null), botBarRef = useRef(null), botInnerRef = useRef(null);
   var e = useRef({ L:{x:0,v:0}, T:{x:0,v:0}, R:{x:0,v:0}, B:{x:0,v:0} });
   var barRef = useRef({ x:0, v:0 });
   var geo = useRef(null), openRef = useRef(false), pulseRef = useRef(0), liveRef = useRef(false), rafRef = useRef(null);
@@ -14863,7 +14862,7 @@ function PopupBirth(props){
     function step(edge, kd){ var k = kd[0]*cs*cs, d = kd[1]*cs, t = tgt[edge], o = st[edge];
       for (var i=0;i<STEPS;i++){ o.v += (-k*(o.x-t) - d*o.v)*ddt; o.x += o.v*ddt; } }
     step('B', sp.B); step('T', sp.T); step('L', sp.S); step('R', sp.S);
-    pulseRef.current *= 0.86;
+    pulseRef.current *= Math.pow(0.86, dt/0.016);
 
     var L = st.L.x, R = st.R.x, T = st.T.x, B = st.B.x;
     var w = Math.max(1, R-L), h = Math.max(1, B-T);
@@ -14908,8 +14907,10 @@ function PopupBirth(props){
     for (var bi=0;bi<STEPS;bi++){ brs.v += (-480*(brs.x-barTgt) - 30*brs.v)*ddt; brs.x += brs.v*ddt; }
     var bp = pbxClamp(brs.x, 0, 1);
     if (bar){
-      bar.style.left = ((L+R)/2).toFixed(1)+'px'; bar.style.top = (B + 12).toFixed(1)+'px';
-      bar.style.transform = 'translateX(-50%) translateY('+(-34*(1-bp)).toFixed(1)+'px)';
+      var inner = botInnerRef.current;
+      var bw = inner ? inner.offsetWidth : 0;
+      bar.style.left = (((L+R)/2) - bw/2).toFixed(1)+'px';
+      bar.style.top = (B + 12 - 34*(1-bp)).toFixed(1)+'px';
       bar.style.opacity = bp.toFixed(3); bar.style.pointerEvents = bp > 0.6 ? 'auto' : 'none';
     }
 
@@ -14959,7 +14960,8 @@ function PopupBirth(props){
     React.createElement('div', { ref: panelRef, className: 'pbx-panel' + (props.panelClassName ? ' '+props.panelClassName : ''), style:{ display:'none', opacity:0 } },
       React.createElement('div', { ref: contentRef, style:{ width:(props.width||288)+'px' } }, props.children)
     ),
-    props.bottomBar ? React.createElement('div', { ref: botBarRef, className:'pbx-botbar', style:{ display:'none', opacity:0 } }, props.bottomBar) : null
+    props.bottomBar ? React.createElement('div', { ref: botBarRef, className:'pbx-botbar', style:{ display:'none', opacity:0 } },
+      React.createElement('div', { ref: botInnerRef, className:'pbx-botbar-inner' }, props.bottomBar)) : null
   );
 }
 
@@ -16167,6 +16169,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
         open={activeControl==='edit'}
         getAnchor={()=>document.querySelector('[data-lqd-btn="edit"]')}
         spring="soft"
+        closeSpeed={1.1}
         goo={11}
         width={288}
         panelClassName="lb-glass-panel"
