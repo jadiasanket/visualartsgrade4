@@ -14799,6 +14799,7 @@ function PopupBirth(props){
   var e = useRef({ L:{x:0,v:0}, T:{x:0,v:0}, R:{x:0,v:0}, B:{x:0,v:0} });
   var barRef = useRef({ x:0, v:0 });
   var geo = useRef(null), openRef = useRef(false), pulseRef = useRef(0), liveRef = useRef(false), rafRef = useRef(null);
+  var lastT = useRef(0);
   var sizeRef = useRef({ w: window.innerWidth, h: window.innerHeight });
   var p = useRef(props); p.current = props;
 
@@ -14843,11 +14844,15 @@ function PopupBirth(props){
     openRef.current = true; liveRef.current = true; pulseRef.current = 1; start();
   }
   function doClose(){ openRef.current = false; start(); }
-  function start(){ if (!rafRef.current) rafRef.current = requestAnimationFrame(tick); }
+  function start(){ if (!rafRef.current){ lastT.current = 0; rafRef.current = requestAnimationFrame(tick); } }
 
   function tick(){
+    var now = (typeof performance!=='undefined'?performance.now():Date.now());
+    var raw = lastT.current ? (now - lastT.current)/1000 : 0.016;
+    lastT.current = now;
     var dtScale = window.__pbSlow ? 0.13 : 1;            /* slow-mo debug hook */
-    var dt = 0.016, STEPS = 4, ddt = dt*dtScale/STEPS;
+    var dt = pbxClamp(raw, 0.001, 0.032) * dtScale;      /* real elapsed, clamped (frame-rate independent) */
+    var STEPS = 4, ddt = dt/STEPS;
     var g = openRef.current ? (geo.current = computeGeo() || geo.current) : geo.current;
     var st = e.current, tw = p.current;
     if (!g){ rafRef.current = null; return; }
@@ -14952,7 +14957,7 @@ function PopupBirth(props){
       )
     ),
     React.createElement('div', { ref: panelRef, className: 'pbx-panel' + (props.panelClassName ? ' '+props.panelClassName : ''), style:{ display:'none', opacity:0 } },
-      React.createElement('div', { ref: contentRef }, props.children)
+      React.createElement('div', { ref: contentRef, style:{ width:(props.width||288)+'px' } }, props.children)
     ),
     props.bottomBar ? React.createElement('div', { ref: botBarRef, className:'pbx-botbar', style:{ display:'none', opacity:0 } }, props.bottomBar) : null
   );
@@ -15833,6 +15838,7 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
         open={activeControl==='info'&&infoVisible}
         getAnchor={()=>document.querySelector('[data-lqd-btn="info"]')}
         spring="soft"
+        closeSpeed={1.1}
         goo={11}
         width={280}
         panelClassName="lb-glass-panel"
@@ -16159,13 +16165,13 @@ function PhotoLightbox({photo,allPhotos,onClose,onNavigate,teacherMode,zIndex,on
       {/* EDIT PANEL (Adjust) — wrapped in PopupBirth */}
       <PopupBirth
         open={activeControl==='edit'}
-        getAnchor={()=>document.querySelector('[data-lqd-btn="close"]')}
+        getAnchor={()=>document.querySelector('[data-lqd-btn="edit"]')}
         spring="soft"
         goo={11}
         width={288}
         panelClassName="lb-glass-panel"
         tint="7,7,8"
-        rest={(a,vp,size)=>({ left: Math.max(12, a.right - size.W), top: vp.h*0.08, width: size.W, height: size.H })}
+        rest={(a,vp,size)=>{ var x=document.querySelector('[data-lqd-btn="close"]'); var rightEdge=x?x.getBoundingClientRect().right:a.right; return { left: Math.max(12, rightEdge - size.W), top: vp.h*0.08, width: size.W, height: size.H }; }}
         onClosed={()=>setEditMounted(false)}
         bottomBar={editMounted ? (
           <LiquidPillBar
