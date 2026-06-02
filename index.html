@@ -14861,7 +14861,7 @@ function PopupBirth(props){
 
     function step(edge, kd){ var k = kd[0]*cs*cs, d = kd[1]*cs, t = tgt[edge], o = st[edge];
       for (var i=0;i<STEPS;i++){ o.v += (-k*(o.x-t) - d*o.v)*ddt; o.x += o.v*ddt; } }
-    var uni = [440, 19]; step('B', uni); step('T', uni); step('L', uni); step('R', uni);
+    var uni = [320, 19]; step('B', uni); step('T', uni); step('L', uni); step('R', uni);
     pulseRef.current *= Math.pow(0.86, dt/0.016);
 
     var L = st.L.x, R = st.R.x, T = st.T.x, B = st.B.x;
@@ -14958,7 +14958,7 @@ function PopupBirth(props){
       )
     ),
     React.createElement('div', { ref: panelRef, className: 'pbx-panel' + (props.panelClassName ? ' '+props.panelClassName : ''), style:{ display:'none', opacity:0 } },
-      React.createElement('div', { ref: contentRef, style:{ width:(props.width||288)+'px' } }, props.children)
+      React.createElement('div', { ref: contentRef, style:{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-50%)', width:(props.width||288)+'px' } }, props.children)
     ),
     props.bottomBar ? React.createElement('div', { ref: botBarRef, className:'pbx-botbar', style:{ display:'none', opacity:0 } },
       React.createElement('div', { ref: botInnerRef, className:'pbx-botbar-inner' }, props.bottomBar)) : null
